@@ -5,7 +5,7 @@ Some components of this gerber system:
 - A JSON command representation (defined in part with zod), all gerber command
   definitions are in [./commands](./commands)
   - Each command features a stringification function
-- A function that converts soup to the Gerber commands [./convert-soup-to-gerber-commands](./convert-soup-to-gerber-commands)
+- A function that converts soup to the Gerber commands [./src/convert-soup-to-gerber-commands](./convert-soup-to-gerber-commands)
 
 ## References
 
