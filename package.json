@@ -1,9 +1,11 @@
 {
   "name": "circuit-json-to-gerber",
-  "module": "index.ts",
+  "version": "0.0.1",
+  "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "latest",
+    "tsup": "^8.2.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
