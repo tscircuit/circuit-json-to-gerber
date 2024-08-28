@@ -1,10 +1,11 @@
-import { test } from "bun:test"
+import { test, expect } from "bun:test"
 import { convertSoupToGerberCommands } from "src/convert-soup-to-gerber-commands"
 import {
   stringifyGerberCommandLayers,
   stringifyGerberCommands,
 } from "src/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
+import gerberToSvg from "gerber-to-svg"
 
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
@@ -27,5 +28,15 @@ test("Generate simple gerber with a single trace", async () => {
 
   // TODO parse gerber to check for correctness
 
-  await maybeOutputGerber(stringifyGerberCommandLayers(gerber_cmds))
+  const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
+
+  await maybeOutputGerber(gerberOutput)
+
+  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple1")
+
+  // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
+  //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
+  // })
+
+  // render(
 })
