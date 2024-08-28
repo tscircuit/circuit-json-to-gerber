@@ -1,6 +1,6 @@
-import { AnyGerberCommand } from "../any_gerber_command"
+import type { AnyGerberCommand } from "src/any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
-import packageJson from "../../../../package.json"
+import packageJson from "package.json"
 
 const layerAndTypeToFileFunction = {
   "top-copper": "Copper,L1,Top",
@@ -43,7 +43,9 @@ export const getCommandHeaders = (opts: {
 }): AnyGerberCommand[] => {
   const file_function =
     layerAndTypeToFileFunction[
-      opts.layer_type ? `${opts.layer}-${opts.layer_type}` : opts.layer
+      (opts.layer_type
+        ? `${opts.layer}-${opts.layer_type}`
+        : opts.layer) as keyof typeof layerAndTypeToFileFunction
     ]
   return (
     gerberBuilder()
@@ -72,7 +74,7 @@ export const getCommandHeaders = (opts: {
           attribute_name: "FilePolarity",
           attribute_value:
             opts.layer_type === "soldermask" ? "Negative" : "Positive",
-        })
+        }),
       )
       .add("format_specification", {})
       .add("set_unit", {

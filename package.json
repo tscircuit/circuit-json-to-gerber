@@ -4,10 +4,14 @@
   "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
+    "@tscircuit/soup": "^0.0.58",
     "@types/bun": "latest",
     "tsup": "^8.2.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "fast-json-stable-stringify": "^2.1.0"
   }
 }

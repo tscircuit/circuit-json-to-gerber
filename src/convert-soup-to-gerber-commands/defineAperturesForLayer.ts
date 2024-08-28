@@ -36,7 +36,7 @@ export function defineAperturesForLayer({
   glayer.push(
     ...gerberBuilder()
       .add("comment", { comment: "aperture START LIST" })
-      .build()
+      .build(),
   )
 
   // Add all trace width apertures
@@ -51,14 +51,14 @@ export function defineAperturesForLayer({
           standard_template_code: "C",
           diameter: width,
         })
-        .build()
+        .build(),
     )
   }
 
   // Add all pcb smtpad, plated hole etc. aperatures
   const apertureConfigs = getAllApertureTemplateConfigsForLayer(
     soup,
-    glayer_name.startsWith("F_") ? "top" : "bottom"
+    glayer_name.startsWith("F_") ? "top" : "bottom",
   )
 
   for (const apertureConfig of apertureConfigs) {
@@ -68,7 +68,7 @@ export function defineAperturesForLayer({
           aperture_number: getNextApertureNumber(),
           ...apertureConfig,
         })
-        .build()
+        .build(),
     )
   }
 
@@ -76,12 +76,12 @@ export function defineAperturesForLayer({
     ...gerberBuilder()
       .add("delete_attribute", {})
       .add("comment", { comment: "aperture END LIST" })
-      .build()
+      .build(),
   )
 }
 
 export const getApertureConfigFromPcbSmtpad = (
-  elm: PCBSMTPad
+  elm: PCBSMTPad,
 ): ApertureTemplateConfig => {
   if (elm.shape === "rect") {
     return {
@@ -89,21 +89,21 @@ export const getApertureConfigFromPcbSmtpad = (
       x_size: elm.width,
       y_size: elm.height,
     }
-  } else if (elm.shape === "circle") {
+  }
+  if (elm.shape === "circle") {
     return {
       standard_template_code: "C",
       diameter: elm.radius * 2,
     }
-  } else {
-    throw new Error(`Unsupported shape ${(elm as any).shape}`)
   }
+  throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 export const getApertureConfigFromCirclePcbPlatedHole = (
-  elm: PCBPlatedHole
+  elm: PCBPlatedHole,
 ): ApertureTemplateConfig => {
   if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
     throw new Error(
-      `Invalid shape called in getApertureConfigFromCirclePcbPlatedHole: ${elm.shape}`
+      `Invalid shape called in getApertureConfigFromCirclePcbPlatedHole: ${elm.shape}`,
     )
   }
   return {
@@ -115,7 +115,7 @@ export const getApertureConfigFromCirclePcbPlatedHole = (
 
 function getAllApertureTemplateConfigsForLayer(
   soup: AnySoupElement[],
-  layer: "top" | "bottom"
+  layer: "top" | "bottom",
 ): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
   const configHashMap = new Set<string>()
