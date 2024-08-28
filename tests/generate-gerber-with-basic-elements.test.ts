@@ -1,4 +1,4 @@
-import { test } from "bun:test"
+import { test, expect } from "bun:test"
 import { convertSoupToGerberCommands } from "src/convert-soup-to-gerber-commands"
 import {
   stringifyGerberCommandLayers,
@@ -77,6 +77,9 @@ test("Generate simple gerber with basic elements", async () => {
   // console.log(stringifyGerberCommands(gerber_cmds.B_Mask))
 
   // TODO parse gerber to check for correctness
+  const gerbers = stringifyGerberCommandLayers(gerber_cmds)
 
-  await maybeOutputGerber(stringifyGerberCommandLayers(gerber_cmds))
+  await maybeOutputGerber(gerbers)
+
+  expect(gerbers).toMatchGerberSnapshot(import.meta.path, "simple2")
 })

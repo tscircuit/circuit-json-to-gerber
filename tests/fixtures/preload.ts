@@ -1,6 +1,7 @@
 import "bun-match-svg"
 import { expect } from "bun:test"
-import gerberToSvg from "gerber-to-svg"
+import pcbStackup from "pcb-stackup"
+import { Readable } from "stream"
 
 async function toMatchGerberSnapshot(
   this: any,
@@ -8,14 +9,22 @@ async function toMatchGerberSnapshot(
   testPathOriginal: string,
   svgName?: string,
 ) {
-  const svg = await new Promise((resolve, reject) => {
-    gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
-      if (err) return reject(err)
-      resolve(svg)
-    })
-  })
+  // Create layers array from gerberOutput
+  const layers = Object.entries(gerberOutput).map(([filename, content]) => ({
+    filename,
+    gerber: Readable.from(content),
+  }))
 
-  return expect(svg).toMatchSvgSnapshot(import.meta.path, svgName)
+  try {
+    const stackup = await pcbStackup(layers)
+
+    // We'll use the top layer SVG for comparison, but you could choose bottom or both
+    const svg = stackup.top.svg
+
+    return expect(svg).toMatchSvgSnapshot(testPathOriginal, svgName)
+  } catch (error) {
+    throw new Error(`Failed to generate PCB stackup: ${error}`)
+  }
 }
 
 expect.extend({
@@ -26,7 +35,7 @@ expect.extend({
 declare module "bun:test" {
   interface Matchers<T = unknown> {
     toMatchGerberSnapshot(
-      testPath: string,
+      testImportMetaPath: string,
       svgName?: string,
     ): Promise<MatcherResult>
   }

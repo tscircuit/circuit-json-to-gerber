@@ -7,13 +7,14 @@
     "@tscircuit/soup": "^0.0.58",
     "@types/bun": "latest",
     "gerber-to-svg": "^4.2.8",
-    "tsup": "^8.2.4"
+    "tsup": "^8.2.4",
+    "bun-match-svg": "^0.0.1",
+    "pcb-stackup": "^4.2.8"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
   },
   "dependencies": {
-    "bun-match-svg": "^0.0.1",
     "fast-json-stable-stringify": "^2.1.0"
   }
 }
