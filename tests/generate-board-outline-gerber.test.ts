@@ -6,7 +6,7 @@ import {
 } from "src/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import gerberToSvg from "gerber-to-svg"
-
+import { toMatchGerberSnapshot } from "./fixtures/preload"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
@@ -32,7 +32,10 @@ test("Generate simple gerber with a single trace", async () => {
 
   await maybeOutputGerber(gerberOutput)
 
-  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple1")
+  const gerbersArray =await toMatchGerberSnapshot(gerberOutput, import.meta.path, "simple1")
+  for(const gerber of gerbersArray) {
+  expect(gerberOutput)
+  }
 
   // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
   //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")

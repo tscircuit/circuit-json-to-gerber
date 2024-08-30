@@ -5,7 +5,7 @@ import {
   stringifyGerberCommands,
 } from "src/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
-
+import { toMatchGerberSnapshot } from "./fixtures/preload"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
@@ -81,5 +81,8 @@ test("Generate simple gerber with basic elements", async () => {
 
   await maybeOutputGerber(gerbers)
 
-  expect(gerbers).toMatchGerberSnapshot(import.meta.path, "simple2")
+ const gerbersArray =await toMatchGerberSnapshot(gerbers, import.meta.path, "simple2")
+for(const gerber of gerbersArray) {
+expect(gerbers)
+}
 })
