@@ -1,7 +1,7 @@
-<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" stroke-linecap="round" stroke-linejoin="round" stroke-width="0" fill-rule="evenodd" clip-rule="evenodd" id="V7IobC5PloiR_top" viewBox="0 -20000 20000 20000" width="20in" height="20in"><defs><style>.V7IobC5PloiR_fr4 {color: #666666;}
-.V7IobC5PloiR_cu {color: #cccccc;}
-.V7IobC5PloiR_cf {color: #cc9933;}
-.V7IobC5PloiR_sm {color: #004200; opacity: 0.7490196078431373;}
-.V7IobC5PloiR_ss {color: #ffffff;}
-.V7IobC5PloiR_sp {color: #999999;}
-.V7IobC5PloiR_out {color: #000000;}</style><clipPath id="V7IobC5PloiR_top_outline"><path d="M 0 -20000 20000 -20000 20000 0 0 0 0 -20000" fill="none" stroke-width="50"/></clipPath><mask id="V7IobC5PloiR_top_mech-mask"><g fill="#000" stroke="#000"><rect x="0" y="-20000" width="20000" height="20000" fill="#fff"/></g></mask></defs><g transform="translate(0,-20000) scale(1,-1)"><g mask="url(#V7IobC5PloiR_top_mech-mask)" clip-path="url(#V7IobC5PloiR_top_outline)"><rect x="0" y="-20000" width="20000" height="20000" fill="currentColor" class="V7IobC5PloiR_fr4"/></g></g></svg>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" stroke-linecap="round" stroke-linejoin="round" stroke-width="0" fill-rule="evenodd" clip-rule="evenodd" id="eIjvKGzKiqGc_top" viewBox="-22500 -18000 45000 42500" width="45in" height="42.5in"><defs><style>.eIjvKGzKiqGc_fr4 {color: #666666;}
+.eIjvKGzKiqGc_cu {color: #cccccc;}
+.eIjvKGzKiqGc_cf {color: #cc9933;}
+.eIjvKGzKiqGc_sm {color: #004200; opacity: 0.7490196078431373;}
+.eIjvKGzKiqGc_ss {color: #ffffff;}
+.eIjvKGzKiqGc_sp {color: #999999;}
+.eIjvKGzKiqGc_out {color: #000000;}</style><g id="eIjvKGzKiqGc_top_copper"><path d="M -10000 0 10000 0" fill="none" stroke-width="100"/></g><clipPath id="eIjvKGzKiqGc_top_outline"><path d="M -22500 24500 22500 24500 22500 16500 20500 16500 20500 12500 22500 12500 22500 2500 18000 -1500 18000 -18000 -18000 -18000 -18000 -1500 -22500 2500 -22500 12500 -20500 12500 -20500 16500 -22500 16500 -22500 24500" fill="none" stroke-width="50"/></clipPath><mask id="eIjvKGzKiqGc_top_mech-mask"><g fill="#000" stroke="#000"><rect x="-22500" y="-18000" width="45000" height="42500" fill="#fff"/></g></mask><mask id="eIjvKGzKiqGc_top_cf-mask"><g fill="#fff" stroke="#fff"><rect x="-22500" y="-18000" width="45000" height="42500"/></g></mask></defs><g transform="translate(0,6500) scale(1,-1)"><g mask="url(#eIjvKGzKiqGc_top_mech-mask)" clip-path="url(#eIjvKGzKiqGc_top_outline)"><rect x="-22500" y="-18000" width="45000" height="42500" fill="currentColor" class="eIjvKGzKiqGc_fr4"/><use xlink:href="#eIjvKGzKiqGc_top_copper" fill="currentColor" stroke="currentColor" class="eIjvKGzKiqGc_cu"/><use xlink:href="#eIjvKGzKiqGc_top_copper" fill="currentColor" stroke="currentColor" class="eIjvKGzKiqGc_cf" mask="url(#eIjvKGzKiqGc_top_cf-mask)"/></g></g></svg>
