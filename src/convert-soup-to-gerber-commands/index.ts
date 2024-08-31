@@ -56,7 +56,7 @@ export const convertSoupToGerberCommands = (
   }
 
   // Edgecuts has a single aperature
-  glayers["Edge_Cuts"].push(
+  glayers.Edge_Cuts.push(
     ...gerberBuilder()
       .add("define_aperture_template", {
         aperture_number: 10,
@@ -194,7 +194,7 @@ export const convertSoupToGerberCommands = (
   }
 
   for (const key of Object.keys(glayers)) {
-    glayers[key].push(...gerberBuilder().add("end_of_file", {}).build())
+    glayers[key as keyof LayerToGerberCommandsMap].push(...gerberBuilder().add("end_of_file", {}).build())
   }
 
   return glayers

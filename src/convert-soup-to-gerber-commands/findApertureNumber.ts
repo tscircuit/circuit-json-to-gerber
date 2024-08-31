@@ -26,7 +26,7 @@ export const findApertureNumber = (
       (command): command is DefineAperatureTemplateCommand =>
         command.command_code === "ADD" &&
         Object.keys(search_params).every(
-          (param_name) => command[param_name] === search_params[param_name]
+          (param_name) => command[param_name as keyof typeof search_params] === search_params[param_name as keyof typeof search_params]
         )
     )
   }
