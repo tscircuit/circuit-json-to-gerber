@@ -1,5 +1,5 @@
 import type { GerberCommandDef } from "./define-gerber-command"
-import { z } from "zod"
+import type { z } from "zod"
 
 import { add_attribute_on_aperture } from "./commands/add_attribute_on_aperture"
 import { add_attribute_on_file } from "./commands/add_attribute_on_file"

@@ -1,4 +1,4 @@
-import { AnyZodObject, z, ZodObject, ZodUnion } from "zod"
+import type { AnyZodObject, z, ZodObject, ZodUnion } from "zod"
 
 export interface GerberCommandDef<
   K extends string,

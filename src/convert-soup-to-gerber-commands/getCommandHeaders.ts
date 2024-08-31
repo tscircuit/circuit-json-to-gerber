@@ -81,7 +81,7 @@ export const getCommandHeaders = (opts: {
         unit: "mm",
       })
       .add("comment", {
-        comment: `Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)`,
+        comment: "Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)",
       })
       .add("comment", {
         comment: `Created by tscircuit (builder) date ${new Date().toISOString()}`,
