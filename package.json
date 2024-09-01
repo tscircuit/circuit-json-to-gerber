@@ -4,7 +4,7 @@
   "module": "src/index.ts",
   "type": "module",
   "devDependencies": {
-    "@tscircuit/soup": "^0.0.58",
+    "@tscircuit/soup": "^0.0.60",
     "@types/bun": "latest",
     "gerber-to-svg": "^4.2.8",
     "tsup": "^8.2.4",
