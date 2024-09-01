@@ -5,11 +5,11 @@
   "type": "module",
   "devDependencies": {
     "@tscircuit/soup": "^0.0.60",
-    "@types/bun": "latest",
+    "@types/bun": "^1.1.8",
+    "bun-match-svg": "^0.0.2",
     "gerber-to-svg": "^4.2.8",
-    "tsup": "^8.2.4",
-    "bun-match-svg": "^0.0.1",
-    "pcb-stackup": "^4.2.8"
+    "pcb-stackup": "^4.2.8",
+    "tsup": "^8.2.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
