@@ -6,6 +6,7 @@
   "devDependencies": {
     "@tscircuit/soup": "^0.0.60",
     "@types/bun": "^1.1.8",
+    "@types/node": "^22.5.2",
     "bun-match-svg": "^0.0.2",
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
