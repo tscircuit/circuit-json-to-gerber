@@ -1,5 +1,5 @@
-import { AnyGerberCommand } from "./any_gerber_command"
-import { z } from "zod"
+import type { AnyGerberCommand } from "./any_gerber_command"
+import type { z } from "zod"
 import { gerber_command_map } from "./any_gerber_command"
 
 export const gerberBuilder = () => new GerberBuilder()

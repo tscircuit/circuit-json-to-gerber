@@ -1,5 +1,5 @@
-import { AnyGerberCommand } from "../any_gerber_command"
-import { GerberJobJson } from "./gerber-job-json"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import type { GerberJobJson } from "./gerber-job-json"
 
 export type LayerToGerberCommandsMap = {
   F_Cu: AnyGerberCommand[]

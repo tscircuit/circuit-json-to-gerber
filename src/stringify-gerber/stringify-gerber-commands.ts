@@ -1,4 +1,4 @@
-import { AnyGerberCommand } from "../any_gerber_command"
+import type { AnyGerberCommand } from "../any_gerber_command"
 import { stringifyGerberCommand } from "./stringify-gerber-command"
 
 export const stringifyGerberCommands = (

@@ -1,8 +1,8 @@
-import {
+import type {
   ApertureTemplateConfig,
   DefineAperatureTemplateCommand,
 } from "../commands/define_aperture_template"
-import { AnyGerberCommand } from "../any_gerber_command"
+import type { AnyGerberCommand } from "../any_gerber_command"
 
 export const findApertureNumber = (
   glayer: AnyGerberCommand[],
@@ -26,7 +26,7 @@ export const findApertureNumber = (
       (command): command is DefineAperatureTemplateCommand =>
         command.command_code === "ADD" &&
         Object.keys(search_params).every(
-          (param_name) => command[param_name] === search_params[param_name]
+          (param_name) => command[param_name as keyof typeof search_params] === search_params[param_name as keyof typeof search_params]
         )
     )
   }

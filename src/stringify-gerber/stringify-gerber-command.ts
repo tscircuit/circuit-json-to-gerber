@@ -1,4 +1,5 @@
-import { AnyGerberCommand, gerber_command_map } from "../any_gerber_command"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import { gerber_command_map } from "../any_gerber_command"
 
 export const stringifyGerberCommand = (command: AnyGerberCommand): string => {
   const command_def = Object.values(gerber_command_map).find(

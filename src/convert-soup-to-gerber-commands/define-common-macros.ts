@@ -1,4 +1,4 @@
-import { AnyGerberCommand } from "../any_gerber_command"
+import type { AnyGerberCommand } from "../any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
 
 export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
