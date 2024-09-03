@@ -70,19 +70,22 @@ test("Generate simple gerber with basic elements", async () => {
       outer_diameter: 2,
     },
   ])
-  const fu_cp = stringifyGerberCommands(gerber_cmds.F_Cu)
+  const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
   // console.log("Gerber")
   // console.log("----------------------------------------------")
-  // console.log(fu_cp)
-  // console.log(stringifyGerberCommands(gerber_cmds.B_Mask))
+  // console.log(edgecut_gerber)
 
   // TODO parse gerber to check for correctness
-  const gerbers = stringifyGerberCommandLayers(gerber_cmds)
 
-  await maybeOutputGerber(gerbers)
+  const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
- const gerbersArray =await toMatchGerberSnapshot(gerbers, import.meta.path, "simple2")
-for(const gerber of gerbersArray) {
-expect(gerbers)
-}
+  await maybeOutputGerber(gerberOutput)
+
+  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple2")
+
+  // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
+  //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
+  // })
+
+  // render(
 })

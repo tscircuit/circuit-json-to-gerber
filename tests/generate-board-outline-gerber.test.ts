@@ -72,10 +72,7 @@ test("Generate simple gerber with a single trace", async () => {
 
   await maybeOutputGerber(gerberOutput)
 
-  const gerbersArray =await toMatchGerberSnapshot(gerberOutput, import.meta.path, "simple1")
-  for(const gerber of gerbersArray) {
-  expect(gerberOutput)
-  }
+  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple1")
 
   // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
   //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
