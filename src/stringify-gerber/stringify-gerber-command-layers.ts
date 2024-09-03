@@ -1,5 +1,5 @@
-import { AnyGerberCommand } from "../any_gerber_command"
-import { GerberLayerName } from "../convert-soup-to-gerber-commands/GerberLayerName"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import type { GerberLayerName } from "../convert-soup-to-gerber-commands/GerberLayerName"
 import { stringifyGerberCommand } from "./stringify-gerber-command"
 
 export const stringifyGerberCommandLayers = (
