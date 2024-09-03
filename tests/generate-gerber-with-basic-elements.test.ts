@@ -5,7 +5,6 @@ import {
   stringifyGerberCommands,
 } from "src/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
-
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
@@ -70,16 +69,22 @@ test("Generate simple gerber with basic elements", async () => {
       outer_diameter: 2,
     },
   ])
-  const fu_cp = stringifyGerberCommands(gerber_cmds.F_Cu)
+  const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
   // console.log("Gerber")
   // console.log("----------------------------------------------")
-  // console.log(fu_cp)
-  // console.log(stringifyGerberCommands(gerber_cmds.B_Mask))
+  // console.log(edgecut_gerber)
 
   // TODO parse gerber to check for correctness
-  const gerbers = stringifyGerberCommandLayers(gerber_cmds)
 
-  await maybeOutputGerber(gerbers)
+  const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
-  expect(gerbers).toMatchGerberSnapshot(import.meta.path, "simple2")
+  await maybeOutputGerber(gerberOutput)
+
+  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple2")
+
+  // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
+  //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
+  // })
+
+  // render(
 })
