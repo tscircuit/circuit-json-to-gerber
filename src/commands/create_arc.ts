@@ -9,7 +9,7 @@ export const create_arc = defineGerberCommand({
       arc_parameters: z.string(),
     })
     .describe(
-      "Create arc: A G75 must be called before creating the first arc."
+      "Create arc: A G75 must be called before creating the first arc.",
     ),
   stringify() {
     return ""

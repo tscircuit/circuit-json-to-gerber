@@ -11,11 +11,11 @@ export const flash_operation = defineGerberCommand({
       y: z.number(),
     })
     .describe(
-      "Flash operation: Creates a flash object with the current aperture. The current point is moved to the flash point."
+      "Flash operation: Creates a flash object with the current aperture. The current point is moved to the flash point.",
     ),
   stringify({ x, y }) {
     const [gx, gy] = [x, y].map((coord) =>
-      getGerberCoordinateWithPadding(coord)
+      getGerberCoordinateWithPadding(coord),
     )
     return `X${gx}Y${gy}D03*`
   },

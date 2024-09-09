@@ -6,7 +6,7 @@ export const load_rotation = z
     rotation: z.string(),
   })
   .describe(
-    "Load rotation: Loads the rotation object transformation parameter."
+    "Load rotation: Loads the rotation object transformation parameter.",
   )
 
 export type LoadRotation = z.infer<typeof load_rotation>

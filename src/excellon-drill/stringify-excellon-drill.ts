@@ -4,7 +4,7 @@ import {
 } from "./any-excellon-drill-command-map"
 
 export const stringifyExcellonDrill = (
-  commands: Array<AnyExcellonDrillCommand>
+  commands: Array<AnyExcellonDrillCommand>,
 ) => {
   return commands
     .map((c) => {

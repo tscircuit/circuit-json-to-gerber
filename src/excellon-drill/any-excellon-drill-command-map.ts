@@ -1,5 +1,5 @@
 import type { z } from "zod"
-import type{ ExcellonDrillCommandDef } from "./define-excellon-drill-command"
+import type { ExcellonDrillCommandDef } from "./define-excellon-drill-command"
 import * as EDCMD from "./commands"
 
 export const excellon_drill_command_map = {

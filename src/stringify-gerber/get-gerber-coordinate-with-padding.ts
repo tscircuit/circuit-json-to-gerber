@@ -13,7 +13,7 @@
  * @returns The Gerber coordinate with padding.
  */
 export const getGerberCoordinateWithPadding = (
-  coordinate_mm: number
+  coordinate_mm: number,
 ): string => {
   const coordinate_um = coordinate_mm * 1000000 // Convert millimeters to micrometers
   let coordinate_str = coordinate_um.toFixed(0) // Convert to string without decimal places

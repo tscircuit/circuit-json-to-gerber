@@ -10,7 +10,7 @@ export const add_attribute_on_object = defineGerberCommand({
       attribute_value: z.string(),
     })
     .describe(
-      "Add attribute on object: Add an object attribute to the dictionary or modify it."
+      "Add attribute on object: Add an object attribute to the dictionary or modify it.",
     ),
   stringify: ({ attribute_name, attribute_value }) => {
     return `%TO${attribute_name},${attribute_value}*%`

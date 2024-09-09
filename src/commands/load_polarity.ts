@@ -6,7 +6,7 @@ export const load_polarity = z
     polarity: z.string(),
   })
   .describe(
-    "Load polarity: Loads the polarity object transformation parameter."
+    "Load polarity: Loads the polarity object transformation parameter.",
   )
 
 export type LoadPolarity = z.infer<typeof load_polarity>

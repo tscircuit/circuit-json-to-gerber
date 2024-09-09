@@ -9,7 +9,7 @@ export const set_layer_polarity = defineGerberCommand({
       polarity: z.enum(["D", "C"]),
     })
     .describe(
-      "Layer Polarity: Sets the layer polarity to dark or clear. 4.2.1"
+      "Layer Polarity: Sets the layer polarity to dark or clear. 4.2.1",
     ),
   stringify({ polarity }) {
     return `%LP${polarity}*%`

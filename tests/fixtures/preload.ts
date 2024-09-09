@@ -20,7 +20,7 @@ async function toMatchGerberSnapshot(
     const svgNames: string[] = []
 
     for (const item of Object.keys(stackup!) as Array<keyof Stackup>) {
-      const layer = stackup[item] as { svg: string };
+      const layer = stackup[item] as { svg: string }
       if (layer.svg) {
         svgArray.push(layer.svg)
         svgNames.push(`${svgName}-${item}`)

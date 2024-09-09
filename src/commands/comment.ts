@@ -9,7 +9,7 @@ export const comment = defineGerberCommand({
       comment: z.string(),
     })
     .describe(
-      "Comment: A human readable comment, does not affect the image. 4.1"
+      "Comment: A human readable comment, does not affect the image. 4.1",
     ),
   stringify: (c) => {
     return `G04 ${c.comment}*`

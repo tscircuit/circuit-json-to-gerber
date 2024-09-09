@@ -10,7 +10,7 @@ export const add_attribute_on_aperture = defineGerberCommand({
       attribute_value: z.string(),
     })
     .describe(
-      "Add attribute on aperture: Add an aperture attribute to the dictionary or modify it."
+      "Add attribute on aperture: Add an aperture attribute to the dictionary or modify it.",
     ),
   stringify: ({ attribute_name, attribute_value }) => {
     return `%TA${attribute_name},${attribute_value}*%`

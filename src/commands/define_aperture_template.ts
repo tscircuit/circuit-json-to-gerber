@@ -32,7 +32,7 @@ const polygon_template = z.object({
 
 const aperture_template_config = z.discriminatedUnion(
   "standard_template_code",
-  [circle_template, rectangle_template, obround_template, polygon_template]
+  [circle_template, rectangle_template, obround_template, polygon_template],
 )
 
 export const define_aperture_template = defineGerberCommand({
@@ -41,7 +41,7 @@ export const define_aperture_template = defineGerberCommand({
     z.object({
       command_code: z.literal("ADD").default("ADD"),
       aperture_number: z.number().int(),
-    })
+    }),
   ),
   stringify(props) {
     const { aperture_number, standard_template_code } = props

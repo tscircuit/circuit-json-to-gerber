@@ -194,7 +194,9 @@ export const convertSoupToGerberCommands = (
   }
 
   for (const key of Object.keys(glayers)) {
-    glayers[key as keyof LayerToGerberCommandsMap].push(...gerberBuilder().add("end_of_file", {}).build())
+    glayers[key as keyof LayerToGerberCommandsMap].push(
+      ...gerberBuilder().add("end_of_file", {}).build(),
+    )
   }
 
   return glayers

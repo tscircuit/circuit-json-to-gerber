@@ -9,7 +9,7 @@ export const delete_attribute = defineGerberCommand({
       attribute: z.string().optional(),
     })
     .describe(
-      "Delete attribute: Attribute delete Delete one or all attributes in the dictionary."
+      "Delete attribute: Attribute delete Delete one or all attributes in the dictionary.",
     ),
   stringify({ attribute }) {
     if (!attribute) {

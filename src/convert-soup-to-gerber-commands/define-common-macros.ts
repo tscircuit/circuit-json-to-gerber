@@ -26,6 +26,6 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 `.trim(),
       })
       .add("comment", { comment: "APERTURE MACROS END" })
-      .build()
+      .build(),
   )
 }

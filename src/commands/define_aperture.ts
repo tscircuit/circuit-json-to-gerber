@@ -9,7 +9,7 @@ export const define_aperture = defineGerberCommand({
       aperture_code: z.string(),
     })
     .describe(
-      "Aperture define: Defines a template-based aperture, assigns a D code to it. 4.3"
+      "Aperture define: Defines a template-based aperture, assigns a D code to it. 4.3",
     ),
   stringify() {
     return ""

@@ -8,7 +8,7 @@ export const set_movement_mode_to_clockwise_circular = defineGerberCommand({
       command_code: z.literal("G02"),
     })
     .describe(
-      "Set movement mode to clockwise circular: Sets linear/circular mode to clockwise circular."
+      "Set movement mode to clockwise circular: Sets linear/circular mode to clockwise circular.",
     ),
   stringify() {
     return `G02*`

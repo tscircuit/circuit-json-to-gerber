@@ -2,7 +2,7 @@ import type { AnyZodObject, z, ZodObject, ZodUnion } from "zod"
 
 export interface GerberCommandDef<
   K extends string,
-  T extends AnyZodObject | z.ZodIntersection<any, any>
+  T extends AnyZodObject | z.ZodIntersection<any, any>,
 > {
   command_code: K
   schema: T
@@ -11,7 +11,7 @@ export interface GerberCommandDef<
 
 export const defineGerberCommand = <
   K extends string,
-  T extends AnyZodObject | z.ZodIntersection<any, any>
+  T extends AnyZodObject | z.ZodIntersection<any, any>,
 >({
   command_code,
   schema,

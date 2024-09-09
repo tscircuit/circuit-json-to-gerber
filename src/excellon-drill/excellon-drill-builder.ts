@@ -1,7 +1,6 @@
-import type{ z } from "zod"
+import type { z } from "zod"
 import {
- type AnyExcellonDrillCommand,
-  
+  type AnyExcellonDrillCommand,
   excellon_drill_command_map,
 } from "./any-excellon-drill-command-map"
 
@@ -14,7 +13,7 @@ class ExcellonDrillBuilder {
 
   add<T extends keyof typeof excellon_drill_command_map>(
     cmd: T,
-    props: z.input<(typeof excellon_drill_command_map)[T]["schema"]>
+    props: z.input<(typeof excellon_drill_command_map)[T]["schema"]>,
   ): ExcellonDrillBuilder {
     this.commands.push({
       ...({

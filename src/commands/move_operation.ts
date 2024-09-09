@@ -11,11 +11,11 @@ export const move_operation = defineGerberCommand({
       y: z.number(),
     })
     .describe(
-      "Move operation: D02 moves the current point to the coordinate in the command. It does not create an object."
+      "Move operation: D02 moves the current point to the coordinate in the command. It does not create an object.",
     ),
   stringify({ x, y }) {
     const [gx, gy] = [x, y].map((coord) =>
-      getGerberCoordinateWithPadding(coord)
+      getGerberCoordinateWithPadding(coord),
     )
     return `X${gx}Y${gy}D02*`
   },

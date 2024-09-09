@@ -2,7 +2,7 @@ import type { AnyGerberCommand } from "../any_gerber_command"
 import { stringifyGerberCommand } from "./stringify-gerber-command"
 
 export const stringifyGerberCommands = (
-  commands: AnyGerberCommand[]
+  commands: AnyGerberCommand[],
 ): string => {
   return commands
     .map((command) => {

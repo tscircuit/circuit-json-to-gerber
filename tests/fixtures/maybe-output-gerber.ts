@@ -1,4 +1,7 @@
-export const maybeOutputGerber = async (gerber_map: Record<string, string>, excellon_drill: string) => {
+export const maybeOutputGerber = async (
+  gerber_map: Record<string, string>,
+  excellon_drill: string,
+) => {
   // @ts-ignore
   if (process.env.OUTPUT_GERBER) {
     // @ts-ignore
@@ -9,6 +12,6 @@ export const maybeOutputGerber = async (gerber_map: Record<string, string>, exce
       // console.log(`Writing ${fp}`)
       fs.writeFileSync(fp, gerber_map[filename])
     }
-    fs.writeFileSync('./gerber-output/plated.drl', excellon_drill)
+    fs.writeFileSync("./gerber-output/plated.drl", excellon_drill)
   }
 }
