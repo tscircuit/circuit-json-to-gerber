@@ -6,13 +6,15 @@ import {
 } from "src/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import gerberToSvg from "gerber-to-svg"
+import type { AnySoupElement } from "@tscircuit/soup"
+import { convertSoupToExcellonDrillCommands, stringifyExcellonDrill } from "src/excellon-drill"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
 test("Generate simple gerber with a single trace", async () => {
-  const gerber_cmds = convertSoupToGerberCommands([
+  const soup: AnySoupElement[]=[
     {
       type: "pcb_board",
       width: 100,
@@ -59,7 +61,10 @@ test("Generate simple gerber with a single trace", async () => {
         },
       ],
     },
-  ])
+  ]
+  
+  const gerber_cmds = convertSoupToGerberCommands(soup)
+  const excellon_drill_cmds = convertSoupToExcellonDrillCommands({soup:soup,is_plated:true})
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
   // console.log("Gerber")
   // console.log("----------------------------------------------")
@@ -68,8 +73,9 @@ test("Generate simple gerber with a single trace", async () => {
   // TODO parse gerber to check for correctness
 
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
+    const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
 
-  await maybeOutputGerber(gerberOutput)
+  await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple1")
 

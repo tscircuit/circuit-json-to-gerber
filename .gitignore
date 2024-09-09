@@ -175,6 +175,9 @@ dist
 .DS_Store
 
 .vscode
+
 # yalc
 .yalc
 yalc.lock
+
+gerber-output
