@@ -6,6 +6,9 @@
   "scripts": {
     "build": "tsup-node src/index.ts --format esm --dts --sourcemap"
   },
+  "files": [
+    "dist"
+  ],
   "devDependencies": {
     "@tscircuit/soup": "^0.0.60",
     "@types/bun": "^1.1.8",
