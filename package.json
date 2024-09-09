@@ -1,8 +1,11 @@
 {
   "name": "circuit-json-to-gerber",
   "version": "0.0.1",
-  "module": "src/index.ts",
+  "module": "dist/index.js",
   "type": "module",
+  "scripts": {
+    "build": "tsup-node src/index.ts --format esm --dts --sourcemap"
+  },
   "devDependencies": {
     "@tscircuit/soup": "^0.0.60",
     "@types/bun": "^1.1.8",

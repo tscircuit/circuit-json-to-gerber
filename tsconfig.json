@@ -8,6 +8,10 @@
     "jsx": "react-jsx",
     "allowJs": true,
     "baseUrl": ".",
+    "paths": {
+      "src/*": ["./src/*"],
+      "package.json": ["./package.json"]
+    },
 
     // Bundler mode
     "moduleResolution": "bundler",
