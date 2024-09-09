@@ -1,5 +1,7 @@
+import type { AnySoupElement } from "@tscircuit/soup"
 import { test, expect } from "bun:test"
 import { convertSoupToGerberCommands } from "src/convert-soup-to-gerber-commands"
+import { convertSoupToExcellonDrillCommands, stringifyExcellonDrill } from "src/excellon-drill"
 import {
   stringifyGerberCommandLayers,
   stringifyGerberCommands,
@@ -11,8 +13,7 @@ import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
 test("Generate simple gerber with basic elements", async () => {
-  const gerber_cmds = convertSoupToGerberCommands([
-    {
+  const soup: AnySoupElement[] = [{
       type: "pcb_board",
       width: 20,
       height: 20,
@@ -58,7 +59,7 @@ test("Generate simple gerber with basic elements", async () => {
       x: 2,
       y: -1,
       layer: "bottom",
-    },
+    },    
     {
       type: "pcb_plated_hole",
       shape: "circle",
@@ -68,7 +69,11 @@ test("Generate simple gerber with basic elements", async () => {
       layers: ["top", "bottom"],
       outer_diameter: 2,
     },
-  ])
+  
+]
+
+  const gerber_cmds = convertSoupToGerberCommands(soup)
+  const excellon_drill_cmds = convertSoupToExcellonDrillCommands({soup:soup,is_plated:true})
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
   // console.log("Gerber")
   // console.log("----------------------------------------------")
@@ -76,9 +81,10 @@ test("Generate simple gerber with basic elements", async () => {
 
   // TODO parse gerber to check for correctness
 
+  const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
-  await maybeOutputGerber(gerberOutput)
+  await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple2")
 
