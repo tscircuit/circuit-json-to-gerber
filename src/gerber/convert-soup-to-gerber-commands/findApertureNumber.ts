@@ -12,7 +12,7 @@ export const findApertureNumber = (
       }
     | ApertureTemplateConfig,
 ): number => {
-  let aperture
+  let aperture: any
   if ("trace_width" in search_params) {
     const trace_width = search_params.trace_width
     aperture = glayer.find(

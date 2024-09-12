@@ -1,5 +1,5 @@
 import type { AnySoupElement } from "@tscircuit/soup"
-import { pairs } from "src/utils/pairs"
+import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
 import {

@@ -13,6 +13,6 @@ export const aper_function_header = defineExcellonDrillCommand({
     if (!is_plated) {
       throw new Error("not implemented")
     }
-    return `; #@! TA.AperFunction,Plated,PTH,ComponentDrill`
+    return "; #@! TA.AperFunction,Plated,PTH,ComponentDrill"
   },
 })

@@ -1,6 +1,6 @@
 import type { AnySoupElement } from "@tscircuit/soup"
 import { test, expect } from "bun:test"
-import { convertSoupToGerberCommands } from "src/convert-soup-to-gerber-commands"
+import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
@@ -8,7 +8,7 @@ import {
 import {
   stringifyGerberCommandLayers,
   stringifyGerberCommands,
-} from "src/stringify-gerber"
+} from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"

@@ -20,9 +20,9 @@ export const getGerberCoordinateWithPadding = (
   // add left padding
   while (coordinate_str.length < 9) {
     if (coordinate_um < 0) {
-      coordinate_str = "-0" + coordinate_str.slice(1)
+      coordinate_str = `-0${coordinate_str.slice(1)}`
     } else {
-      coordinate_str = "0" + coordinate_str
+      coordinate_str = `0${coordinate_str}`
     }
   }
   return coordinate_str
