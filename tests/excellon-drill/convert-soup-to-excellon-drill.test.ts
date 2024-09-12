@@ -58,7 +58,6 @@ test("generate excellon drill text from axial resistor", async () => {
   const excellon_drill_file_content =
     stringifyExcellonDrill(excellon_drill_cmds)
 
-
   expect(excellon_drill_file_content.includes("X-254.0000Y254.0000")).toBeTrue()
   expect(excellon_drill_file_content.includes("T11C25.400000")).toBeTrue()
   expect(excellon_drill_file_content.includes("G90")).toBeTrue()
