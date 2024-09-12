@@ -13,7 +13,7 @@ export const delete_attribute = defineGerberCommand({
     ),
   stringify({ attribute }) {
     if (!attribute) {
-      return `%TD*%`
+      return "%TD*%"
     }
     return `%TD${attribute}*%`
   },

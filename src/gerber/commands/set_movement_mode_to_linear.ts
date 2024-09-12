@@ -11,6 +11,6 @@ export const set_movement_mode_to_linear = defineGerberCommand({
       "Set movement mode to linear: Sets linear/circular mode to linear.",
     ),
   stringify() {
-    return `G01*`
+    return "G01*"
   },
 })

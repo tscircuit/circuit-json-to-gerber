@@ -11,6 +11,6 @@ export const set_movement_mode_to_clockwise_circular = defineGerberCommand({
       "Set movement mode to clockwise circular: Sets linear/circular mode to clockwise circular.",
     ),
   stringify() {
-    return `G02*`
+    return "G02*"
   },
 })

@@ -12,6 +12,6 @@ export const set_movement_mode_to_counterclockwise_circular =
         "Set movement mode to counterclockwise circular: Sets linear/circular mode to counterclockwise circular.",
       ),
     stringify() {
-      return `G03*`
+      return "G03*"
     },
   })

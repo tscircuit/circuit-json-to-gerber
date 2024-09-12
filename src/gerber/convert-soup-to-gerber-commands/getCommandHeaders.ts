@@ -1,4 +1,4 @@
-import type { AnyGerberCommand } from "src/any_gerber_command"
+import type { AnyGerberCommand } from "src/gerber/any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
 import packageJson from "package.json"
 

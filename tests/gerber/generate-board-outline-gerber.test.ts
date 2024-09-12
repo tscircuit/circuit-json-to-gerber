@@ -1,9 +1,9 @@
 import { test, expect } from "bun:test"
-import { convertSoupToGerberCommands } from "src/convert-soup-to-gerber-commands"
+import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import {
   stringifyGerberCommandLayers,
   stringifyGerberCommands,
-} from "src/stringify-gerber"
+} from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import gerberToSvg from "gerber-to-svg"
 import type { AnySoupElement } from "@tscircuit/soup"
