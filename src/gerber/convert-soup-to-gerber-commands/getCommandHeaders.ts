@@ -78,7 +78,7 @@ export const getCommandHeaders = (opts: {
       )
       .add("format_specification", {})
       .add("set_unit", {
-        unit: "mm",
+        unit: "MM",
       })
       .add("comment", {
         comment: "Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)",
