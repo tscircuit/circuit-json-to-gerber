@@ -2,10 +2,6 @@ import type { AnySoupElement } from "@tscircuit/soup"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
 
-export const inchToMm = (mm: number) => {
-  return mm * 25.4
-}
-
 export const convertSoupToExcellonDrillCommands = ({
   soup,
   is_plated,
@@ -62,7 +58,7 @@ export const convertSoupToExcellonDrillCommands = ({
         })
         builder.add("define_tool", {
           tool_number: tool_counter,
-          diameter: inchToMm(element.hole_diameter),
+          diameter: element.hole_diameter,
         })
         diameterToToolNumber[element.hole_diameter] = tool_counter
         tool_counter++
@@ -92,8 +88,8 @@ export const convertSoupToExcellonDrillCommands = ({
         if (!("hole_diameter" in element)) continue
         if (diameterToToolNumber[element.hole_diameter] === i) {
           builder.add("drill_at", {
-            x: inchToMm(element.x),
-            y: inchToMm(element.y) * (flip_y_axis ? -1 : 1),
+            x: element.x,
+            y: element.y * (flip_y_axis ? -1 : 1),
           })
         }
       }
