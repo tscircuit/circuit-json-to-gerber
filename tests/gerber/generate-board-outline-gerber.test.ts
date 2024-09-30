@@ -11,15 +11,19 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "src/excellon-drill"
+import type { AnyCircuitElement } from "circuit-json"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
 test("Generate simple gerber with a single trace", async () => {
-  const soup: AnySoupElement[] = [
+  const soup: AnyCircuitElement[] = [
     {
       type: "pcb_board",
+      num_layers: 2,
+      pcb_board_id: "pcb_board_0",
+      thickness: 1.2,
       width: 100,
       height: 100,
       center: { x: 0, y: 0 },
