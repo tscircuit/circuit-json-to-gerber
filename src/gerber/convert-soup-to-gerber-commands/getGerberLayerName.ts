@@ -1,4 +1,4 @@
-import type { LayerRef } from "@tscircuit/soup"
+import type { LayerRef } from "circuit-json"
 import type { GerberLayerName } from "./GerberLayerName"
 
 const layerRefToGerberPrefix = {

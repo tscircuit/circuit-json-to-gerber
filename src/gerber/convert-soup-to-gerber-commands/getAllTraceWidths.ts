@@ -1,7 +1,7 @@
-import type { AnySoupElement, LayerRef, PCBTrace } from "@tscircuit/soup"
+import type { AnyCircuitElement, LayerRef, PCBTrace } from "circuit-json"
 
 export function getAllTraceWidths(
-  soup: AnySoupElement[],
+  soup: AnyCircuitElement[],
 ): Record<LayerRef, number[]> {
   const pcb_traces = soup.filter(
     (elm): elm is PCBTrace => elm.type === "pcb_trace",

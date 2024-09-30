@@ -1,4 +1,4 @@
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import { test, expect } from "bun:test"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import {
@@ -16,9 +16,12 @@ import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
 test("Generate simple gerber with basic elements", async () => {
-  const soup: AnySoupElement[] = [
+  const soup: AnyCircuitElement[] = [
     {
       type: "pcb_board",
+      num_layers: 2,
+      pcb_board_id: "pcb_board_0",
+      thickness: 1.2,
       width: 20,
       height: 20,
       center: { x: 0, y: 0 },
@@ -66,6 +69,7 @@ test("Generate simple gerber with basic elements", async () => {
     },
     {
       type: "pcb_plated_hole",
+      pcb_plated_hole_id: "pcb_plated_hole_0",
       shape: "circle",
       x: 4,
       y: 1,

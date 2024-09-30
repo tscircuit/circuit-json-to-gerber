@@ -1,15 +1,11 @@
-import type {
-  AnySoupElement,
-  LayerRef,
-  PCBPlatedHole,
-  PCBSMTPad,
-} from "@tscircuit/soup"
+import type { PCBHole, LayerRef, PCBPlatedHole, PCBSMTPad } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
+import type { AnyCircuitElement } from "circuit-json"
 
 export function defineAperturesForLayer({
   glayer,
@@ -17,7 +13,7 @@ export function defineAperturesForLayer({
   glayer_name,
 }: {
   glayer: AnyGerberCommand[]
-  soup: AnySoupElement[]
+  soup: AnyCircuitElement[]
   glayer_name: GerberLayerName
 }) {
   const getNextApertureNumber = () => {
@@ -113,8 +109,22 @@ export const getApertureConfigFromCirclePcbPlatedHole = (
   }
 }
 
+export const getApertureConfigFromCirclePcbHole = (
+  elm: PCBHole,
+): ApertureTemplateConfig => {
+  if (!("hole_diameter" in elm)) {
+    throw new Error(
+      `Invalid shape called in getApertureConfigFromCirclePcbHole: ${elm.hole_shape}`,
+    )
+  }
+  return {
+    standard_template_code: "C",
+    diameter: elm.hole_diameter,
+  }
+}
+
 function getAllApertureTemplateConfigsForLayer(
-  soup: AnySoupElement[],
+  soup: AnyCircuitElement[],
   layer: "top" | "bottom",
 ): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
@@ -143,6 +153,10 @@ function getAllApertureTemplateConfigsForLayer(
           console.warn("NOT IMPLEMENTED: drawing gerber for oval plated pill")
         }
       }
+    } else if (elm.type === "pcb_hole") {
+      if (elm.hole_shape === "circle")
+        addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
+      else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     }
   }
 

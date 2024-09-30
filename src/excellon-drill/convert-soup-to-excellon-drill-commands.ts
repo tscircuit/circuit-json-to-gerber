@@ -1,4 +1,4 @@
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
 
@@ -7,7 +7,7 @@ export const convertSoupToExcellonDrillCommands = ({
   is_plated,
   flip_y_axis = false,
 }: {
-  soup: Array<AnySoupElement>
+  soup: Array<AnyCircuitElement>
   is_plated: boolean
   flip_y_axis?: boolean
 }): Array<AnyExcellonDrillCommand> => {
@@ -79,7 +79,6 @@ export const convertSoupToExcellonDrillCommands = ({
         element.type === "pcb_hole" ||
         element.type === "pcb_via"
       ) {
-        if (is_plated && element.type === "pcb_hole") continue
         if (
           !is_plated &&
           (element.type === "pcb_plated_hole" || element.type === "pcb_via")

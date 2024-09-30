@@ -6,7 +6,7 @@ import {
 } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import gerberToSvg from "gerber-to-svg"
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
@@ -17,9 +17,12 @@ import {
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
 test("Generate simple gerber with a single trace", async () => {
-  const soup: AnySoupElement[] = [
+  const soup: AnyCircuitElement[] = [
     {
       type: "pcb_board",
+      num_layers: 2,
+      pcb_board_id: "pcb_board_0",
+      thickness: 1.2,
       width: 100,
       height: 100,
       center: { x: 0, y: 0 },
