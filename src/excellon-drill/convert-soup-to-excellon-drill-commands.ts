@@ -1,7 +1,6 @@
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
-import type { AnyCircuitElement } from "circuit-json"
 
 export const convertSoupToExcellonDrillCommands = ({
   soup,

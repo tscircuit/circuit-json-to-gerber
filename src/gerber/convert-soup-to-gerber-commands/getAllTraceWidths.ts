@@ -1,5 +1,4 @@
-import type { LayerRef, PCBTrace } from "@tscircuit/soup"
-import type { AnyCircuitElement } from "circuit-json"
+import type { AnyCircuitElement, LayerRef, PCBTrace } from "circuit-json"
 
 export function getAllTraceWidths(
   soup: AnyCircuitElement[],

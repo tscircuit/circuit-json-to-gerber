@@ -1,5 +1,4 @@
-import type { LayerRef, PCBPlatedHole, PCBSMTPad } from "@tscircuit/soup"
-import type { PCBHole } from "circuit-json"
+import type { PCBHole, LayerRef, PCBPlatedHole, PCBSMTPad } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"

@@ -1,4 +1,4 @@
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import { test, expect } from "bun:test"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import {
@@ -10,7 +10,6 @@ import {
   stringifyGerberCommands,
 } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
-import type { AnyCircuitElement } from "circuit-json"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`

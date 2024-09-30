@@ -1,4 +1,4 @@
-import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import { test, expect } from "bun:test"
 import {
   convertSoupToExcellonDrillCommands,
@@ -6,7 +6,7 @@ import {
 } from "src/excellon-drill"
 
 test("generate excellon drill text from axial resistor", async () => {
-  const soup: AnySoupElement[] = [
+  const soup: AnyCircuitElement[] = [
     {
       type: "source_component",
       source_component_id: "simple_resistor_0",
@@ -17,6 +17,7 @@ test("generate excellon drill text from axial resistor", async () => {
     },
     {
       type: "pcb_plated_hole",
+      pcb_plated_hole_id: "pcb_plated_hole_0",
       x: -10,
       y: 10,
       layers: ["top", "bottom"],
@@ -28,6 +29,7 @@ test("generate excellon drill text from axial resistor", async () => {
     },
     {
       type: "pcb_plated_hole",
+      pcb_plated_hole_id: "pcb_plated_hole_1",
       x: 0.3103934649070921,
       y: -10.745920624907164,
       layers: ["top", "bottom"],
@@ -40,6 +42,7 @@ test("generate excellon drill text from axial resistor", async () => {
     },
     {
       type: "pcb_via",
+      pcb_via_id: "pcb_via_0",
       x: -4.281249780862737,
       y: -14.233181814231745,
       hole_diameter: 0.3,
