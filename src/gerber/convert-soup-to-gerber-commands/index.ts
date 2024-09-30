@@ -1,4 +1,5 @@
 import type { AnySoupElement } from "@tscircuit/soup"
+import type { AnyCircuitElement } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -16,7 +17,7 @@ import { getGerberLayerName } from "./getGerberLayerName"
  * Converts tscircuit soup to arrays of Gerber commands for each layer
  */
 export const convertSoupToGerberCommands = (
-  soup: AnySoupElement[],
+  soup: AnyCircuitElement[],
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false

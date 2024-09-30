@@ -1,16 +1,12 @@
-import type {
-  AnySoupElement,
-  LayerRef,
-  PCBHole,
-  PCBPlatedHole,
-  PCBSMTPad,
-} from "@tscircuit/soup"
+import type { LayerRef, PCBPlatedHole, PCBSMTPad } from "@tscircuit/soup"
+import type { PCBHole } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
+import type { AnyCircuitElement } from "circuit-json"
 
 export function defineAperturesForLayer({
   glayer,
@@ -18,7 +14,7 @@ export function defineAperturesForLayer({
   glayer_name,
 }: {
   glayer: AnyGerberCommand[]
-  soup: AnySoupElement[]
+  soup: AnyCircuitElement[]
   glayer_name: GerberLayerName
 }) {
   const getNextApertureNumber = () => {
@@ -129,7 +125,7 @@ export const getApertureConfigFromCirclePcbHole = (
 }
 
 function getAllApertureTemplateConfigsForLayer(
-  soup: AnySoupElement[],
+  soup: AnyCircuitElement[],
   layer: "top" | "bottom",
 ): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
