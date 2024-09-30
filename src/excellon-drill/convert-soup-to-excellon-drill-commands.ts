@@ -79,7 +79,6 @@ export const convertSoupToExcellonDrillCommands = ({
         element.type === "pcb_hole" ||
         element.type === "pcb_via"
       ) {
-        if (is_plated && element.type === "pcb_hole") continue
         if (
           !is_plated &&
           (element.type === "pcb_plated_hole" || element.type === "pcb_via")

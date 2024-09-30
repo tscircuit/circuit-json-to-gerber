@@ -4,6 +4,7 @@ import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
 import {
   defineAperturesForLayer,
+  getApertureConfigFromCirclePcbHole,
   getApertureConfigFromCirclePcbPlatedHole,
   getApertureConfigFromPcbSmtpad,
 } from "./defineAperturesForLayer"
@@ -134,6 +135,30 @@ export const convertSoupToGerberCommands = (
                   aperture_number: findApertureNumber(
                     glayer,
                     getApertureConfigFromCirclePcbPlatedHole(element),
+                  ),
+                })
+                .add("flash_operation", { x: element.x, y: mfy(element.y) })
+                .build(),
+            )
+          }
+        }
+      } else if (element.type === "pcb_hole") {
+        if (layer !== "edgecut") {
+          for (const glayer of [
+            glayers[getGerberLayerName(layer, "soldermask")],
+          ]) {
+            if (element.hole_shape !== "circle") {
+              console.warn(
+                "NOT IMPLEMENTED: drawing gerber for non-round holes",
+              )
+              continue
+            }
+            glayer.push(
+              ...gerberBuilder()
+                .add("select_aperture", {
+                  aperture_number: findApertureNumber(
+                    glayer,
+                    getApertureConfigFromCirclePcbHole(element),
                   ),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })

@@ -1,6 +1,7 @@
 import type {
   AnySoupElement,
   LayerRef,
+  PCBHole,
   PCBPlatedHole,
   PCBSMTPad,
 } from "@tscircuit/soup"
@@ -113,6 +114,20 @@ export const getApertureConfigFromCirclePcbPlatedHole = (
   }
 }
 
+export const getApertureConfigFromCirclePcbHole = (
+  elm: PCBHole,
+): ApertureTemplateConfig => {
+  if (!("hole_diameter" in elm)) {
+    throw new Error(
+      `Invalid shape called in getApertureConfigFromCirclePcbHole: ${elm.hole_shape}`,
+    )
+  }
+  return {
+    standard_template_code: "C",
+    diameter: elm.hole_diameter,
+  }
+}
+
 function getAllApertureTemplateConfigsForLayer(
   soup: AnySoupElement[],
   layer: "top" | "bottom",
@@ -143,6 +158,10 @@ function getAllApertureTemplateConfigsForLayer(
           console.warn("NOT IMPLEMENTED: drawing gerber for oval plated pill")
         }
       }
+    } else if (elm.type === "pcb_hole") {
+      if (elm.hole_shape === "circle")
+        addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
+      else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     }
   }
 
