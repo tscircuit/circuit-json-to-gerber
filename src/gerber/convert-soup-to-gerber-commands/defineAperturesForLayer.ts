@@ -105,7 +105,6 @@ export const getApertureConfigFromCirclePcbPlatedHole = (
   return {
     standard_template_code: "C",
     diameter: elm.outer_diameter,
-    hole_diameter: elm.hole_diameter,
   }
 }
 
