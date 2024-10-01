@@ -1,4 +1,11 @@
-import type { PCBHole, LayerRef, PCBPlatedHole, PCBSMTPad } from "circuit-json"
+import type {
+  PCBHole,
+  LayerRef,
+  PCBPlatedHole,
+  PCBSMTPad,
+  PcbVia,
+  PcbHole,
+} from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
@@ -109,7 +116,7 @@ export const getApertureConfigFromCirclePcbPlatedHole = (
 }
 
 export const getApertureConfigFromCirclePcbHole = (
-  elm: PCBHole,
+  elm: PcbHole,
 ): ApertureTemplateConfig => {
   if (!("hole_diameter" in elm)) {
     throw new Error(
@@ -119,6 +126,20 @@ export const getApertureConfigFromCirclePcbHole = (
   return {
     standard_template_code: "C",
     diameter: elm.hole_diameter,
+  }
+}
+
+export const getApertureConfigFromPcbVia = (
+  elm: PcbVia,
+): ApertureTemplateConfig => {
+  if (!("outer_diameter" in elm)) {
+    throw new Error(
+      "outer_diameter not specified in getApertureConfigFromPcbVia",
+    )
+  }
+  return {
+    standard_template_code: "C",
+    diameter: elm.outer_diameter,
   }
 }
 
@@ -156,6 +177,8 @@ function getAllApertureTemplateConfigsForLayer(
       if (elm.hole_shape === "circle")
         addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
       else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
+    } else if (elm.type === "pcb_via") {
+      addConfigIfNew(getApertureConfigFromPcbVia(elm))
     }
   }
 
