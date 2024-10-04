@@ -11,22 +11,19 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "src/excellon-drill"
+import { Circuit } from "@tscircuit/core"
 // If you're trying to test this, I would recommend opening up Kicad's Gerber
 // Viewer and loading in the files from the generated directory "gerber-output"
 // that's produced if OUTPUT_GERBER=1 when you do `npx ava ./tests/gerber/generate-gerber-with-trace.test.ts`
 // You can generate the files then hit reload in the Gerber Viewer to see that
 // everything looks approximately correct
-test("Generate simple gerber with a single trace", async () => {
-  const soup: AnyCircuitElement[] = [
-    {
-      type: "pcb_board",
-      num_layers: 2,
-      pcb_board_id: "pcb_board_0",
-      thickness: 1.2,
-      width: 100,
-      height: 100,
-      center: { x: 0, y: 0 },
-      outline: [
+test("Generate simple board with a multi-layer trace", async () => {
+  const circuit = new Circuit()
+  circuit.add(
+    <board
+      width={20}
+      height={20}
+      outline={[
         { x: -22.5, y: 24.5 },
         { x: 22.5, y: 24.5 },
         { x: 22.5, y: 16.5 },
@@ -44,30 +41,59 @@ test("Generate simple gerber with a single trace", async () => {
         { x: -20.5, y: 16.5 },
         { x: -22.5, y: 16.5 },
         { x: -22.5, y: 24.5 },
-      ],
-    },
-    {
-      type: "pcb_trace",
-      source_trace_id: "source_trace_1",
-      pcb_trace_id: "pcb_trace_1",
-      route: [
-        {
-          x: -10,
-          y: 0,
-          width: 0.1,
-          route_type: "wire",
-          layer: "top",
-        },
-        {
-          x: 10,
-          y: 0,
-          width: 0.1,
-          route_type: "wire",
-          layer: "top",
-        },
-      ],
-    },
-  ]
+      ]}
+    >
+      <resistor
+        name="R1"
+        resistance={"1k"}
+        pcbX={-4}
+        pcbY={4}
+        footprint={"1210"}
+      />
+      <resistor
+        name="R2"
+        resistance={"1k"}
+        pcbX={2}
+        pcbY={2}
+        footprint={"1210"}
+        layer={"bottom"}
+      />
+      <trace from=".R1 > .pin2" to=".R2 > .pin1" />
+    </board>,
+  )
+  // const soup: AnyCircuitElement[] = [
+  //   {
+  //     type: "pcb_board",
+  //     num_layers: 2,
+  //     pcb_board_id: "pcb_board_0",
+  //     thickness: 1.2,
+  //     width: 100,
+  //     height: 100,
+  //     center: { x: 0, y: 0 },
+  //   },
+  //   {
+  //     type: "pcb_trace",
+  //     source_trace_id: "source_trace_1",
+  //     pcb_trace_id: "pcb_trace_1",
+  //     route: [
+  //       {
+  //         x: -10,
+  //         y: 0,
+  //         width: 0.1,
+  //         route_type: "wire",
+  //         layer: "top",
+  //       },
+  //       {
+  //         x: 10,
+  //         y: 0,
+  //         width: 0.1,
+  //         route_type: "wire",
+  //         layer: "top",
+  //       },
+  //     ],
+  //   },
+  // ]
+  const soup = circuit.getCircuitJson()
 
   const gerber_cmds = convertSoupToGerberCommands(soup)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
