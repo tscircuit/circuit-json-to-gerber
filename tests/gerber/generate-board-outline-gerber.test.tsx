@@ -61,38 +61,6 @@ test("Generate simple board with a multi-layer trace", async () => {
       <trace from=".R1 > .pin2" to=".R2 > .pin1" />
     </board>,
   )
-  // const soup: AnyCircuitElement[] = [
-  //   {
-  //     type: "pcb_board",
-  //     num_layers: 2,
-  //     pcb_board_id: "pcb_board_0",
-  //     thickness: 1.2,
-  //     width: 100,
-  //     height: 100,
-  //     center: { x: 0, y: 0 },
-  //   },
-  //   {
-  //     type: "pcb_trace",
-  //     source_trace_id: "source_trace_1",
-  //     pcb_trace_id: "pcb_trace_1",
-  //     route: [
-  //       {
-  //         x: -10,
-  //         y: 0,
-  //         width: 0.1,
-  //         route_type: "wire",
-  //         layer: "top",
-  //       },
-  //       {
-  //         x: 10,
-  //         y: 0,
-  //         width: 0.1,
-  //         route_type: "wire",
-  //         layer: "top",
-  //       },
-  //     ],
-  //   },
-  // ]
   const soup = circuit.getCircuitJson()
 
   const gerber_cmds = convertSoupToGerberCommands(soup)
@@ -101,9 +69,6 @@ test("Generate simple board with a multi-layer trace", async () => {
     is_plated: true,
   })
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
-  // console.log("Gerber")
-  // console.log("----------------------------------------------")
-  // console.log(edgecut_gerber)
 
   // TODO parse gerber to check for correctness
 
@@ -113,10 +78,4 @@ test("Generate simple board with a multi-layer trace", async () => {
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple1")
-
-  // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
-  //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
-  // })
-
-  // render(
 })

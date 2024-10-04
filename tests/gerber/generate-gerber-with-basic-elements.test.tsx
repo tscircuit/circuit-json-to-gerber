@@ -37,9 +37,6 @@ test("Generate simple gerber with basic elements", async () => {
     is_plated: true,
   })
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
-  // console.log("Gerber")
-  // console.log("----------------------------------------------")
-  // console.log(edgecut_gerber)
 
   // TODO parse gerber to check for correctness
 
@@ -49,10 +46,4 @@ test("Generate simple gerber with basic elements", async () => {
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple2")
-
-  // gerberToSvg(gerberOutput.Edge_Cuts, {}, (err, svg) => {
-  //   expect(svg).toMatchSvgSnapshot(import.meta.path, "gerber-edge-cuts")
-  // })
-
-  // render(
 })
