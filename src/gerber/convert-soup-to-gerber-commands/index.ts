@@ -7,6 +7,7 @@ import {
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromCirclePcbPlatedHole,
   getApertureConfigFromPcbSmtpad,
+  getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
 } from "./defineAperturesForLayer"
 import { findApertureNumber } from "./findApertureNumber"
@@ -31,7 +32,10 @@ export const convertSoupToGerberCommands = (
       layer: "top",
       layer_type: "soldermask",
     }),
-    F_Paste: [],
+    F_Paste: getCommandHeaders({
+      layer: "top",
+      layer_type: "paste",
+    }),
     B_Cu: getCommandHeaders({
       layer: "bottom",
       layer_type: "copper",
@@ -41,13 +45,23 @@ export const convertSoupToGerberCommands = (
       layer: "bottom",
       layer_type: "soldermask",
     }),
-    B_Paste: [],
+    B_Paste: getCommandHeaders({
+      layer: "bottom",
+      layer_type: "paste",
+    }),
     Edge_Cuts: getCommandHeaders({
       layer: "edgecut",
     }),
   }
 
-  for (const glayer_name of ["F_Cu", "B_Cu", "F_Mask", "B_Mask"] as const) {
+  for (const glayer_name of [
+    "F_Cu",
+    "B_Cu",
+    "F_Mask",
+    "B_Mask",
+    "F_Paste",
+    "B_Paste",
+  ] as const) {
     const glayer = glayers[glayer_name]
     // defineCommonMacros(glayer)
     defineAperturesForLayer({
@@ -111,6 +125,22 @@ export const convertSoupToGerberCommands = (
                   aperture_number: findApertureNumber(
                     glayer,
                     getApertureConfigFromPcbSmtpad(element),
+                  ),
+                })
+                .add("flash_operation", { x: element.x, y: mfy(element.y) })
+                .build(),
+            )
+          }
+        }
+      } else if (element.type === "pcb_solder_paste") {
+        if (element.layer === layer) {
+          for (const glayer of [glayers[getGerberLayerName(layer, "paste")]]) {
+            glayer.push(
+              ...gerberBuilder()
+                .add("select_aperture", {
+                  aperture_number: findApertureNumber(
+                    glayer,
+                    getApertureConfigFromPcbSolderPaste(element),
                   ),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })

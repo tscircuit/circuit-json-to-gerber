@@ -5,6 +5,7 @@ import type {
   PCBSMTPad,
   PcbVia,
   PcbHole,
+  PcbSolderPaste,
 } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
@@ -101,6 +102,26 @@ export const getApertureConfigFromPcbSmtpad = (
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
+
+export const getApertureConfigFromPcbSolderPaste = (
+  elm: PcbSolderPaste,
+): ApertureTemplateConfig => {
+  if (elm.shape === "rect") {
+    return {
+      standard_template_code: "R",
+      x_size: elm.width,
+      y_size: elm.height,
+    }
+  }
+  if (elm.shape === "circle") {
+    return {
+      standard_template_code: "C",
+      diameter: elm.radius * 2,
+    }
+  }
+  throw new Error(`Unsupported shape ${(elm as any).shape}`)
+}
+
 export const getApertureConfigFromCirclePcbPlatedHole = (
   elm: PCBPlatedHole,
 ): ApertureTemplateConfig => {
@@ -162,6 +183,10 @@ function getAllApertureTemplateConfigsForLayer(
     if (elm.type === "pcb_smtpad") {
       if (elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+      }
+    } else if (elm.type === "pcb_solder_paste") {
+      if (elm.layer === layer) {
+        addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
