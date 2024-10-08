@@ -36,7 +36,7 @@ test("test that we can recreate an example drill file", async () => {
     .add("M30", {})
     .build()
 
-  expect(output_commands).toMatchSnapshot("excellon-drill-builder")
+  expect(output_commands).toMatchSnapshot()
   //   t.is(
   //     output_text,
   //     `M48
