@@ -6,6 +6,7 @@ import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromCirclePcbPlatedHole,
+  getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
@@ -27,7 +28,10 @@ export const convertSoupToGerberCommands = (
       layer: "top",
       layer_type: "copper",
     }),
-    F_SilkScreen: [],
+    F_SilkScreen: getCommandHeaders({
+      layer: "top",
+      layer_type: "silkscreen",
+    }),
     F_Mask: getCommandHeaders({
       layer: "top",
       layer_type: "soldermask",
@@ -40,7 +44,10 @@ export const convertSoupToGerberCommands = (
       layer: "bottom",
       layer_type: "copper",
     }),
-    B_SilkScreen: [],
+    B_SilkScreen: getCommandHeaders({
+      layer: "bottom",
+      layer_type: "silkscreen",
+    }),
     B_Mask: getCommandHeaders({
       layer: "bottom",
       layer_type: "soldermask",
@@ -61,6 +68,8 @@ export const convertSoupToGerberCommands = (
     "B_Mask",
     "F_Paste",
     "B_Paste",
+    "F_SilkScreen",
+    "B_SilkScreen",
   ] as const) {
     const glayer = glayers[glayer_name]
     // defineCommonMacros(glayer)
@@ -112,6 +121,31 @@ export const convertSoupToGerberCommands = (
               )
             }
           }
+        }
+      } else if (element.type === "pcb_silkscreen_path") {
+        if (element.layer === layer) {
+          const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
+          const apertureConfig = getApertureConfigFromPcbSilkscreenPath(element)
+          const gerber = gerberBuilder().add("select_aperture", {
+            aperture_number: findApertureNumber(glayer, apertureConfig),
+          })
+          // Move to the first point
+          if (element.route.length > 0) {
+            gerber.add("move_operation", {
+              x: element.route[0].x,
+              y: mfy(element.route[0].y),
+            })
+          }
+
+          // Plot lines to subsequent points
+          for (let i = 1; i < element.route.length; i++) {
+            gerber.add("plot_operation", {
+              x: element.route[i].x,
+              y: mfy(element.route[i].y),
+            })
+          }
+
+          glayer.push(...gerber.build())
         }
       } else if (element.type === "pcb_smtpad") {
         if (element.layer === layer) {
