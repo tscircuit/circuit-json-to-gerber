@@ -6,6 +6,7 @@ import type {
   PcbVia,
   PcbHole,
   PcbSolderPaste,
+  PcbSilkscreenPath,
 } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
@@ -101,6 +102,18 @@ export const getApertureConfigFromPcbSmtpad = (
     }
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
+}
+
+export const getApertureConfigFromPcbSilkscreenPath = (
+  elm: PcbSilkscreenPath,
+): ApertureTemplateConfig => {
+  if ("stroke_width" in elm) {
+    return {
+      standard_template_code: "C",
+      diameter: elm.stroke_width,
+    }
+  }
+  throw new Error(`Provide stroke_width for: ${elm as any}`)
 }
 
 export const getApertureConfigFromPcbSolderPaste = (
@@ -204,7 +217,8 @@ function getAllApertureTemplateConfigsForLayer(
       else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
       addConfigIfNew(getApertureConfigFromPcbVia(elm))
-    }
+    } else if (elm.type === "pcb_silkscreen_path")
+      addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
   }
 
   return configs
