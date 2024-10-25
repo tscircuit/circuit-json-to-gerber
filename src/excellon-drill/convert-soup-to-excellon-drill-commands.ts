@@ -51,16 +51,26 @@ export const convertSoupToExcellonDrillCommands = ({
       element.type === "pcb_hole" ||
       element.type === "pcb_via"
     ) {
-      if (!("hole_diameter" in element)) continue
-      if (!diameterToToolNumber[element.hole_diameter]) {
+      let hole_diameter: number | undefined
+      
+      if ("hole_diameter" in element) {
+        hole_diameter = element.hole_diameter
+      } else if (element.type === "pcb_plated_hole" && element.shape === "pill") {
+        // For pill shapes, use the minimum dimension as the hole diameter
+        hole_diameter = Math.min(element.hole_width, element.hole_height)
+      }
+
+      if (!hole_diameter) continue
+      
+      if (!diameterToToolNumber[hole_diameter]) {
         builder.add("aper_function_header", {
           is_plated: true,
         })
         builder.add("define_tool", {
           tool_number: tool_counter,
-          diameter: element.hole_diameter,
+          diameter: hole_diameter,
         })
-        diameterToToolNumber[element.hole_diameter] = tool_counter
+        diameterToToolNumber[hole_diameter] = tool_counter
         tool_counter++
       }
     }
@@ -84,8 +94,16 @@ export const convertSoupToExcellonDrillCommands = ({
           (element.type === "pcb_plated_hole" || element.type === "pcb_via")
         )
           continue
-        if (!("hole_diameter" in element)) continue
-        if (diameterToToolNumber[element.hole_diameter] === i) {
+        let hole_diameter: number | undefined
+        
+        if ("hole_diameter" in element) {
+          hole_diameter = element.hole_diameter
+        } else if (element.type === "pcb_plated_hole" && element.shape === "pill") {
+          hole_diameter = Math.min(element.hole_width, element.hole_height)
+        }
+
+        if (!hole_diameter) continue
+        if (diameterToToolNumber[hole_diameter] === i) {
           builder.add("drill_at", {
             x: element.x,
             y: element.y * (flip_y_axis ? -1 : 1),
