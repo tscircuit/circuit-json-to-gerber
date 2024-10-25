@@ -222,11 +222,11 @@ function getAllApertureTemplateConfigsForLayer(
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
         if (elm.shape === "circle") {
-          addConfigIfNew(getApertureConfigFromCirclePcbPlatedHole(elm))
+          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
         } else if (elm.shape === "oval") {
           console.warn("NOT IMPLEMENTED: drawing gerber for oval plated hole")
         } else if (elm.shape === "pill") {
-          console.warn("NOT IMPLEMENTED: drawing gerber for oval plated pill")
+          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
         }
       }
     } else if (elm.type === "pcb_hole") {
