@@ -35,6 +35,8 @@ test("Generate gerber with pill shape", async () => {
 
   const circuitJson = circuit.getCircuitJson()
 
+  Bun.write("tmp.circuit.json", JSON.stringify(circuitJson, null, 2))
+
   const gerber_cmds = convertSoupToGerberCommands(circuitJson)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
     circuitJson: circuitJson,
@@ -49,6 +51,7 @@ test("Generate gerber with pill shape", async () => {
   const excellonDrillOutputUnplated = stringifyExcellonDrill(
     excellon_drill_cmds_unplated,
   )
+  console.log(excellonDrillOutput)
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
