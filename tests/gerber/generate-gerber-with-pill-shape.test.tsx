@@ -42,16 +42,26 @@ test("Generate gerber with pill shape", async () => {
     circuitJson: circuitJson,
     is_plated: true,
   })
+  const excellon_drill_cmds_unplated = convertSoupToExcellonDrillCommands({
+    circuitJson: circuitJson,
+    is_plated: false,
+  })
 
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
+  const excellonDrillOutputUnplated = stringifyExcellonDrill(
+    excellon_drill_cmds_unplated,
+  )
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
-  console.log(excellonDrillOutput)
+  console.log("plated\n", excellonDrillOutput)
+
+  console.log("unplated\n", excellonDrillOutputUnplated)
 
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect({
     ...gerberOutput,
     "drill.drl": excellonDrillOutput,
+    "drill_npth.drl": excellonDrillOutputUnplated,
   }).toMatchGerberSnapshot(import.meta.path, "pill-shape")
 })
