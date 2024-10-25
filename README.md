@@ -10,3 +10,4 @@ Some components of this gerber system:
 ## References
 
 - [Gerber Format Specification (2022)](https://www.ucamco.com/files/downloads/file_en/456/gerber-layer-format-specification-revision-2022-02_en.pdf?7b3ca7f0753aa2d77f5f9afe31b9f826)
+- [Excellon Drill Format Specification](https://gist.github.com/katyo/5692b935abc085b1037e)

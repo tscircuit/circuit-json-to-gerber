@@ -189,15 +189,67 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
-            const apertureConfig = getApertureConfigFromPcbPlatedHole(element)
-            glayer.push(
-              ...gerberBuilder()
+            if (element.shape === "pill") {
+              // For pill shapes, use a circular aperture and draw the connecting line
+              const circleApertureConfig = {
+                standard_template_code: "C" as const,
+                diameter: element.outer_width > element.outer_height ? 
+                  element.outer_height : element.outer_width
+              }
+
+              // Find existing aperture number or get next available
+              let aperture_number = 10
+              try {
+                aperture_number = findApertureNumber(glayer, circleApertureConfig)
+              } catch {
+                aperture_number = Math.max(...glayer
+                  .filter(cmd => 'aperture_number' in cmd)
+                  .map(cmd => (cmd as any).aperture_number), 9) + 1
+                
+                // Add the aperture definition
+                glayer.push(
+                  ...gerberBuilder()
+                    .add("define_aperture_template", {
+                      aperture_number,
+                      ...circleApertureConfig
+                    })
+                    .build()
+                )
+              }
+              
+              const gb = gerberBuilder()
                 .add("select_aperture", {
-                  aperture_number: findApertureNumber(glayer, apertureConfig),
+                  aperture_number,
                 })
-                .add("flash_operation", { x: element.x, y: mfy(element.y) })
-                .build(),
-            )
+
+              if (element.outer_width > element.outer_height) {
+                // Horizontal pill
+                const offset = (element.outer_width - element.outer_height) / 2
+                gb.add("flash_operation", { x: element.x - offset, y: mfy(element.y) })
+                  .add("move_operation", { x: element.x - offset, y: mfy(element.y) })
+                  .add("plot_operation", { x: element.x + offset, y: mfy(element.y) })
+                  .add("flash_operation", { x: element.x + offset, y: mfy(element.y) })
+              } else {
+                // Vertical pill
+                const offset = (element.outer_height - element.outer_width) / 2
+                gb.add("flash_operation", { x: element.x, y: mfy(element.y - offset) })
+                  .add("move_operation", { x: element.x, y: mfy(element.y - offset) })
+                  .add("plot_operation", { x: element.x, y: mfy(element.y + offset) })
+                  .add("flash_operation", { x: element.x, y: mfy(element.y + offset) })
+              }
+              
+              glayer.push(...gb.build())
+            } else {
+              const apertureConfig = getApertureConfigFromPcbPlatedHole(element)
+              glayer.push(
+                ...gerberBuilder()
+                  .add("select_aperture", {
+                    aperture_number: findApertureNumber(glayer, apertureConfig),
+                  })
+                  .add("flash_operation", { x: element.x, y: mfy(element.y) })
+                  .build(),
+              )
+            }
           }
         }
       } else if (element.type === "pcb_hole") {

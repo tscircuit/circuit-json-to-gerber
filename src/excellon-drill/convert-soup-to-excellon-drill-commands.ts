@@ -100,10 +100,41 @@ export const convertSoupToExcellonDrillCommands = ({
           hole_diameter = element.hole_diameter
         } else if (element.type === "pcb_plated_hole" && element.shape === "pill") {
           hole_diameter = Math.min(element.hole_width, element.hole_height)
-        }
-
-        if (!hole_diameter) continue
-        if (diameterToToolNumber[hole_diameter] === i) {
+          
+          // For pill shapes, we need to route the hole
+          if (diameterToToolNumber[hole_diameter] === i) {
+            const y_multiplier = flip_y_axis ? -1 : 1
+            
+            if (element.hole_width > element.hole_height) {
+              // Horizontal pill
+              const offset = (element.hole_width - element.hole_height) / 2
+              builder
+                .add("G85", {})
+                .add("drill_at", {
+                  x: element.x - offset,
+                  y: element.y * y_multiplier,
+                })
+                .add("drill_at", {
+                  x: element.x + offset,
+                  y: element.y * y_multiplier,
+                })
+            } else {
+              // Vertical pill
+              const offset = (element.hole_height - element.hole_width) / 2
+              builder
+                .add("G85", {})
+                .add("drill_at", {
+                  x: element.x,
+                  y: (element.y - offset) * y_multiplier,
+                })
+                .add("drill_at", {
+                  x: element.x,
+                  y: (element.y + offset) * y_multiplier,
+                })
+            }
+          }
+        } else if (!hole_diameter) continue
+        else if (diameterToToolNumber[hole_diameter] === i) {
           builder.add("drill_at", {
             x: element.x,
             y: element.y * (flip_y_axis ? -1 : 1),

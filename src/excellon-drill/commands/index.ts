@@ -1,5 +1,7 @@
 export * from "./FMAT"
+export * from "./G01"
 export * from "./G05"
+export * from "./G85"
 export * from "./G90"
 export * from "./M30"
 export * from "./M48"
