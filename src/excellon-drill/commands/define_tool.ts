@@ -8,5 +8,11 @@ export const define_tool = defineExcellonDrillCommand({
     tool_number: z.number(),
     diameter: z.number(),
   }),
-  stringify: (c) => `T${c.tool_number}C${c.diameter.toFixed(6)}`,
+  stringify: (c) => {
+    if ("diameter" in c) {
+      return `T${c.tool_number}C${c.diameter.toFixed(6)}`
+    }
+    // For pill shapes, use the width as the diameter
+    return `T${c.tool_number}C${c.width.toFixed(6)}`
+  },
 })
