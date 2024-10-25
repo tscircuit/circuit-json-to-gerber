@@ -14,9 +14,9 @@ test("Generate gerber with pill shape", async () => {
     <board width={20} height={20}>
       <platedhole
         shape="pill"
-        outerWidth={1.5}
+        outerWidth={5}
         outerHeight={2.5}
-        innerWidth={1}
+        innerWidth={4}
         innerHeight={2}
         pcbX={2}
         pcbY={2}

@@ -189,19 +189,11 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
-            if (element.shape !== "circle") {
-              console.warn(
-                "NOT IMPLEMENTED: drawing gerber for non-circle plated hole",
-              )
-              continue
-            }
+            const apertureConfig = getApertureConfigFromPcbPlatedHole(element)
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
-                  aperture_number: findApertureNumber(
-                    glayer,
-                    getApertureConfigFromPcbPlatedHole(element),
-                  ),
+                  aperture_number: findApertureNumber(glayer, apertureConfig),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })
                 .build(),

@@ -155,7 +155,6 @@ export const getApertureConfigFromPcbPlatedHole = (
         "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
       )
     }
-    // For pill shapes, we'll use a custom macro that combines rectangles and circles
     return {
       macro_name: "PILL",
       x_size: elm.outer_width,
@@ -221,13 +220,7 @@ function getAllApertureTemplateConfigsForLayer(
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
-        if (elm.shape === "circle") {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
-        } else if (elm.shape === "oval") {
-          console.warn("NOT IMPLEMENTED: drawing gerber for oval plated hole")
-        } else if (elm.shape === "pill") {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
-        }
+        addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
       }
     } else if (elm.type === "pcb_hole") {
       if (elm.hole_shape === "circle")
