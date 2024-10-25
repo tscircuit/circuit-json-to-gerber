@@ -3,11 +3,11 @@ import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
 
 export const convertSoupToExcellonDrillCommands = ({
-  soup,
+  circuitJson,
   is_plated,
   flip_y_axis = false,
 }: {
-  soup: Array<AnyCircuitElement>
+  circuitJson: Array<AnyCircuitElement>
   is_plated: boolean
   flip_y_axis?: boolean
 }): Array<AnyExcellonDrillCommand> => {
@@ -45,7 +45,7 @@ export const convertSoupToExcellonDrillCommands = ({
   const diameterToToolNumber: Record<number, number> = {}
 
   // Define tools
-  for (const element of soup) {
+  for (const element of circuitJson) {
     if (
       element.type === "pcb_plated_hole" ||
       element.type === "pcb_hole" ||
@@ -73,7 +73,7 @@ export const convertSoupToExcellonDrillCommands = ({
   // Execute drills for tool N
   for (let i = 10; i < tool_counter; i++) {
     builder.add("use_tool", { tool_number: i })
-    for (const element of soup) {
+    for (const element of circuitJson) {
       if (
         element.type === "pcb_plated_hole" ||
         element.type === "pcb_hole" ||

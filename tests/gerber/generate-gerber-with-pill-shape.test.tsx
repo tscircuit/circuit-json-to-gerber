@@ -34,9 +34,12 @@ test("Generate gerber with pill shape", async () => {
   )
 
   const circuitJson = circuit.getCircuitJson()
+
+  console.log(circuitJson)
+
   const gerber_cmds = convertSoupToGerberCommands(circuitJson)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    soup: circuitJson,
+    circuitJson: circuitJson,
     is_plated: true,
   })
 

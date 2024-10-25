@@ -33,7 +33,7 @@ test("Generate simple gerber with basic elements", async () => {
   const soup = circuit.getCircuitJson()
   const gerber_cmds = convertSoupToGerberCommands(soup)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    soup: soup,
+    circuitJson: soup,
     is_plated: true,
   })
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
