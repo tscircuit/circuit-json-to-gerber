@@ -6,6 +6,20 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
     ...gerberBuilder()
       .add("comment", { comment: "APERTURE MACROS START" })
       .add("define_macro_aperture_template", {
+        macro_name: "PILL",
+        template_code: `
+0 Pill shape (rounded rectangle with semicircle ends)*
+0 $1 = width*
+0 $2 = height*
+0 Center rectangle*
+21,1,$1,0,0,$2-$1,0*
+0 Left circle*
+1,1,$1,0,-($2-$1)/2,0*
+0 Right circle*
+1,1,$1,0,($2-$1)/2,0*%
+`.trim(),
+      })
+      .add("define_macro_aperture_template", {
         macro_name: "RoundRect",
         template_code: `
 0 Rectangle with rounded corners*

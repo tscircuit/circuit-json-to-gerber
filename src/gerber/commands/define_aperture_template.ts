@@ -30,10 +30,30 @@ const polygon_template = z.object({
   hole_diameter: z.number().optional(),
 })
 
-const aperture_template_config = z.discriminatedUnion(
+const standard_aperture_template_config = z.discriminatedUnion(
   "standard_template_code",
   [circle_template, rectangle_template, obround_template, polygon_template],
 )
+
+const pill_template = z.object({
+  macro_name: z.literal("PILL"),
+  x_size: z.number(),
+  y_size: z.number(),
+})
+
+const roundrect_template = z.object({
+  macro_name: z.literal("ROUNDRECT"),
+})
+
+const macro_aperture_template_config = z.discriminatedUnion("macro_name", [
+  pill_template,
+  roundrect_template,
+])
+
+const aperture_template_config = z.union([
+  standard_aperture_template_config,
+  macro_aperture_template_config,
+])
 
 export const define_aperture_template = defineGerberCommand({
   command_code: "ADD",
@@ -44,29 +64,38 @@ export const define_aperture_template = defineGerberCommand({
     }),
   ),
   stringify(props) {
-    const { aperture_number, standard_template_code } = props
-    let commandString = `%ADD${aperture_number}${standard_template_code},`
-
-    if (standard_template_code === "C") {
-      commandString += `${props.diameter.toFixed(6)}`
-    } else if (
-      standard_template_code === "R" ||
-      standard_template_code === "O"
-    ) {
-      commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
-    } else if (standard_template_code === "P") {
-      commandString += `${props.outer_diameter}X${props.number_of_vertices}X${
-        props.rotation ? `X${props.rotation}` : ""
-      }`
+    if ("macro_name" in props) {
+      // TODO
+      return ""
     }
+    if ("standard_template_code" in props) {
+      const { aperture_number, standard_template_code } = props
+      let commandString = `%ADD${aperture_number}${standard_template_code},`
 
-    if (props.hole_diameter) {
-      commandString += `X${props.hole_diameter.toFixed(6)}`
+      if (standard_template_code === "C") {
+        commandString += `${props.diameter.toFixed(6)}`
+      } else if (
+        standard_template_code === "R" ||
+        standard_template_code === "O"
+      ) {
+        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
+      } else if (standard_template_code === "P") {
+        commandString += `${props.outer_diameter}X${props.number_of_vertices}X${
+          props.rotation ? `X${props.rotation}` : ""
+        }`
+      }
+
+      if (props.hole_diameter) {
+        commandString += `X${props.hole_diameter.toFixed(6)}`
+      }
+
+      commandString += "*%"
+
+      return commandString
     }
-
-    commandString += "*%"
-
-    return commandString
+    throw new Error(
+      `Invalid aperture template config: ${JSON.stringify(props)}`,
+    )
   },
 })
 

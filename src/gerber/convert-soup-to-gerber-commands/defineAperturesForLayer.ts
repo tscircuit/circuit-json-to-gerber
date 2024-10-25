@@ -135,18 +135,36 @@ export const getApertureConfigFromPcbSolderPaste = (
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
-export const getApertureConfigFromCirclePcbPlatedHole = (
+export const getApertureConfigFromPcbPlatedHole = (
   elm: PCBPlatedHole,
 ): ApertureTemplateConfig => {
-  if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
-    throw new Error(
-      `Invalid shape called in getApertureConfigFromCirclePcbPlatedHole: ${elm.shape}`,
-    )
+  if (elm.shape === "circle") {
+    if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
+      throw new Error(
+        "Invalid circle shape in getApertureConfigFromPcbPlatedHole: missing diameters",
+      )
+    }
+    return {
+      standard_template_code: "C",
+      diameter: elm.outer_diameter,
+    }
   }
-  return {
-    standard_template_code: "C",
-    diameter: elm.outer_diameter,
+  if (elm.shape === "pill") {
+    if (!("outer_width" in elm && "outer_height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
+      )
+    }
+    // For pill shapes, we'll use a custom macro that combines rectangles and circles
+    return {
+      macro_name: "PILL",
+      x_size: elm.outer_width,
+      y_size: elm.outer_height,
+    }
   }
+  throw new Error(
+    `Unsupported shape in getApertureConfigFromPcbPlatedHole: ${elm.shape}`,
+  )
 }
 
 export const getApertureConfigFromCirclePcbHole = (

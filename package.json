@@ -13,20 +13,21 @@
   ],
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
-    "@tscircuit/core": "^0.0.102",
+    "@tscircuit/core": "^0.0.131",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
-    "@types/react": "^18.3.11",
+    "@types/react": "^18.3.12",
     "bun-match-svg": "^0.0.3",
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
+    "react": "^18.3.1",
     "tsup": "^8.2.4"
   },
   "peerDependencies": {
-    "typescript": "^5.0.0"
+    "typescript": "^5.0.0",
+    "circuit-json": "^0.0.91"
   },
   "dependencies": {
-    "circuit-json": "^0.0.83",
     "fast-json-stable-stringify": "^2.1.0"
   }
 }
