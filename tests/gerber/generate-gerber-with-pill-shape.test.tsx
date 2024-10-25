@@ -34,6 +34,8 @@ test("Generate gerber with pill shape", async () => {
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
+  console.log(gerberOutput.F_Cu)
+
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "pill-shape")

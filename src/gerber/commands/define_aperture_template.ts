@@ -65,8 +65,19 @@ export const define_aperture_template = defineGerberCommand({
   ),
   stringify(props) {
     if ("macro_name" in props) {
-      // TODO
-      return ""
+      const { aperture_number, macro_name } = props
+      let commandString = `%ADD${aperture_number}${macro_name},`
+
+      if (macro_name === "PILL") {
+        // For PILL macro, we need width (x_size) and height (y_size)
+        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
+      } else if (macro_name === "ROUNDRECT") {
+        // Handle ROUNDRECT if needed
+        throw new Error("ROUNDRECT macro not implemented yet")
+      }
+
+      commandString += "*%"
+      return commandString
     }
     if ("standard_template_code" in props) {
       const { aperture_number, standard_template_code } = props

@@ -51,7 +51,7 @@ export const getCommandHeaders = (opts: {
     gerberBuilder()
       .add("add_attribute_on_file", {
         attribute_name: "GenerationSoftware",
-        attribute_value: `tscircuit,builder,${packageJson.version}`,
+        attribute_value: `tscircuit,circuit-json-to-gerber,${packageJson.version}`,
       })
       .add("add_attribute_on_file", {
         attribute_name: "CreationDate",
