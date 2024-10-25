@@ -13,7 +13,7 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 0 $1 = Total width*
 0 $2 = Total height*
 0 $3 = Circle diameter (equal to height)*
-0 $4 = Circle center offset ((width-diameter)/2)*
+0 $4 = Circle center offset
 0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
 0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
 21,1,$1,$2,0.0,0.0,0.0*
@@ -29,7 +29,7 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 0 $1 = Total width*
 0 $2 = Total height*
 0 $3 = Circle diameter (equal to width)*
-0 $4 = Circle center offset ((height-diameter)/2)*
+0 $4 = Circle center offset
 0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
 21,1,$1,$2,0.0,0.0,0.0*
 1,1,$3,0.0,0.0-$4*
