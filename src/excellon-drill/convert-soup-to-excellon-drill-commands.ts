@@ -52,16 +52,19 @@ export const convertSoupToExcellonDrillCommands = ({
       element.type === "pcb_via"
     ) {
       let hole_diameter: number | undefined
-      
+
       if ("hole_diameter" in element) {
         hole_diameter = element.hole_diameter
-      } else if (element.type === "pcb_plated_hole" && element.shape === "pill") {
+      } else if (
+        element.type === "pcb_plated_hole" &&
+        element.shape === "pill"
+      ) {
         // For pill shapes, use the minimum dimension as the hole diameter
         hole_diameter = Math.min(element.hole_width, element.hole_height)
       }
 
       if (!hole_diameter) continue
-      
+
       if (!diameterToToolNumber[hole_diameter]) {
         builder.add("aper_function_header", {
           is_plated: true,
@@ -95,16 +98,18 @@ export const convertSoupToExcellonDrillCommands = ({
         )
           continue
         let hole_diameter: number | undefined
-        
+
         if ("hole_diameter" in element) {
           hole_diameter = element.hole_diameter
-        } else if (element.type === "pcb_plated_hole" && element.shape === "pill") {
+        }
+
+        if (element.type === "pcb_plated_hole" && element.shape === "pill") {
           hole_diameter = Math.min(element.hole_width, element.hole_height)
-          
+
           // For pill shapes, we need to route the hole
           if (diameterToToolNumber[hole_diameter] === i) {
             const y_multiplier = flip_y_axis ? -1 : 1
-            
+
             if (element.hole_width > element.hole_height) {
               // Horizontal pill
               const offset = (element.hole_width - element.hole_height) / 2

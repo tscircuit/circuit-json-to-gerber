@@ -36,7 +36,6 @@ async function toMatchGerberSnapshot(
 }
 
 expect.extend({
-  // biome-ignore lint/suspicious/noExplicitAny:
   toMatchGerberSnapshot: toMatchGerberSnapshot as any,
 })
 
