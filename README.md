@@ -1,11 +1,24 @@
-# Gerber Stringification
+# circuit-json-to-gerber
 
-Some components of this gerber system:
+Convert a [Circuit JSON](https://github.com/tscircuit/circuit-json) to Gerber/Excellon files.
 
-- A JSON command representation (defined in part with zod), all gerber command
-  definitions are in [./commands](./commands)
-  - Each command features a stringification function
-- A function that converts soup to the Gerber commands [./src/convert-soup-to-gerber-commands](./convert-soup-to-gerber-commands)
+## CLI Usage
+
+Convert a circuit JSON file to Gerber/Excellon files:
+
+```bash
+# Basic usage - outputs to input.gerbers.zip
+circuit-to-gerber input.circuit.json
+
+# Specify custom output file
+circuit-to-gerber input.circuit.json -o output.zip
+```
+
+The output ZIP file will contain:
+
+- Gerber files (\*.gbr) for each layer
+- Plated drill file (plated.drl)
+- Unplated drill file (unplated.drl)
 
 ## References
 
