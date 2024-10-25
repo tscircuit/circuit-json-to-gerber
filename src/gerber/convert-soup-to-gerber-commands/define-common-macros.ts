@@ -6,17 +6,34 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
     ...gerberBuilder()
       .add("comment", { comment: "APERTURE MACROS START" })
       .add("define_macro_aperture_template", {
-        macro_name: "PILL",
+        macro_name: "HORZPILL",
         template_code: `
-0 Pill shape (rounded rectangle with semicircle ends)*
-0 $1 = width*
-0 $2 = height*
-0 Center rectangle*
-21,1,$1,0,0,$2-$1,0*
-0 Left circle*
-1,1,$1,0,-($2-$1)/2,0*
-0 Right circle*
-1,1,$1,0,($2-$1)/2,0*%
+0 Horizontal pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to height)*
+0 $4 = Circle center offset ((width-diameter)/2)*
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
+21,1,$1,$2,0.0,0.0,0.0*
+1,1,$3,0.0-$4,0.0*
+1,1,$3,$4,0.0*%
+`.trim(),
+      })
+      .add("define_macro_aperture_template", {
+        macro_name: "VERTPILL",
+        template_code: `
+0 Vertical pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to width)*
+0 $4 = Circle center offset ((height-diameter)/2)*
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+21,1,$1,$2,0.0,0.0,0.0*
+1,1,$3,0.0,0.0-$4*
+1,1,$3,0.0,$4*%
 `.trim(),
       })
       .add("define_macro_aperture_template", {

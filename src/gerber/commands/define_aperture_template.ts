@@ -35,18 +35,38 @@ const standard_aperture_template_config = z.discriminatedUnion(
   [circle_template, rectangle_template, obround_template, polygon_template],
 )
 
-const pill_template = z.object({
-  macro_name: z.literal("PILL"),
+const horz_pill_template = z.object({
+  macro_name: z.literal("HORZPILL"),
   x_size: z.number(),
   y_size: z.number(),
+  circle_diameter: z.number(),
+  circle_center_offset: z.number(),
+})
+
+const vert_pill_template = z.object({
+  macro_name: z.literal("VERTPILL"),
+  x_size: z.number(),
+  y_size: z.number(),
+  circle_diameter: z.number(),
+  circle_center_offset: z.number(),
 })
 
 const roundrect_template = z.object({
   macro_name: z.literal("ROUNDRECT"),
+  corner_radius: z.number(),
+  corner_1_x: z.number(),
+  corner_1_y: z.number(),
+  corner_2_x: z.number(),
+  corner_2_y: z.number(),
+  corner_3_x: z.number(),
+  corner_3_y: z.number(),
+  corner_4_x: z.number(),
+  corner_4_y: z.number(),
 })
 
 const macro_aperture_template_config = z.discriminatedUnion("macro_name", [
-  pill_template,
+  horz_pill_template,
+  vert_pill_template,
   roundrect_template,
 ])
 
@@ -68,9 +88,8 @@ export const define_aperture_template = defineGerberCommand({
       const { aperture_number, macro_name } = props
       let commandString = `%ADD${aperture_number}${macro_name},`
 
-      if (macro_name === "PILL") {
-        // For PILL macro, we need width (x_size) and height (y_size)
-        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
+      if (macro_name === "HORZPILL" || macro_name === "VERTPILL") {
+        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}X${props.circle_diameter.toFixed(6)}X${props.circle_center_offset.toFixed(6)}`
       } else if (macro_name === "ROUNDRECT") {
         // Handle ROUNDRECT if needed
         throw new Error("ROUNDRECT macro not implemented yet")

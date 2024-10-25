@@ -155,10 +155,22 @@ export const getApertureConfigFromPcbPlatedHole = (
         "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
       )
     }
+
+    if (elm.outer_width > elm.outer_height) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: elm.outer_width,
+        y_size: elm.outer_height,
+        circle_diameter: Math.min(elm.outer_width, elm.outer_height),
+        circle_center_offset: elm.outer_width / 2,
+      }
+    }
     return {
-      macro_name: "PILL",
+      macro_name: "VERTPILL",
       x_size: elm.outer_width,
       y_size: elm.outer_height,
+      circle_diameter: Math.min(elm.outer_width, elm.outer_height),
+      circle_center_offset: elm.outer_height / 2,
     }
   }
   throw new Error(
