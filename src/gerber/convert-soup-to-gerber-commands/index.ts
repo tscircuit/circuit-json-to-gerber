@@ -2,6 +2,7 @@ import type { AnyCircuitElement } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
+import { defineCommonMacros } from "./define-common-macros"
 import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
@@ -72,7 +73,7 @@ export const convertSoupToGerberCommands = (
     "B_SilkScreen",
   ] as const) {
     const glayer = glayers[glayer_name]
-    // defineCommonMacros(glayer)
+    defineCommonMacros(glayer)
     defineAperturesForLayer({
       soup,
       glayer,
