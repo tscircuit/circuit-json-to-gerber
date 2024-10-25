@@ -54,7 +54,7 @@ test("generate excellon drill text from axial resistor", async () => {
   ]
 
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    soup: soup,
+    circuitJson: soup,
     is_plated: true,
   })
 

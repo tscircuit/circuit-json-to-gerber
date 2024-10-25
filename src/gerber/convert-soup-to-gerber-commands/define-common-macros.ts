@@ -6,6 +6,37 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
     ...gerberBuilder()
       .add("comment", { comment: "APERTURE MACROS START" })
       .add("define_macro_aperture_template", {
+        macro_name: "HORZPILL",
+        template_code: `
+0 Horizontal pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to height)*
+0 $4 = Circle center offset
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
+21,1,$1,$2,0.0,0.0,0.0*
+1,1,$3,0.0-$4,0.0*
+1,1,$3,$4,0.0*
+`.trim(),
+      })
+      .add("define_macro_aperture_template", {
+        macro_name: "VERTPILL",
+        template_code: `
+0 Vertical pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to width)*
+0 $4 = Circle center offset
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+21,1,$1,$2,0.0,0.0,0.0*
+1,1,$3,0.0,0.0-$4*
+1,1,$3,0.0,$4*
+`.trim(),
+      })
+      .add("define_macro_aperture_template", {
         macro_name: "RoundRect",
         template_code: `
 0 Rectangle with rounded corners*
@@ -22,7 +53,7 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 20,1,$1+$1,$2,$3,$4,$5,0*
 20,1,$1+$1,$4,$5,$6,$7,0*
 20,1,$1+$1,$6,$7,$8,$9,0*
-20,1,$1+$1,$8,$9,$2,$3,0*%
+20,1,$1+$1,$8,$9,$2,$3,0*
 `.trim(),
       })
       .add("comment", { comment: "APERTURE MACROS END" })

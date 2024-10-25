@@ -18,7 +18,7 @@ test("Generate gerber of macrokeypad", async () => {
   const circuitJson = circuit.getCircuitJson()
   const gerber_cmds = convertSoupToGerberCommands(circuitJson)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    soup: circuitJson,
+    circuitJson: circuitJson,
     is_plated: true,
   })
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)

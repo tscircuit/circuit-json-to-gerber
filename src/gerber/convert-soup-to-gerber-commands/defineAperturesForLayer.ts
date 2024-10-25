@@ -135,18 +135,47 @@ export const getApertureConfigFromPcbSolderPaste = (
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
-export const getApertureConfigFromCirclePcbPlatedHole = (
+export const getApertureConfigFromPcbPlatedHole = (
   elm: PCBPlatedHole,
 ): ApertureTemplateConfig => {
-  if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
-    throw new Error(
-      `Invalid shape called in getApertureConfigFromCirclePcbPlatedHole: ${elm.shape}`,
-    )
+  if (elm.shape === "circle") {
+    if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
+      throw new Error(
+        "Invalid circle shape in getApertureConfigFromPcbPlatedHole: missing diameters",
+      )
+    }
+    return {
+      standard_template_code: "C",
+      diameter: elm.outer_diameter,
+    }
   }
-  return {
-    standard_template_code: "C",
-    diameter: elm.outer_diameter,
+  if (elm.shape === "pill") {
+    if (!("outer_width" in elm && "outer_height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
+      )
+    }
+
+    if (elm.outer_width > elm.outer_height) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: elm.outer_width,
+        y_size: elm.outer_height,
+        circle_diameter: Math.min(elm.outer_width, elm.outer_height),
+        circle_center_offset: elm.outer_width / 2,
+      }
+    }
+    return {
+      macro_name: "VERTPILL",
+      x_size: elm.outer_width,
+      y_size: elm.outer_height,
+      circle_diameter: Math.min(elm.outer_width, elm.outer_height),
+      circle_center_offset: elm.outer_height / 2,
+    }
   }
+  throw new Error(
+    `Unsupported shape in getApertureConfigFromPcbPlatedHole: ${elm.shape}`,
+  )
 }
 
 export const getApertureConfigFromCirclePcbHole = (
@@ -203,13 +232,7 @@ function getAllApertureTemplateConfigsForLayer(
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
-        if (elm.shape === "circle") {
-          addConfigIfNew(getApertureConfigFromCirclePcbPlatedHole(elm))
-        } else if (elm.shape === "oval") {
-          console.warn("NOT IMPLEMENTED: drawing gerber for oval plated hole")
-        } else if (elm.shape === "pill") {
-          console.warn("NOT IMPLEMENTED: drawing gerber for oval plated pill")
-        }
+        addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
       }
     } else if (elm.type === "pcb_hole") {
       if (elm.hole_shape === "circle")

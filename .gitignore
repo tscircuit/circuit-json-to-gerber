@@ -182,3 +182,5 @@ yalc.lock
 
 gerber-output
 gerber-output.zip
+.aider*
+*.diff.png

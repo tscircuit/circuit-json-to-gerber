@@ -17,11 +17,15 @@ export const findApertureNumber = (
     const trace_width = search_params.trace_width
     aperture = glayer.find(
       (command): command is DefineAperatureTemplateCommand =>
+        "standard_template_code" in command &&
         command.command_code === "ADD" &&
         command.standard_template_code === "C" &&
         command.diameter === trace_width,
     )
-  } else if ("standard_template_code" in search_params) {
+  } else if (
+    "standard_template_code" in search_params ||
+    "macro_name" in search_params
+  ) {
     aperture = glayer.find(
       (command): command is DefineAperatureTemplateCommand =>
         command.command_code === "ADD" &&
