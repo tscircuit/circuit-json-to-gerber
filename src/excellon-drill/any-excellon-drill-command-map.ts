@@ -3,6 +3,7 @@ import type { ExcellonDrillCommandDef } from "./define-excellon-drill-command"
 import * as EDCMD from "./commands"
 
 export const excellon_drill_command_map = {
+  G00: EDCMD.G00,
   G01: EDCMD.G01,
   G85: EDCMD.G85,
   M48: EDCMD.M48,
@@ -16,6 +17,8 @@ export const excellon_drill_command_map = {
   use_tool: EDCMD.use_tool,
   G90: EDCMD.G90,
   G05: EDCMD.G05,
+  M15: EDCMD.M15,
+  M16: EDCMD.M16,
   M30: EDCMD.M30,
   drill_at: EDCMD.drill_at,
   header_comment: EDCMD.header_comment,

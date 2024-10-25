@@ -184,3 +184,5 @@ gerber-output
 gerber-output.zip
 .aider*
 *.diff.png
+
+tmp*

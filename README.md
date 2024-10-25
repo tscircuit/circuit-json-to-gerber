@@ -1,11 +1,63 @@
-# Gerber Stringification
+# circuit-json-to-gerber
 
-Some components of this gerber system:
+Convert a [Circuit JSON](https://github.com/tscircuit/circuit-json) to Gerber/Excellon files.
 
-- A JSON command representation (defined in part with zod), all gerber command
-  definitions are in [./commands](./commands)
-  - Each command features a stringification function
-- A function that converts soup to the Gerber commands [./src/convert-soup-to-gerber-commands](./convert-soup-to-gerber-commands)
+## Installation
+
+```bash
+# Global installation for CLI usage
+npm install -g circuit-json-to-gerber
+```
+
+## CLI Usage
+
+Convert a circuit JSON file to Gerber/Excellon files:
+
+```bash
+# Basic usage - outputs to input.gerbers.zip
+circuit-to-gerber input.circuit.json
+
+# Specify custom output file
+circuit-to-gerber input.circuit.json -o output.zip
+```
+
+The output ZIP file will contain:
+
+- Gerber files (\*.gbr) for each layer
+- Plated drill file (plated.drl)
+- Unplated drill file (unplated.drl)
+
+## Library Usage
+
+```typescript
+import {
+  convertSoupToGerberCommands,
+  stringifyGerberCommandLayers,
+} from "circuit-json-to-gerber"
+import {
+  convertSoupToExcellonDrillCommands,
+  stringifyExcellonDrill,
+} from "circuit-json-to-gerber"
+
+// Convert Circuit JSON to Gerber commands
+const gerberCommands = convertSoupToGerberCommands(circuitJson)
+
+// Convert to Gerber file content
+const gerberOutput = stringifyGerberCommandLayers(gerberCommands)
+
+// Generate drill files
+const platedDrillCommands = convertSoupToExcellonDrillCommands({
+  circuitJson,
+  is_plated: true,
+})
+const unplatedDrillCommands = convertSoupToExcellonDrillCommands({
+  circuitJson,
+  is_plated: false,
+})
+
+const platedDrillOutput = stringifyExcellonDrill(platedDrillCommands)
+const unplatedDrillOutput = stringifyExcellonDrill(unplatedDrillCommands)
+```
 
 ## References
 

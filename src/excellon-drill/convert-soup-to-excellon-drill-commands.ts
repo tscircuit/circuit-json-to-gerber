@@ -114,28 +114,36 @@ export const convertSoupToExcellonDrillCommands = ({
               // Horizontal pill
               const offset = (element.hole_width - element.hole_height) / 2
               builder
-                .add("G85", {})
+                .add("G00", {})
                 .add("drill_at", {
                   x: element.x - offset,
                   y: element.y * y_multiplier,
                 })
+                .add("M15", {})
+                .add("G01", {})
                 .add("drill_at", {
                   x: element.x + offset,
                   y: element.y * y_multiplier,
                 })
+                .add("M16", {})
+                .add("G05", {})
             } else {
               // Vertical pill
               const offset = (element.hole_height - element.hole_width) / 2
               builder
-                .add("G85", {})
+                .add("G00", {})
                 .add("drill_at", {
                   x: element.x,
                   y: (element.y - offset) * y_multiplier,
                 })
+                .add("M15", {})
+                .add("G01", {})
                 .add("drill_at", {
                   x: element.x,
                   y: (element.y + offset) * y_multiplier,
                 })
+                .add("M16", {})
+                .add("G05", {})
             }
           }
         } else if (!hole_diameter) continue

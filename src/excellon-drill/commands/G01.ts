@@ -1,6 +1,9 @@
 import { z } from "zod"
 import { defineExcellonDrillCommand } from "../define-excellon-drill-command"
 
+/**
+ * Linear move with drilling
+ */
 export const G01 = defineExcellonDrillCommand({
   command_code: "G01",
   schema: z.object({

@@ -1,6 +1,6 @@
 import type { AnyGerberCommand } from "src/gerber/any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
-import packageJson from "package.json"
+import packageJson from "../../../package.json"
 
 const layerAndTypeToFileFunction = {
   "top-copper": "Copper,L1,Top",
