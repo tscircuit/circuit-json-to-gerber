@@ -7,6 +7,7 @@ import type {
   PcbHole,
   PcbSolderPaste,
   PcbSilkscreenPath,
+  PcbSilkscreenText,
 } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
@@ -114,6 +115,18 @@ export const getApertureConfigFromPcbSilkscreenPath = (
     }
   }
   throw new Error(`Provide stroke_width for: ${elm as any}`)
+}
+
+export const getApertureConfigFromPcbSilkscreenText = (
+  elm: PcbSilkscreenText,
+): ApertureTemplateConfig => {
+  if ("font_size" in elm) {
+    return {
+      standard_template_code: "C",
+      diameter: elm.font_size / 4, // font size and diamater have different units of measurement
+    }
+  }
+  throw new Error(`Provide font_size for: ${elm as any}`)
 }
 
 export const getApertureConfigFromPcbSolderPaste = (
@@ -242,6 +255,8 @@ function getAllApertureTemplateConfigsForLayer(
       addConfigIfNew(getApertureConfigFromPcbVia(elm))
     } else if (elm.type === "pcb_silkscreen_path")
       addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
+    else if (elm.type === "pcb_silkscreen_text")
+      addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
   }
 
   return configs
