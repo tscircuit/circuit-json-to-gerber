@@ -8,6 +8,7 @@ import {
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromPcbPlatedHole,
   getApertureConfigFromPcbSilkscreenPath,
+  getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
@@ -15,6 +16,7 @@ import {
 import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
+import { lineAlphabet } from "@tscircuit/alphabet"
 
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
@@ -146,6 +148,72 @@ export const convertSoupToGerberCommands = (
             })
           }
 
+          glayer.push(...gerber.build())
+        }
+      } else if (element.type === "pcb_silkscreen_text") {
+        if (element.layer === layer) {
+          const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
+          const apertureConfig = getApertureConfigFromPcbSilkscreenText(element)
+          const gerber = gerberBuilder().add("select_aperture", {
+            aperture_number: findApertureNumber(glayer, apertureConfig),
+          })
+
+          let initialX = element.anchor_position.x
+          let initialY = element.anchor_position.y
+          const fontSize = element.font_size
+          const letterSpacing = fontSize * 0.4
+          const spaceWidth = fontSize * 0.5
+
+          const textWidth =
+            element.text.split("").reduce((width, char) => {
+              if (char === " ") {
+                return width + spaceWidth + letterSpacing
+              }
+              return width + fontSize + letterSpacing
+            }, 0) - letterSpacing
+
+          const textHeight = fontSize
+          switch (element.anchor_alignment || "center") {
+            case "top_right":
+              // No adjustment needed
+              break
+            case "top_left":
+              initialX -= textWidth
+              break
+            case "bottom_right":
+              initialY -= textHeight
+              break
+            case "bottom_left":
+              initialX -= textWidth
+              initialY -= textHeight
+              break
+            case "center":
+              initialX -= textWidth / 2
+              initialY -= textHeight / 2
+              break
+          }
+
+          let anchoredX = initialX
+          const anchoredY = initialY
+          for (const char of element.text.toUpperCase()) {
+            if (char === " ") {
+              anchoredX += spaceWidth + letterSpacing
+              continue
+            }
+
+            const letterPaths = lineAlphabet[char] || []
+            for (const path of letterPaths) {
+              const x1 = anchoredX + path.x1 * fontSize
+              const y1 = anchoredY + path.y1 * fontSize
+              const x2 = anchoredX + path.x2 * fontSize
+              const y2 = anchoredY + path.y2 * fontSize
+
+              gerber.add("move_operation", { x: x1, y: mfy(y1) })
+              gerber.add("plot_operation", { x: x2, y: mfy(y2) })
+            }
+
+            anchoredX += fontSize + letterSpacing // Move to next character position
+          }
           glayer.push(...gerber.build())
         }
       } else if (element.type === "pcb_smtpad") {
