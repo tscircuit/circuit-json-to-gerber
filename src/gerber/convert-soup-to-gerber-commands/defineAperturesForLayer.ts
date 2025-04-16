@@ -102,6 +102,14 @@ export const getApertureConfigFromPcbSmtpad = (
       diameter: elm.radius * 2,
     }
   }
+  if (elm.shape === "rotated_rect") {
+    // Rotation is handled by the LR command, not the aperture definition
+    return {
+      standard_template_code: "R",
+      x_size: elm.width,
+      y_size: elm.height,
+    }
+  }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 

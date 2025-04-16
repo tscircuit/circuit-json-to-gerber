@@ -222,17 +222,26 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
-            glayer.push(
-              ...gerberBuilder()
-                .add("select_aperture", {
-                  aperture_number: findApertureNumber(
-                    glayer,
-                    getApertureConfigFromPcbSmtpad(element),
-                  ),
-                })
-                .add("flash_operation", { x: element.x, y: mfy(element.y) })
-                .build(),
-            )
+            const apertureConfig = getApertureConfigFromPcbSmtpad(element)
+            const apertureNumber = findApertureNumber(glayer, apertureConfig)
+            const gb = gerberBuilder().add("select_aperture", {
+              aperture_number: apertureNumber,
+            })
+
+            if (element.shape === "rotated_rect" && element.ccw_rotation) {
+              gb.add("load_rotation", {
+                rotation_degrees: element.ccw_rotation,
+              })
+            }
+
+            gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
+
+            if (element.shape === "rotated_rect" && element.ccw_rotation) {
+              // Reset rotation
+              gb.add("load_rotation", { rotation_degrees: 0 })
+            }
+
+            glayer.push(...gb.build())
           }
         }
       } else if (element.type === "pcb_solder_paste") {
