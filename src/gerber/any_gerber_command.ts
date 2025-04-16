@@ -50,7 +50,7 @@ export const gerber_command_map = {
   format_specification,
   // load_mirroring,
   // load_polarity,
-  // load_rotation,
+  load_rotation,
   // load_scaling,
   plot_operation,
   // set_coordinate_format,

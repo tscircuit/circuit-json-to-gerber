@@ -16,8 +16,8 @@ test("Generate gerber with pill shape", async () => {
         shape="pill"
         outerWidth={5}
         outerHeight={1.5}
-        innerWidth={4}
-        innerHeight={1}
+        holeWidth={4}
+        holeHeight={1}
         pcbX={2}
         pcbY={2}
       />
@@ -25,8 +25,8 @@ test("Generate gerber with pill shape", async () => {
         shape="pill"
         outerWidth={2}
         outerHeight={8}
-        innerWidth={1.5}
-        innerHeight={4}
+        holeWidth={1.5}
+        holeHeight={4}
         pcbX={-4}
         pcbY={-2}
       />

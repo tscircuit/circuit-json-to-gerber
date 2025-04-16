@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
-    "@tscircuit/core": "^0.0.131",
+    "@tscircuit/core": "^0.0.372",
     "@types/archiver": "^6.0.3",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
@@ -31,7 +31,7 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
-    "circuit-json": "*"
+    "circuit-json": "^0.0.153"
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
