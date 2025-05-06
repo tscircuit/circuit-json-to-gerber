@@ -5,10 +5,14 @@ import UsbCFlashLightCircuitJson from "./components/UsbCFlashLight.circuit.json"
 }
 
 test("Generate gerber of macrokeypad", async () => {
-  // @ts-ignore
-  console.log(UsbCFlashLightCircuitJson.filter((x) => x.shape === "pill"))
   const gerber_cmds = convertSoupToGerberCommands(
     UsbCFlashLightCircuitJson as any,
   )
+
   expect(gerber_cmds).toBeDefined()
+  expect(
+    Object.values(gerber_cmds)[0].filter((x: any) =>
+      x?.macro_name?.includes?.("PILL"),
+    ).length,
+  ).not.toEqual(0)
 })
