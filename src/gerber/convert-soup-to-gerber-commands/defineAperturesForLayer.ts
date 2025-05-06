@@ -153,6 +153,29 @@ export const getApertureConfigFromPcbSolderPaste = (
       diameter: elm.radius * 2,
     }
   }
+  if (elm.shape === "pill") {
+    if (!("width" in elm && "height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
+      )
+    }
+    if (elm.width >= elm.height) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: elm.width,
+        y_size: elm.height,
+        circle_diameter: Math.min(elm.width, elm.height),
+        circle_center_offset: elm.width / 2,
+      }
+    }
+    return {
+      macro_name: "VERTPILL",
+      x_size: elm.width,
+      y_size: elm.height,
+      circle_diameter: Math.min(elm.width, elm.height),
+      circle_center_offset: elm.height / 2,
+    }
+  }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
