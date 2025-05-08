@@ -147,6 +147,14 @@ export const getApertureConfigFromPcbSolderPaste = (
       y_size: elm.height,
     }
   }
+  if (elm.shape === "rotated_rect") {
+    // Rotation is handled by the LR command, not the aperture definition
+    return {
+      standard_template_code: "R",
+      x_size: elm.width,
+      y_size: elm.height,
+    }
+  }
   if (elm.shape === "circle") {
     return {
       standard_template_code: "C",
