@@ -131,7 +131,7 @@ export const getApertureConfigFromPcbSilkscreenText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 4, // font size and diamater have different units of measurement
+      diameter: elm.font_size * 0.15, // font size and diamater have different units of measurement
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)

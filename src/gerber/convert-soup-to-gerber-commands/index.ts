@@ -160,7 +160,7 @@ export const convertSoupToGerberCommands = (
 
           let initialX = element.anchor_position.x
           let initialY = element.anchor_position.y
-          const fontSize = element.font_size
+          const fontSize = element.font_size * 0.7 // mm
           const letterSpacing = fontSize * 0.4
           const spaceWidth = fontSize * 0.5
 
