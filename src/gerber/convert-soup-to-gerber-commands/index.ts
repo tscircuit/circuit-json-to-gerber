@@ -17,6 +17,13 @@ import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
 import { lineAlphabet } from "@tscircuit/alphabet"
+import {
+  applyToPoint,
+  compose,
+  rotate,
+  translate,
+  type Matrix,
+} from "transformation-matrix"
 
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
@@ -175,7 +182,6 @@ export const convertSoupToGerberCommands = (
           const textHeight = fontSize
           switch (element.anchor_alignment || "center") {
             case "top_right":
-              // No adjustment needed
               break
             case "top_left":
               initialX -= textWidth
@@ -195,6 +201,33 @@ export const convertSoupToGerberCommands = (
 
           let anchoredX = initialX
           const anchoredY = initialY
+
+          let rotation = element.ccw_rotation || 0
+          const cx = anchoredX + textWidth / 2
+          const cy = anchoredY + textHeight / 2
+          const transforms: Matrix[] = []
+
+          // Apply mirroring and rotation for the bottom layer only
+          if (element.layer === "bottom") {
+            transforms.push(
+              translate(cx, cy),
+              { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 }, // Horizontal flip
+              translate(-cx, -cy),
+            )
+            rotation = -rotation // Reverse rotation for bottom layer
+          }
+
+          // Apply rotation if present
+          if (rotation) {
+            const rad = (rotation * Math.PI) / 180
+            transforms.push(
+              translate(cx, cy), // Translate to center of rotation
+              rotate(rad), // Apply rotation
+              translate(-cx, -cy), // Translate back
+            )
+          }
+
+          // Process each character in the text
           for (const char of element.text.toUpperCase()) {
             if (char === " ") {
               anchoredX += spaceWidth + letterSpacing
@@ -208,8 +241,18 @@ export const convertSoupToGerberCommands = (
               const x2 = anchoredX + path.x2 * fontSize
               const y2 = anchoredY + path.y2 * fontSize
 
-              gerber.add("move_operation", { x: x1, y: mfy(y1) })
-              gerber.add("plot_operation", { x: x2, y: mfy(y2) })
+              // Apply transformations after positioning
+              let p1 = { x: x1, y: y1 }
+              let p2 = { x: x2, y: y2 }
+
+              if (transforms.length > 0) {
+                const transformMatrix = compose(...transforms)
+                p1 = applyToPoint(transformMatrix, p1)
+                p2 = applyToPoint(transformMatrix, p2)
+              }
+
+              gerber.add("move_operation", { x: p1.x, y: mfy(p1.y) })
+              gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
             }
 
             anchoredX += fontSize + letterSpacing // Move to next character position
