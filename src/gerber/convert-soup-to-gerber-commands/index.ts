@@ -159,6 +159,9 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_silkscreen_text") {
         if (element.layer === layer) {
+          // The acctual Uppercase letters are 70% of the font size
+          // sources: https://forum.generic-mapping-tools.org/t/what-exactly-is-the-custom-font-s-height-point-size-ratio/1265/2?utm_source=chatgpt.com
+          const CAP_HEIGHT_SCALE = 0.7 // Adjust based on your font's metrics
           const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
           const apertureConfig = getApertureConfigFromPcbSilkscreenText(element)
           const gerber = gerberBuilder().add("select_aperture", {
@@ -167,7 +170,7 @@ export const convertSoupToGerberCommands = (
 
           let initialX = element.anchor_position.x
           let initialY = element.anchor_position.y
-          const fontSize = element.font_size
+          const fontSize = element.font_size * CAP_HEIGHT_SCALE
           const letterSpacing = fontSize * 0.4
           const spaceWidth = fontSize * 0.5
 
