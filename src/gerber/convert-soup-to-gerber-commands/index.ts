@@ -17,6 +17,13 @@ import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
 import { lineAlphabet } from "@tscircuit/alphabet"
+import {
+  applyToPoint,
+  compose,
+  rotate,
+  translate,
+  type Matrix,
+} from "transformation-matrix"
 
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
@@ -158,62 +165,107 @@ export const convertSoupToGerberCommands = (
             aperture_number: findApertureNumber(glayer, apertureConfig),
           })
 
-          let initialX = element.anchor_position.x
-          let initialY = element.anchor_position.y
           const fontSize = element.font_size
           const letterSpacing = fontSize * 0.4
           const spaceWidth = fontSize * 0.5
+          const upperText = element.text.toUpperCase()
 
           const textWidth =
-            element.text.split("").reduce((width, char) => {
-              if (char === " ") {
-                return width + spaceWidth + letterSpacing
-              }
-              return width + fontSize + letterSpacing
+            upperText.split("").reduce((width, char) => {
+              return (
+                width + (char === " " ? spaceWidth : fontSize) + letterSpacing
+              )
             }, 0) - letterSpacing
 
           const textHeight = fontSize
+
+          // Step 1: determine top-left of text box
+          let baseX = element.anchor_position.x
+          let baseY = element.anchor_position.y
+
           switch (element.anchor_alignment || "center") {
             case "top_right":
-              // No adjustment needed
+              baseX -= 0
+              baseY -= 0
               break
             case "top_left":
-              initialX -= textWidth
+              baseX -= textWidth
+              baseY -= 0
               break
             case "bottom_right":
-              initialY -= textHeight
+              baseX -= 0
+              baseY -= textHeight
               break
             case "bottom_left":
-              initialX -= textWidth
-              initialY -= textHeight
+              baseX -= textWidth
+              baseY -= textHeight
               break
             case "center":
-              initialX -= textWidth / 2
-              initialY -= textHeight / 2
+            default:
+              baseX -= textWidth / 2
+              baseY -= textHeight / 2
               break
           }
 
-          let anchoredX = initialX
-          const anchoredY = initialY
-          for (const char of element.text.toUpperCase()) {
-            if (char === " ") {
-              anchoredX += spaceWidth + letterSpacing
-              continue
-            }
+          // Step 2: compute transform center (middle of the text box)
+          const centerX = baseX + textWidth / 2
+          const centerY = baseY + textHeight / 2
 
-            const letterPaths = lineAlphabet[char] || []
-            for (const path of letterPaths) {
-              const x1 = anchoredX + path.x1 * fontSize
-              const y1 = anchoredY + path.y1 * fontSize
-              const x2 = anchoredX + path.x2 * fontSize
-              const y2 = anchoredY + path.y2 * fontSize
+          let rotationDegrees = element.ccw_rotation || 0
+          const isBottom = element.layer === "bottom"
 
-              gerber.add("move_operation", { x: x1, y: mfy(y1) })
-              gerber.add("plot_operation", { x: x2, y: mfy(y2) })
-            }
+          const transforms: Matrix[] = []
 
-            anchoredX += fontSize + letterSpacing // Move to next character position
+          if (isBottom) {
+            transforms.push(
+              translate(centerX, centerY),
+              { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 }, // horizontal flip
+              translate(-centerX, -centerY),
+            )
+            rotationDegrees = -rotationDegrees
           }
+
+          if (rotationDegrees) {
+            const rad = (rotationDegrees * Math.PI) / 180
+            transforms.push(
+              translate(centerX, centerY),
+              rotate(rad),
+              translate(-centerX, -centerY),
+            )
+          }
+
+          const transformMatrix =
+            transforms.length > 0 ? compose(...transforms) : undefined
+
+          for (let i = 0; i < upperText.length; i++) {
+            const char = upperText[i]
+            if (char === " ") continue
+
+            const xOffset = i * (fontSize + letterSpacing)
+            const letterPaths = lineAlphabet[char] || []
+
+            for (const { x1, y1, x2, y2 } of letterPaths) {
+              const rawStart = {
+                x: baseX + xOffset + x1 * fontSize,
+                y: baseY + y1 * fontSize,
+              }
+              const rawEnd = {
+                x: baseX + xOffset + x2 * fontSize,
+                y: baseY + y2 * fontSize,
+              }
+
+              const p1 = transformMatrix
+                ? applyToPoint(transformMatrix, rawStart)
+                : rawStart
+              const p2 = transformMatrix
+                ? applyToPoint(transformMatrix, rawEnd)
+                : rawEnd
+
+              gerber.add("move_operation", { x: p1.x, y: mfy(p1.y) })
+              gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
+            }
+          }
+
           glayer.push(...gerber.build())
         }
       } else if (element.type === "pcb_smtpad") {
