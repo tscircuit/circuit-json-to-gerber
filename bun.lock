@@ -5,6 +5,7 @@
       "name": "circuit-json-to-gerber",
       "dependencies": {
         "@tscircuit/alphabet": "^0.0.2",
+        "circuit-json": "^0.0.180",
         "fast-json-stable-stringify": "^2.1.0",
         "transformation-matrix": "^3.0.0",
       },
@@ -24,7 +25,7 @@
         "tsup": "^8.2.4",
       },
       "peerDependencies": {
-        "circuit-json": "^0.0.164",
+        "circuit-json": "*",
         "typescript": "^5.0.0",
       },
     },
@@ -250,7 +251,7 @@
 
     "chownr": ["chownr@1.1.4", "", {}, "sha512-jJ0bqzaylmJtVnNgzTeSOs8DPavpbYgEr/b0YL8/2GO3xJEhInFmhKMUnEJQjZumK7KXGFhUy89PrsJWlakBVg=="],
 
-    "circuit-json": ["circuit-json@0.0.164", "", { "dependencies": { "nanoid": "^5.0.7", "zod": "^3.23.6" } }, "sha512-o+fQKZLJ0TYKc/QObfcUHZB59Ex1dtwVdd/7KhYlIvVkaMmvia6XLCN1c7KVgV3dVrJ4bS72v6VY6I0GIyKv3Q=="],
+    "circuit-json": ["circuit-json@0.0.180", "", { "dependencies": { "nanoid": "^5.0.7", "zod": "^3.23.6" } }, "sha512-kKaMOWbrymFyg3NoSCadaAdwBBE20p0xNdO9AISLkEytWgvAQCP2Mfb4n99nTYxVIhdD8inPpf5Hzw4xQfSRtA=="],
 
     "circuit-json-to-connectivity-map": ["circuit-json-to-connectivity-map@0.0.20", "", { "dependencies": { "@tscircuit/math-utils": "^0.0.9" }, "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-q8McyEomIZdprsSjGQv5puKLlMOM5w9EGRYA4TxaHPBLe03BoqVoN8wQxhdqmmbe4Tpa30KQFH9eISGVMs6HGg=="],
 
@@ -589,6 +590,8 @@
     "zod": ["zod@3.24.4", "", {}, "sha512-OdqJE9UDRPwWsrHjLN2F8bPxvwJBK22EHLWtanu0LSYr5YqzsaaW3RMgmjwr8Rypg5k+meEJdSPXJZXE/yqOMg=="],
 
     "@tscircuit/checks/@tscircuit/math-utils": ["@tscircuit/math-utils@0.0.13", "", { "peerDependencies": { "typescript": "^5.0.0" } }, "sha512-Iq3HmMas4qRClFLzB0LrlLcQAlcIXU5dTo9dAM4TjU/ztPoOyqm5BZYV//UVwM/abdkRZD3kTPEBpPvqnSHnCQ=="],
+
+    "@tscircuit/core/circuit-json": ["circuit-json@0.0.164", "", { "dependencies": { "nanoid": "^5.0.7", "zod": "^3.23.6" } }, "sha512-o+fQKZLJ0TYKc/QObfcUHZB59Ex1dtwVdd/7KhYlIvVkaMmvia6XLCN1c7KVgV3dVrJ4bS72v6VY6I0GIyKv3Q=="],
 
     "@tscircuit/core/transformation-matrix": ["transformation-matrix@2.16.1", "", {}, "sha512-tdtC3wxVEuzU7X/ydL131Q3JU5cPMEn37oqVLITjRDSDsnSHVFzW2JiCLfZLIQEgWzZHdSy3J6bZzvKEN24jGA=="],
 
