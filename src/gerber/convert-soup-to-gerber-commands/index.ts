@@ -21,6 +21,7 @@ import { lineAlphabet } from "@tscircuit/alphabet"
 import {
   applyToPoint,
   compose,
+  identity,
   rotate,
   translate,
   type Matrix,
@@ -517,11 +518,15 @@ export const convertSoupToGerberCommands = (
               { x: -w, y: -h }, // Bottom-left
             ]
 
-            let transformMatrix: Matrix = translate(center.x, center.y)
+            let transformMatrix = identity()
             if (rotation) {
               const angle_rad = (rotation * Math.PI) / 180
-              transformMatrix = compose(transformMatrix, rotate(angle_rad))
+              transformMatrix = rotate(angle_rad)
             }
+            transformMatrix = compose(
+              translate(center.x, center.y),
+              transformMatrix,
+            )
 
             const transformedPoints = points.map((p) =>
               applyToPoint(transformMatrix, p),
