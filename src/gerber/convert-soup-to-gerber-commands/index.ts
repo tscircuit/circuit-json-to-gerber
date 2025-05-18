@@ -13,6 +13,7 @@ import {
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
 } from "./defineAperturesForLayer"
+import type { PcbCutout } from "circuit-json"
 import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
@@ -20,6 +21,7 @@ import { lineAlphabet } from "@tscircuit/alphabet"
 import {
   applyToPoint,
   compose,
+  identity,
   rotate,
   translate,
   type Matrix,
@@ -495,6 +497,103 @@ export const convertSoupToGerberCommands = (
         }
 
         glayer.push(...gerberBuild.build())
+      } else if (element.type === "pcb_cutout") {
+        if (layer === "edgecut") {
+          const ec_layer = glayers.Edge_Cuts
+          const cutout_builder = gerberBuilder().add("select_aperture", {
+            aperture_number: 10,
+          })
+
+          const el = element as PcbCutout
+
+          if (el.shape === "rect") {
+            const { center, width, height, rotation } = el
+            const w = width / 2
+            const h = height / 2
+
+            const points = [
+              { x: -w, y: h }, // Top-left
+              { x: w, y: h }, // Top-right
+              { x: w, y: -h }, // Bottom-right
+              { x: -w, y: -h }, // Bottom-left
+            ]
+
+            let transformMatrix = identity()
+            if (rotation) {
+              const angle_rad = (rotation * Math.PI) / 180
+              transformMatrix = rotate(angle_rad)
+            }
+            transformMatrix = compose(
+              translate(center.x, center.y),
+              transformMatrix,
+            )
+
+            const transformedPoints = points.map((p) =>
+              applyToPoint(transformMatrix, p),
+            )
+
+            cutout_builder.add("move_operation", {
+              x: transformedPoints[0].x,
+              y: mfy(transformedPoints[0].y),
+            })
+            for (let i = 1; i < transformedPoints.length; i++) {
+              cutout_builder.add("plot_operation", {
+                x: transformedPoints[i].x,
+                y: mfy(transformedPoints[i].y),
+              })
+            }
+            cutout_builder.add("plot_operation", {
+              x: transformedPoints[0].x,
+              y: mfy(transformedPoints[0].y),
+            })
+          } else if (el.shape === "circle") {
+            const { center, radius } = el
+            const numSegments = 36
+            const angleStep = (2 * Math.PI) / numSegments
+            const points: Array<{ x: number; y: number }> = []
+
+            for (let i = 0; i < numSegments; i++) {
+              points.push({
+                x: center.x + radius * Math.cos(i * angleStep),
+                y: center.y + radius * Math.sin(i * angleStep),
+              })
+            }
+
+            cutout_builder.add("move_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+            for (let i = 1; i < points.length; i++) {
+              cutout_builder.add("plot_operation", {
+                x: points[i].x,
+                y: mfy(points[i].y),
+              })
+            }
+            cutout_builder.add("plot_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+          } else if (el.shape === "polygon") {
+            const { points } = el
+            if (points.length > 0) {
+              cutout_builder.add("move_operation", {
+                x: points[0].x,
+                y: mfy(points[0].y),
+              })
+              for (let i = 1; i < points.length; i++) {
+                cutout_builder.add("plot_operation", {
+                  x: points[i].x,
+                  y: mfy(points[i].y),
+                })
+              }
+              cutout_builder.add("plot_operation", {
+                x: points[0].x,
+                y: mfy(points[0].y),
+              })
+            }
+          }
+          ec_layer.push(...cutout_builder.build())
+        }
       }
     }
   }

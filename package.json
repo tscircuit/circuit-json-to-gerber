@@ -31,10 +31,11 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
-    "circuit-json": "^0.0.164"
+    "circuit-json": "*"
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
+    "circuit-json": "^0.0.180",
     "fast-json-stable-stringify": "^2.1.0",
     "transformation-matrix": "^3.0.0"
   }
