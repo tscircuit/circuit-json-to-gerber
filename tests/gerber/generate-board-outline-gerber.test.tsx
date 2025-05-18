@@ -63,9 +63,9 @@ test("Generate simple board with a multi-layer trace", async () => {
   )
   const soup = circuit.getCircuitJson()
 
-  const gerber_cmds = convertSoupToGerberCommands(soup)
+  const gerber_cmds = convertSoupToGerberCommands(soup as any)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    circuitJson: soup,
+    circuitJson: soup as any,
     is_plated: true,
   })
   const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
