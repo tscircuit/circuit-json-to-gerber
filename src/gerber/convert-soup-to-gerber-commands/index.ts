@@ -264,7 +264,7 @@ export const convertSoupToGerberCommands = (
           }
           glayer.push(...gerber.build())
         }
-      } else if (element.type === "pcb_smtpad") {
+      } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer) {
           for (const glayer of [
             glayers[getGerberLayerName(layer, "copper")],
