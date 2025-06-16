@@ -1,6 +1,6 @@
 {
   "name": "circuit-json-to-gerber",
-  "version": "0.0.22",
+  "version": "0.0.23",
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
-    "circuit-json": "^0.0.212",
+    "circuit-json": "*",
     "fast-json-stable-stringify": "^2.1.0",
     "transformation-matrix": "^3.0.0"
   }
