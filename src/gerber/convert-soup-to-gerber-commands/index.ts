@@ -292,6 +292,38 @@ export const convertSoupToGerberCommands = (
             glayer.push(...gb.build())
           }
         }
+      } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
+        if (element.layer === layer) {
+          for (const glayer of [
+            glayers[getGerberLayerName(layer, "copper")],
+            glayers[getGerberLayerName(layer, "soldermask")],
+          ]) {
+            const gb = gerberBuilder()
+              .add("select_aperture", { aperture_number: 10 })
+              .add("start_region_statement", {})
+
+            if (element.points.length > 0) {
+              gb.add("move_operation", {
+                x: element.points[0].x,
+                y: mfy(element.points[0].y),
+              })
+              for (let i = 1; i < element.points.length; i++) {
+                gb.add("plot_operation", {
+                  x: element.points[i].x,
+                  y: mfy(element.points[i].y),
+                })
+              }
+              gb.add("plot_operation", {
+                x: element.points[0].x,
+                y: mfy(element.points[0].y),
+              })
+            }
+
+            gb.add("end_region_statement", {})
+
+            glayer.push(...gb.build())
+          }
+        }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer) {
           for (const glayer of [glayers[getGerberLayerName(layer, "paste")]]) {
