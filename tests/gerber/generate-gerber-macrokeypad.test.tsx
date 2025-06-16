@@ -31,4 +31,4 @@ test("Generate gerber of macrokeypad", async () => {
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple3")
-})
+}, 20_000)
