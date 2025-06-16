@@ -4,31 +4,41 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "src/excellon-drill"
-import {
-  stringifyGerberCommandLayers,
-  stringifyGerberCommands,
-} from "src/gerber/stringify-gerber"
+import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import { Circuit } from "@tscircuit/core"
-import MacroKeypad from "./components/MacroKeypad"
 
-test("Generate gerber of macrokeypad", async () => {
+test("Generate gerber with pinrow", async () => {
   const circuit = new Circuit()
-  circuit.add(<MacroKeypad />)
+  circuit.add(
+    <board>
+      <jumper name="J1" pinCount={2} footprint="pinrow2" />
+    </board>,
+  )
+
   const circuitJson = circuit.getCircuitJson()
+
   const gerber_cmds = convertSoupToGerberCommands(circuitJson as any)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
     circuitJson: circuitJson as any,
     is_plated: true,
   })
-  const edgecut_gerber = stringifyGerberCommands(gerber_cmds.Edge_Cuts)
-
-  // TODO parse gerber to check for correctness
+  const excellon_drill_cmds_unplated = convertSoupToExcellonDrillCommands({
+    circuitJson: circuitJson as any,
+    is_plated: false,
+  })
 
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
+  const excellonDrillOutputUnplated = stringifyExcellonDrill(
+    excellon_drill_cmds_unplated,
+  )
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
-  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple3")
-}, 20_000)
+  expect({
+    ...gerberOutput,
+    "drill.drl": excellonDrillOutput,
+    "drill_npth.drl": excellonDrillOutputUnplated,
+  }).toMatchGerberSnapshot(import.meta.path, "pinrow")
+})
