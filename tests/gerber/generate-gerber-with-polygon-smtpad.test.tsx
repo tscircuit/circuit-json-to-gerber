@@ -69,9 +69,9 @@ test("Generate gerber with polygon smtpad", async () => {
     0 $4 = Circle center offset
     0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
     0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
-    21,1,$1,$2,0.0,0.0,0.0*
-    1,1,$3,0.0-$4,0.0*
-    1,1,$3,$4,0.0*%
+        21,1,$1,$2,0.0,0.0,0.0*
+        1,1,$3,0.0,-$4,0.0*
+        1,1,$3,0.0,$4,0.0*%
     %AMVERTPILL*
     0 Vertical pill (stadium) shape macro*
     0 Parameters:*
@@ -80,9 +80,9 @@ test("Generate gerber with polygon smtpad", async () => {
     0 $3 = Circle diameter (equal to width)*
     0 $4 = Circle center offset
     0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
-    21,1,$1,$2,0.0,0.0,0.0*
-    1,1,$3,0.0,0.0-$4*
-    1,1,$3,0.0,$4*%
+        21,1,$1,$2,0.0,0.0,0.0*
+        1,1,$3,0.0,-$4,0.0*
+        1,1,$3,0.0,$4,0.0*%
     %AMRoundRect*
     0 Rectangle with rounded corners*
     0 $1 Corner radius*

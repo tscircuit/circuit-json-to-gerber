@@ -298,8 +298,13 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
+            const apertureConfig = {
+              standard_template_code: "C",
+              diameter: 0.05,
+            }
+            const apertureNumber = findApertureNumber(glayer, apertureConfig)
             const gb = gerberBuilder()
-              .add("select_aperture", { aperture_number: 10 })
+              .add("select_aperture", { aperture_number: apertureNumber })
               .add("start_region_statement", {})
 
             if (element.points.length > 0) {
