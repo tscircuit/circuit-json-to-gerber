@@ -27,6 +27,40 @@ import {
   type Matrix,
 } from "transformation-matrix"
 
+export const getAnchoredTextStart = (
+  anchorPosition: { x: number; y: number },
+  anchorAlignment:
+    | "center"
+    | "top_left"
+    | "top_right"
+    | "bottom_left"
+    | "bottom_right"
+    | undefined,
+  textWidth: number,
+  textHeight: number,
+) => {
+  let { x, y } = anchorPosition
+  switch (anchorAlignment || "center") {
+    case "top_right":
+      x -= textWidth
+      y -= textHeight
+      break
+    case "top_left":
+      y -= textHeight
+      break
+    case "bottom_right":
+      x -= textWidth
+      break
+    case "bottom_left":
+      break
+    case "center":
+      x -= textWidth / 2
+      y -= textHeight / 2
+      break
+  }
+  return { x, y }
+}
+
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
  */
@@ -170,8 +204,6 @@ export const convertSoupToGerberCommands = (
             aperture_number: findApertureNumber(glayer, apertureConfig),
           })
 
-          let initialX = element.anchor_position.x
-          let initialY = element.anchor_position.y
           const fontSize = element.font_size * CAP_HEIGHT_SCALE
           const letterSpacing = fontSize * 0.4
           const spaceWidth = fontSize * 0.5
@@ -185,27 +217,16 @@ export const convertSoupToGerberCommands = (
             }, 0) - letterSpacing
 
           const textHeight = fontSize
-          switch (element.anchor_alignment || "center") {
-            case "top_right":
-              break
-            case "top_left":
-              initialX -= textWidth
-              break
-            case "bottom_right":
-              initialY -= textHeight
-              break
-            case "bottom_left":
-              initialX -= textWidth
-              initialY -= textHeight
-              break
-            case "center":
-              initialX -= textWidth / 2
-              initialY -= textHeight / 2
-              break
-          }
 
-          let anchoredX = initialX
-          const anchoredY = initialY
+          const { x: anchoredXStart, y: anchoredYStart } = getAnchoredTextStart(
+            element.anchor_position,
+            element.anchor_alignment,
+            textWidth,
+            textHeight,
+          )
+
+          let anchoredX = anchoredXStart
+          const anchoredY = anchoredYStart
 
           let rotation = element.ccw_rotation || 0
           const cx = anchoredX + textWidth / 2
