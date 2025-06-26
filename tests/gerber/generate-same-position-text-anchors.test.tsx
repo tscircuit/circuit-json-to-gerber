@@ -24,6 +24,7 @@ test("Render silkscreen text with all anchors at same position", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board width={40} height={20}>
+      <hole diameter={0.2} pcbX={10} pcbY={0} />
       {anchors.map((anchor) => (
         <silkscreentext
           key={"top-" + anchor}
