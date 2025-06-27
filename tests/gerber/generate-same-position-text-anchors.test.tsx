@@ -28,7 +28,7 @@ test("Render silkscreen text with all anchors at same position", async () => {
       {anchors.map((anchor) => (
         <silkscreentext
           key={"top-" + anchor}
-          text="A"
+          text={anchor}
           fontSize={1}
           anchorAlignment={anchor}
           layer="top"
@@ -39,7 +39,7 @@ test("Render silkscreen text with all anchors at same position", async () => {
       {anchors.map((anchor) => (
         <silkscreentext
           key={"bottom-" + anchor}
-          text="A"
+          text={anchor}
           fontSize={1}
           anchorAlignment={anchor}
           layer="bottom"
