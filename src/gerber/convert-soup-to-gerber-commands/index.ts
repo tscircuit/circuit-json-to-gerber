@@ -186,13 +186,13 @@ export const convertSoupToGerberCommands = (
 
           const textHeight = fontSize
           switch (element.anchor_alignment || "center") {
-            case "top_left":
+            case "top_right":
               initialX -= textWidth
               break
             case "top_center":
               initialX -= textWidth / 2
               break
-            case "top_right":
+            case "top_left":
               break
             case "center_left":
               initialX -= textWidth
@@ -205,12 +205,12 @@ export const convertSoupToGerberCommands = (
             case "center_right":
               initialY -= textHeight / 2
               break
-            case "bottom_left":
-              initialX -= textWidth
-              initialY -= textHeight
-              break
             case "bottom_center":
               initialX -= textWidth / 2
+              initialY -= textHeight
+              break
+            case "bottom_left":
+              initialX -= textWidth
               initialY -= textHeight
               break
             case "bottom_right":
