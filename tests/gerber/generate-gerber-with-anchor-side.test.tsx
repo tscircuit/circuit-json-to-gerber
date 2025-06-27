@@ -21,7 +21,9 @@ test("silkscreen text respects anchor_side", async () => {
         resistance="100k"
         footprint="0603"
         name="R1"
-        pcbY={0} pcbX={0}/>
+        pcbY={0}
+        pcbX={0}
+      />
       <group pcbX={width / 2} pcbY={-height / 2 + margin}>
         <silkscreentext
           text="Routed with the tscircuit autorouter"
