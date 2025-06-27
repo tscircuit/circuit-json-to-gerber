@@ -185,36 +185,65 @@ export const convertSoupToGerberCommands = (
             }, 0) - letterSpacing
 
           const textHeight = fontSize
-          switch (element.anchor_alignment || "center") {
-            case "top_right":
-              initialX -= textWidth
+
+          const anchorAlignment =
+            element.anchor_alignment ||
+            (():
+              | "top_center"
+              | "bottom_center"
+              | "center_left"
+              | "center_right"
+              | undefined => {
+              const side = (element as any).anchor_side as
+                | "top"
+                | "bottom"
+                | "left"
+                | "right"
+                | undefined
+              if (!side) return undefined
+              switch (side) {
+                case "top":
+                  return "top_center"
+                case "bottom":
+                  return "bottom_center"
+                case "left":
+                  return "center_left"
+                case "right":
+                  return "center_right"
+              }
+            })() ||
+            "center"
+
+          switch (anchorAlignment) {
+            case "top_left":
               break
             case "top_center":
               initialX -= textWidth / 2
               break
-            case "top_left":
+            case "top_right":
+              initialX -= textWidth
+              break
+            case "center_right":
+              initialY -= textHeight / 2
               break
             case "center_left":
               initialX -= textWidth
               initialY -= textHeight / 2
               break
-            case "center":
-              initialX -= textWidth / 2
-              initialY -= textHeight / 2
-              break
-            case "center_right":
-              initialY -= textHeight / 2
+            case "bottom_left":
+              initialY -= textHeight
               break
             case "bottom_center":
               initialX -= textWidth / 2
               initialY -= textHeight
               break
-            case "bottom_left":
+            case "bottom_right":
               initialX -= textWidth
               initialY -= textHeight
               break
-            case "bottom_right":
-              initialY -= textHeight
+            default:
+              initialX -= textWidth / 2
+              initialY -= textHeight / 2
               break
           }
 
