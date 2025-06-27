@@ -99,6 +99,38 @@ test("Generate simple board with a multi-layer trace", async () => {
         pcbX={-30}
         pcbY={15}
       />
+      <silkscreentext
+        text="top center"
+        fontSize={0.5}
+        anchorAlignment="top_center"
+        layer={"top"}
+        pcbX={-20}
+        pcbY={18}
+      />
+      <silkscreentext
+        text="bottom center"
+        fontSize={0.5}
+        anchorAlignment="bottom_center"
+        layer={"top"}
+        pcbX={-20}
+        pcbY={12}
+      />
+      <silkscreentext
+        text="center left"
+        fontSize={0.5}
+        anchorAlignment="center_left"
+        layer={"top"}
+        pcbX={-40}
+        pcbY={12}
+      />
+      <silkscreentext
+        text="center right"
+        fontSize={0.5}
+        anchorAlignment="center_right"
+        layer={"top"}
+        pcbX={-10}
+        pcbY={12}
+      />
     </board>,
   )
   const soup = circuit.getCircuitJson()
