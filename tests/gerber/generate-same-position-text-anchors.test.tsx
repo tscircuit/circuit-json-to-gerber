@@ -27,6 +27,7 @@ test("Render silkscreen text with all anchors at same position", async () => {
       <hole diameter={0.2} pcbX={10} pcbY={0} />
       {anchors.map((anchor) => (
         <silkscreentext
+          // @ts-expect-error React key prop
           key={"top-" + anchor}
           text={anchor}
           fontSize={1}
@@ -38,6 +39,7 @@ test("Render silkscreen text with all anchors at same position", async () => {
       ))}
       {anchors.map((anchor) => (
         <silkscreentext
+          // @ts-expect-error React key prop
           key={"bottom-" + anchor}
           text={anchor}
           fontSize={1}
