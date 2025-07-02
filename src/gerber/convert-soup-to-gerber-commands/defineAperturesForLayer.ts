@@ -110,6 +110,15 @@ export const getApertureConfigFromPcbSmtpad = (
       y_size: elm.height,
     }
   }
+  if (elm.shape === "polygon") {
+    // Polygon pads are rendered using region statements. The aperture
+    // width is arbitrary but must be defined so that a D-code exists when
+    // the region is drawn. A small round aperture is sufficient.
+    return {
+      standard_template_code: "C",
+      diameter: 0.05,
+    }
+  }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
