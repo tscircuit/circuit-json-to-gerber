@@ -35,7 +35,7 @@
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
-    "circuit-json": "*",
+    "circuit-json": "^0.0.220",
     "fast-json-stable-stringify": "^2.1.0",
     "transformation-matrix": "^3.0.0"
   }
