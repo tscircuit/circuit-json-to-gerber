@@ -27,7 +27,8 @@
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
     "react": "^18.3.1",
-    "tsup": "^8.2.4"
+    "tsup": "^8.2.4",
+    "circuit-json": "^0.0.220"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
@@ -35,7 +36,6 @@
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
-    "circuit-json": "*",
     "fast-json-stable-stringify": "^2.1.0",
     "transformation-matrix": "^3.0.0"
   }
