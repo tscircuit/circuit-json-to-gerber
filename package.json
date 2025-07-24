@@ -16,7 +16,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
-    "@tscircuit/core": "^0.0.579",
+    "@tscircuit/core": "^0.0.580",
     "@types/archiver": "^6.0.3",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
