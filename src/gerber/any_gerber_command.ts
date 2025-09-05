@@ -45,8 +45,7 @@ export const gerber_command_map = {
   end_of_file,
   move_operation,
   flash_operation,
-  // end_region_statement,
-  // flash_operation,
+  end_region_statement,
   format_specification,
   // load_mirroring,
   // load_polarity,
@@ -62,7 +61,7 @@ export const gerber_command_map = {
   select_aperture,
   set_unit,
   set_layer_polarity,
-  // start_region_statement,
+  start_region_statement,
   // step_and_repeat,
 } as const satisfies Record<string, GerberCommandDef<any, any>>
 
