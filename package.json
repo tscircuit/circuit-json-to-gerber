@@ -16,23 +16,22 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
-    "@tscircuit/core": "^0.0.580",
     "@types/archiver": "^6.0.3",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
-    "@types/react": "^18.3.12",
     "archiver": "^7.0.1",
+    "react": "^19.1.0",
+    "@types/react": "^19.1.8",
     "bun-match-svg": "^0.0.3",
     "commander": "^12.1.0",
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
-    "react": "^18.3.1",
     "tsup": "^8.2.4",
-    "circuit-json": "^0.0.220"
+    "tscircuit": "^0.0.622"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
-    "circuit-json": "*"
+    "tscircuit": "*"
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",

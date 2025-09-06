@@ -88,7 +88,7 @@ export const getCommandHeaders = (opts: {
       })
       .add("set_movement_mode_to_linear", {})
       .add("set_layer_polarity", {
-        polarity: opts.layer_type === "soldermask" ? "C" : "D",
+        polarity: "D",
       })
       .build()
   )
