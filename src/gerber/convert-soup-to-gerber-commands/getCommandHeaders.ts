@@ -87,6 +87,9 @@ export const getCommandHeaders = (opts: {
         comment: `Created by tscircuit (builder) date ${new Date().toISOString()}`,
       })
       .add("set_movement_mode_to_linear", {})
+      .add("set_layer_polarity", {
+        polarity: "D",
+      })
       .build()
   )
 }

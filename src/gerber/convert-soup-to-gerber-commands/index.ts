@@ -637,6 +637,79 @@ export const convertSoupToGerberCommands = (
           }
           ec_layer.push(...cutout_builder.build())
         }
+      } else if (
+        element.type === "pcb_copper_pour" &&
+        layer === element.layer
+      ) {
+        const glayer = glayers[getGerberLayerName(layer, "copper")]
+
+        const pour_builder = gerberBuilder()
+          .add("select_aperture", { aperture_number: 10 })
+          .add("start_region_statement", {})
+
+        if (element.shape === "rect") {
+          const { center, width, height, rotation } = element
+          const w = (width as number) / 2
+          const h = (height as number) / 2
+
+          const points = [
+            { x: -w, y: h }, // Top-left
+            { x: w, y: h }, // Top-right
+            { x: w, y: -h }, // Bottom-right
+            { x: -w, y: -h }, // Bottom-left
+          ]
+
+          let transformMatrix = identity()
+          if (rotation) {
+            const angle_rad = ((rotation as number) * Math.PI) / 180
+            transformMatrix = rotate(angle_rad)
+          }
+          transformMatrix = compose(
+            translate(center.x, center.y),
+            transformMatrix,
+          )
+
+          const transformedPoints = points.map((p) =>
+            applyToPoint(transformMatrix, p),
+          )
+
+          pour_builder.add("move_operation", {
+            x: transformedPoints[0].x,
+            y: mfy(transformedPoints[0].y),
+          })
+          for (let i = 1; i < transformedPoints.length; i++) {
+            pour_builder.add("plot_operation", {
+              x: transformedPoints[i].x,
+              y: mfy(transformedPoints[i].y),
+            })
+          }
+          pour_builder.add("plot_operation", {
+            x: transformedPoints[0].x,
+            y: mfy(transformedPoints[0].y),
+          })
+        } else if (element.shape === "polygon") {
+          const { points } = element as any
+          if (points.length > 0) {
+            pour_builder.add("move_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+            for (let i = 1; i < points.length; i++) {
+              pour_builder.add("plot_operation", {
+                x: points[i].x,
+                y: mfy(points[i].y),
+              })
+            }
+            pour_builder.add("plot_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+          }
+        }
+
+        pour_builder.add("end_region_statement", {})
+
+        glayer.push(...pour_builder.build())
       }
     }
   }
