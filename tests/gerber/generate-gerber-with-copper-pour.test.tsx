@@ -1,5 +1,5 @@
 import { test, expect } from "bun:test"
-import type { AnyCircuitElement, LayerRef, Point } from "circuit-json"
+import type { AnyCircuitElement } from "circuit-json"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
@@ -7,31 +7,6 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "src/excellon-drill"
-
-type Length = number | string
-type Rotation = number
-
-// Local type definitions for PcbCopperPour until they are in the circuit-json package
-export interface PcbCopperPourRect {
-  type: "pcb_copper_pour"
-  pcb_copper_pour_id: string
-  layer: LayerRef
-  shape: "rect"
-  center: Point
-  width: Length
-  height: Length
-  rotation?: Rotation
-}
-
-export interface PcbCopperPourPolygon {
-  type: "pcb_copper_pour"
-  pcb_copper_pour_id: string
-  layer: LayerRef
-  shape: "polygon"
-  points: Point[]
-}
-
-export type PcbCopperPour = PcbCopperPourRect | PcbCopperPourPolygon
 
 test("generate gerber with copper pour", async () => {
   const soup: AnyCircuitElement[] = [
@@ -53,7 +28,7 @@ test("generate gerber with copper pour", async () => {
       center: { x: -12, y: 12 },
       width: 10,
       height: 10,
-    } as any,
+    },
     {
       type: "pcb_copper_pour",
       shape: "rect",
@@ -63,7 +38,7 @@ test("generate gerber with copper pour", async () => {
       width: 10,
       height: 5,
       rotation: 45,
-    } as any,
+    },
     {
       type: "pcb_copper_pour",
       pcb_copper_pour_id: "pour3",
@@ -82,7 +57,7 @@ test("generate gerber with copper pour", async () => {
         { x: -6, y: -13 },
         { x: -2, y: -13 },
       ],
-    } as any,
+    },
   ]
 
   const gerber_cmds = convertSoupToGerberCommands(soup as any)
