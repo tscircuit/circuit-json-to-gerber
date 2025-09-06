@@ -9,7 +9,7 @@ import {
 } from "src/excellon-drill"
 
 test("generate gerber with copper pour", async () => {
-  const soup: AnyCircuitElement[] = [
+  const circuitJson: AnyCircuitElement[] = [
     {
       type: "pcb_board",
       pcb_board_id: "board1",
@@ -60,9 +60,9 @@ test("generate gerber with copper pour", async () => {
     },
   ]
 
-  const gerber_cmds = convertSoupToGerberCommands(soup as any)
+  const gerber_cmds = convertSoupToGerberCommands(circuitJson)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
-    circuitJson: soup as any,
+    circuitJson,
     is_plated: true,
   })
 
