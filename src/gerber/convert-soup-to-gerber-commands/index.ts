@@ -591,31 +591,32 @@ export const convertSoupToGerberCommands = (
             })
           } else if (el.shape === "circle") {
             const { center, radius } = el
-            const numSegments = 36
-            const angleStep = (2 * Math.PI) / numSegments
-            const points: Array<{ x: number; y: number }> = []
 
-            for (let i = 0; i < numSegments; i++) {
-              points.push({
-                x: center.x + radius * Math.cos(i * angleStep),
-                y: center.y + radius * Math.sin(i * angleStep),
-              })
-            }
+            // To draw a circle, we draw two semi-circles
+            const p1 = { x: center.x + radius, y: center.y }
+            const p2 = { x: center.x - radius, y: center.y }
 
-            cutout_builder.add("move_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
-            for (let i = 1; i < points.length; i++) {
-              cutout_builder.add("plot_operation", {
-                x: points[i].x,
-                y: mfy(points[i].y),
+            cutout_builder
+              .add("move_operation", {
+                x: p1.x,
+                y: mfy(p1.y),
               })
-            }
-            cutout_builder.add("plot_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
+              .add("set_movement_mode_to_counterclockwise_circular", {})
+              // Draw the first semi-circle (top half if we start from rightmost point)
+              .add("plot_operation", {
+                x: p2.x,
+                y: mfy(p2.y),
+                i: -radius,
+                j: 0,
+              })
+              // Draw the second semi-circle (bottom half)
+              .add("plot_operation", {
+                x: p1.x,
+                y: mfy(p1.y),
+                i: radius,
+                j: 0,
+              })
+              .add("set_movement_mode_to_linear", {})
           } else if (el.shape === "polygon") {
             const { points } = el
             if (points.length > 0) {
@@ -647,7 +648,124 @@ export const convertSoupToGerberCommands = (
           .add("select_aperture", { aperture_number: 10 })
           .add("start_region_statement", {})
 
-        if (element.shape === "rect") {
+        if (element.shape === "brep") {
+          const { brep_shape } = element as any
+          if (!brep_shape) continue
+          const { outer_ring, inner_rings } = brep_shape
+
+          const drawRing = (ring: {
+            vertices: Array<{ x: number; y: number; bulge?: number }>
+          }) => {
+            if (!ring || ring.vertices.length === 0) return
+
+            pour_builder.add("move_operation", {
+              x: ring.vertices[0].x,
+              y: mfy(ring.vertices[0].y),
+            })
+
+            const vertices_loop = [...ring.vertices, ring.vertices[0]]
+
+            for (let i = 0; i < vertices_loop.length - 1; i++) {
+              const start = vertices_loop[i]
+              const end = vertices_loop[i + 1]
+
+              if (start.bulge && Math.abs(start.bulge) > 1e-9) {
+                const bulge =
+                  (opts.flip_y_axis ? -1 : 1) * (start.bulge as number)
+                if (bulge > 0) {
+                  // CCW
+                  pour_builder.add(
+                    "set_movement_mode_to_counterclockwise_circular",
+                    {},
+                  )
+                } else {
+                  // CW
+                  pour_builder.add(
+                    "set_movement_mode_to_clockwise_circular",
+                    {},
+                  )
+                }
+
+                const p1 = { x: start.x, y: start.y }
+                const p2 = { x: end.x, y: end.y }
+
+                const dx = p2.x - p1.x
+                const dy = p2.y - p1.y
+                const d = Math.sqrt(dx * dx + dy * dy)
+
+                if (d < 1e-9) {
+                  pour_builder.add("set_movement_mode_to_linear", {})
+                  pour_builder.add("plot_operation", {
+                    x: end.x,
+                    y: mfy(end.y),
+                  })
+                  continue
+                }
+
+                const abs_b = Math.abs(bulge)
+                const theta = 4 * Math.atan(abs_b)
+                if (Math.abs(Math.sin(theta / 2)) < 1e-9) {
+                  pour_builder.add("set_movement_mode_to_linear", {})
+                  pour_builder.add("plot_operation", {
+                    x: end.x,
+                    y: mfy(end.y),
+                  })
+                  continue
+                }
+                const R = d / (2 * Math.sin(theta / 2))
+                const alpha = (Math.PI - theta) / 2
+                const phi = Math.atan2(dy, dx)
+                const delta_angle = bulge > 0 ? alpha : -alpha
+                const angle_p1_center = phi + delta_angle
+                const Cx = p1.x + R * Math.cos(angle_p1_center)
+                const Cy = p1.y + R * Math.sin(angle_p1_center)
+
+                const i_offset = Cx - p1.x
+                const j_offset = Cy - p1.y
+
+                pour_builder.add("plot_operation", {
+                  x: end.x,
+                  y: mfy(end.y),
+                  i: i_offset,
+                  j: opts.flip_y_axis ? -j_offset : j_offset,
+                })
+              } else {
+                // line
+                pour_builder.add("set_movement_mode_to_linear", {})
+                pour_builder.add("plot_operation", { x: end.x, y: mfy(end.y) })
+              }
+            }
+          }
+
+          // To conform to Gerber spec (CCW outer, CW inner) from tscircuit
+          // spec (CW outer, CCW inner), we must reverse both.
+          const reverseRing = (ring: {
+            vertices: Array<{ x: number; y: number; bulge?: number }>
+          }): {
+            vertices: Array<{ x: number; y: number; bulge?: number }>
+          } => {
+            const { vertices } = ring
+            if (!vertices || vertices.length === 0) return { vertices: [] }
+            const n = vertices.length
+
+            const reversed_pts = [...vertices].reverse()
+
+            const new_vertices = reversed_pts.map((pt, i) => {
+              const bulge_v_idx = (n - 2 - i + n) % n
+              const bulge = vertices[bulge_v_idx].bulge
+              return { ...pt, bulge: bulge ? -bulge : undefined }
+            })
+
+            return { vertices: new_vertices }
+          }
+
+          drawRing(reverseRing(outer_ring))
+          if (inner_rings) {
+            for (const inner_ring of inner_rings) {
+              drawRing(reverseRing(inner_ring))
+            }
+          }
+        } else if (element.shape === "rect") {
           const { center, width, height, rotation } = element
           const w = (width as number) / 2
           const h = (height as number) / 2
