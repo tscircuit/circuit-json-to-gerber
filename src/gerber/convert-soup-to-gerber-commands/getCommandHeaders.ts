@@ -90,6 +90,7 @@ export const getCommandHeaders = (opts: {
       .add("set_layer_polarity", {
         polarity: "D",
       })
+      .add("create_arc", {})
       .build()
   )
 }

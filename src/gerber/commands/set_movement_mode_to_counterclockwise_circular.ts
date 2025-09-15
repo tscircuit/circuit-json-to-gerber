@@ -6,7 +6,7 @@ export const set_movement_mode_to_counterclockwise_circular =
     command_code: "G03", // Add the missing command_code property
     schema: z
       .object({
-        command_code: z.literal("G03"),
+        command_code: z.literal("G03").default("G03"),
       })
       .describe(
         "Set movement mode to counterclockwise circular: Sets linear/circular mode to counterclockwise circular.",
