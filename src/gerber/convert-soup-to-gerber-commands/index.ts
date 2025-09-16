@@ -398,7 +398,8 @@ export const convertSoupToGerberCommands = (
                 aperture_number,
               })
 
-              const rotationRadians = ((element.ccw_rotation ?? 0) * Math.PI) / 180
+              const rotationRadians =
+                ((element.ccw_rotation ?? 0) * Math.PI) / 180
               const cosTheta = Math.cos(rotationRadians)
               const sinTheta = Math.sin(rotationRadians)
 
