@@ -398,43 +398,62 @@ export const convertSoupToGerberCommands = (
                 aperture_number,
               })
 
-              if (element.outer_width > element.outer_height) {
-                // Horizontal pill
-                const offset = (element.outer_width - element.outer_height) / 2
+              const rotationRadians = ((element.ccw_rotation ?? 0) * Math.PI) / 180
+              const cosTheta = Math.cos(rotationRadians)
+              const sinTheta = Math.sin(rotationRadians)
+
+              const rotateAndTranslate = (dx: number, dy: number) => {
+                const rotatedX = dx * cosTheta - dy * sinTheta
+                const rotatedY = dx * sinTheta + dy * cosTheta
+                return {
+                  x: element.x + rotatedX,
+                  y: element.y + rotatedY,
+                }
+              }
+
+              const isHorizontal = element.outer_width > element.outer_height
+              const offset = isHorizontal
+                ? (element.outer_width - element.outer_height) / 2
+                : (element.outer_height - element.outer_width) / 2
+
+              if (offset <= 0) {
+                const center = rotateAndTranslate(0, 0)
                 gb.add("flash_operation", {
-                  x: element.x - offset,
-                  y: mfy(element.y),
+                  x: center.x,
+                  y: mfy(center.y),
                 })
-                  .add("move_operation", {
-                    x: element.x - offset,
-                    y: mfy(element.y),
-                  })
-                  .add("plot_operation", {
-                    x: element.x + offset,
-                    y: mfy(element.y),
-                  })
-                  .add("flash_operation", {
-                    x: element.x + offset,
-                    y: mfy(element.y),
-                  })
               } else {
-                // Vertical pill
-                const offset = (element.outer_height - element.outer_width) / 2
+                const startRelative = isHorizontal
+                  ? { x: -offset, y: 0 }
+                  : { x: 0, y: -offset }
+                const endRelative = isHorizontal
+                  ? { x: offset, y: 0 }
+                  : { x: 0, y: offset }
+
+                const startPoint = rotateAndTranslate(
+                  startRelative.x,
+                  startRelative.y,
+                )
+                const endPoint = rotateAndTranslate(
+                  endRelative.x,
+                  endRelative.y,
+                )
+
                 gb.add("flash_operation", {
-                  x: element.x,
-                  y: mfy(element.y - offset),
+                  x: startPoint.x,
+                  y: mfy(startPoint.y),
                 })
                   .add("move_operation", {
-                    x: element.x,
-                    y: mfy(element.y - offset),
+                    x: startPoint.x,
+                    y: mfy(startPoint.y),
                   })
                   .add("plot_operation", {
-                    x: element.x,
-                    y: mfy(element.y + offset),
+                    x: endPoint.x,
+                    y: mfy(endPoint.y),
                   })
                   .add("flash_operation", {
-                    x: element.x,
-                    y: mfy(element.y + offset),
+                    x: endPoint.x,
+                    y: mfy(endPoint.y),
                   })
               }
 

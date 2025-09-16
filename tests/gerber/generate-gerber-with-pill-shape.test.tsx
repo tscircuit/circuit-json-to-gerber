@@ -35,6 +35,14 @@ test("Generate gerber with pill shape", async () => {
 
   const circuitJson = circuit.getCircuitJson()
 
+  let pillIndex = 0
+  for (const element of circuitJson as any[]) {
+    if (element.type === "pcb_plated_hole") {
+      element.ccw_rotation = pillIndex === 0 ? 45 : 135
+      pillIndex += 1
+    }
+  }
+
   const gerber_cmds = convertSoupToGerberCommands(circuitJson as any)
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
     circuitJson: circuitJson as any,
