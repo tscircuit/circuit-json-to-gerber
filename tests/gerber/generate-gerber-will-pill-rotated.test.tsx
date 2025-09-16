@@ -8,7 +8,7 @@ import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 import { Circuit } from "@tscircuit/core"
 
-test("Generate gerber with pill shape", async () => {
+test("Generate gerber with pill shape rotated", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board width={20} height={20}>
@@ -20,15 +20,7 @@ test("Generate gerber with pill shape", async () => {
         holeHeight={1}
         pcbX={2}
         pcbY={2}
-      />
-      <platedhole
-        shape="pill"
-        outerWidth={2}
-        outerHeight={8}
-        holeWidth={1.5}
-        holeHeight={4}
-        pcbX={-4}
-        pcbY={-2}
+        pcbRotation={45}
       />
     </board>,
   )
@@ -57,5 +49,5 @@ test("Generate gerber with pill shape", async () => {
     ...gerberOutput,
     "drill.drl": excellonDrillOutput,
     "drill_npth.drl": excellonDrillOutputUnplated,
-  }).toMatchGerberSnapshot(import.meta.path, "pill-shape")
+  }).toMatchGerberSnapshot(import.meta.path, "pill-shape-rotated")
 })
