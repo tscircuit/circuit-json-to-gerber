@@ -168,20 +168,24 @@ export const getApertureConfigFromPcbSolderPaste = (
       )
     }
     if (elm.width >= elm.height) {
+      const circle_diameter = elm.height
+      const straight_length = Math.max(elm.width - circle_diameter, 0)
       return {
         macro_name: "HORZPILL",
-        x_size: elm.width,
+        x_size: straight_length,
         y_size: elm.height,
-        circle_diameter: Math.min(elm.width, elm.height),
-        circle_center_offset: elm.width / 2,
+        circle_diameter,
+        circle_center_offset: straight_length / 2,
       }
     }
+    const circle_diameter = elm.width
+    const straight_length = Math.max(elm.height - circle_diameter, 0)
     return {
       macro_name: "VERTPILL",
       x_size: elm.width,
-      y_size: elm.height,
-      circle_diameter: Math.min(elm.width, elm.height),
-      circle_center_offset: elm.height / 2,
+      y_size: straight_length,
+      circle_diameter,
+      circle_center_offset: straight_length / 2,
     }
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
@@ -208,21 +212,25 @@ export const getApertureConfigFromPcbPlatedHole = (
       )
     }
 
-    if (elm.outer_width > elm.outer_height) {
+    if (elm.outer_width >= elm.outer_height) {
+      const circle_diameter = elm.outer_height
+      const straight_length = Math.max(elm.outer_width - circle_diameter, 0)
       return {
         macro_name: "HORZPILL",
-        x_size: elm.outer_width,
+        x_size: straight_length,
         y_size: elm.outer_height,
-        circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-        circle_center_offset: elm.outer_width / 2,
+        circle_diameter,
+        circle_center_offset: straight_length / 2,
       }
     }
+    const circle_diameter = elm.outer_width
+    const straight_length = Math.max(elm.outer_height - circle_diameter, 0)
     return {
       macro_name: "VERTPILL",
       x_size: elm.outer_width,
-      y_size: elm.outer_height,
-      circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-      circle_center_offset: elm.outer_height / 2,
+      y_size: straight_length,
+      circle_diameter,
+      circle_center_offset: straight_length / 2,
     }
   }
   if (

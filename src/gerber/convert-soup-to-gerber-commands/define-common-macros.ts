@@ -10,10 +10,10 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
         template_code: `
 0 Horizontal pill (stadium) shape macro*
 0 Parameters:*
-0 $1 = Total width*
+0 $1 = Straight section length*
 0 $2 = Total height*
-0 $3 = Circle diameter (equal to height)*
-0 $4 = Circle center offset
+0 $3 = Circle diameter*
+0 $4 = Half straight length (circle center offset)*
 0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
 0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
 21,1,$1,$2,0.0,0.0,0.0*
@@ -27,9 +27,9 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 0 Vertical pill (stadium) shape macro*
 0 Parameters:*
 0 $1 = Total width*
-0 $2 = Total height*
-0 $3 = Circle diameter (equal to width)*
-0 $4 = Circle center offset
+0 $2 = Straight section length*
+0 $3 = Circle diameter*
+0 $4 = Half straight length (circle center offset)*
 0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
 21,1,$1,$2,0.0,0.0,0.0*
 1,1,$3,0.0,0.0-$4*

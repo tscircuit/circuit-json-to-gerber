@@ -19,15 +19,16 @@
     "@types/archiver": "^6.0.3",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
-    "archiver": "^7.0.1",
-    "react": "^19.1.0",
     "@types/react": "^19.1.8",
+    "archiver": "^7.0.1",
     "bun-match-svg": "^0.0.13",
     "commander": "^12.1.0",
     "gerber-to-svg": "^4.2.8",
+    "graphics-debug": "^0.0.65",
     "pcb-stackup": "^4.2.8",
-    "tsup": "^8.2.4",
-    "tscircuit": "^0.0.653"
+    "react": "^19.1.0",
+    "tscircuit": "^0.0.653",
+    "tsup": "^8.2.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
