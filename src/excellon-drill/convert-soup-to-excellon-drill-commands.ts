@@ -2,6 +2,52 @@ import type { AnyCircuitElement } from "circuit-json"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
 
+const getHoleOffsets = (element: AnyCircuitElement) => {
+  const offset_x =
+    "hole_offset_x" in element && typeof element.hole_offset_x === "number"
+      ? element.hole_offset_x
+      : 0
+  const offset_y =
+    "hole_offset_y" in element && typeof element.hole_offset_y === "number"
+      ? element.hole_offset_y
+      : 0
+  return { x: offset_x, y: offset_y }
+}
+
+const getHoleCenter = (element: AnyCircuitElement) => {
+  const { x: offset_x, y: offset_y } = getHoleOffsets(element)
+  const { x, y } = element as { x: number; y: number }
+  return { x: x + offset_x, y: y + offset_y }
+}
+
+const getPillHoleDimensions = (element: AnyCircuitElement) => {
+  if (
+    "hole_width" in element &&
+    "hole_height" in element &&
+    typeof element.hole_width === "number" &&
+    typeof element.hole_height === "number"
+  ) {
+    return {
+      width: element.hole_width,
+      height: element.hole_height,
+    }
+  }
+  return undefined
+}
+
+const getPillHoleRotation = (element: AnyCircuitElement) => {
+  if (
+    "hole_ccw_rotation" in element &&
+    typeof element.hole_ccw_rotation === "number"
+  ) {
+    return element.hole_ccw_rotation
+  }
+  if ("ccw_rotation" in element && typeof element.ccw_rotation === "number") {
+    return element.ccw_rotation
+  }
+  return 0
+}
+
 export const convertSoupToExcellonDrillCommands = ({
   circuitJson,
   is_plated,
@@ -52,15 +98,19 @@ export const convertSoupToExcellonDrillCommands = ({
       element.type === "pcb_via"
     ) {
       let hole_diameter: number | undefined
+      const pillDimensions =
+        element.type === "pcb_plated_hole"
+          ? getPillHoleDimensions(element)
+          : undefined
 
-      if ("hole_diameter" in element) {
-        hole_diameter = element.hole_diameter
-      } else if (
-        element.type === "pcb_plated_hole" &&
-        element.shape === "pill"
+      if (
+        "hole_diameter" in element &&
+        typeof element.hole_diameter === "number"
       ) {
+        hole_diameter = element.hole_diameter
+      } else if (pillDimensions) {
         // For pill shapes, use the minimum dimension as the hole diameter
-        hole_diameter = Math.min(element.hole_width, element.hole_height)
+        hole_diameter = Math.min(pillDimensions.width, pillDimensions.height)
       }
 
       if (!hole_diameter) continue
@@ -99,48 +149,66 @@ export const convertSoupToExcellonDrillCommands = ({
           continue
         let hole_diameter: number | undefined
 
-        if ("hole_diameter" in element) {
+        if (
+          "hole_diameter" in element &&
+          typeof element.hole_diameter === "number"
+        ) {
           hole_diameter = element.hole_diameter
         }
 
-        if (element.type === "pcb_plated_hole" && element.shape === "pill") {
-          hole_diameter = Math.min(element.hole_width, element.hole_height)
+        const pillDimensions =
+          element.type === "pcb_plated_hole"
+            ? getPillHoleDimensions(element)
+            : undefined
 
-          // For pill shapes, we need to route the hole
-          if (diameterToToolNumber[hole_diameter] === i) {
+        if (pillDimensions) {
+          hole_diameter = Math.min(pillDimensions.width, pillDimensions.height)
+
+          if (hole_diameter && diameterToToolNumber[hole_diameter] === i) {
             const y_multiplier = flip_y_axis ? -1 : 1
+            const { x: centerX, y: centerY } = getHoleCenter(element)
+            const maxDim = Math.max(pillDimensions.width, pillDimensions.height)
+            const minDim = Math.min(pillDimensions.width, pillDimensions.height)
+            const offset = (maxDim - minDim) / 2
 
-            if (element.hole_width > element.hole_height) {
-              // Horizontal pill
-              const offset = (element.hole_width - element.hole_height) / 2
-              builder
-                .add("G00", {})
-                .add("drill_at", {
-                  x: element.x - offset,
-                  y: element.y * y_multiplier,
-                })
-                .add("M15", {})
-                .add("G01", {})
-                .add("drill_at", {
-                  x: element.x + offset,
-                  y: element.y * y_multiplier,
-                })
-                .add("M16", {})
-                .add("G05", {})
+            if (offset <= 0) {
+              builder.add("drill_at", {
+                x: centerX,
+                y: centerY * y_multiplier,
+              })
             } else {
-              // Vertical pill
-              const offset = (element.hole_height - element.hole_width) / 2
+              const rotationRadians =
+                (getPillHoleRotation(element) * Math.PI) / 180
+              const cosTheta = Math.cos(rotationRadians)
+              const sinTheta = Math.sin(rotationRadians)
+
+              const rotate = (dx: number, dy: number) => ({
+                x: dx * cosTheta - dy * sinTheta,
+                y: dx * sinTheta + dy * cosTheta,
+              })
+
+              const isHorizontal = pillDimensions.width >= pillDimensions.height
+              const startRelative = isHorizontal
+                ? { x: -offset, y: 0 }
+                : { x: 0, y: -offset }
+              const endRelative = isHorizontal
+                ? { x: offset, y: 0 }
+                : { x: 0, y: offset }
+
+              const startPoint = rotate(startRelative.x, startRelative.y)
+              const endPoint = rotate(endRelative.x, endRelative.y)
+
               builder
                 .add("G00", {})
                 .add("drill_at", {
-                  x: element.x,
-                  y: (element.y - offset) * y_multiplier,
+                  x: centerX + startPoint.x,
+                  y: (centerY + startPoint.y) * y_multiplier,
                 })
                 .add("M15", {})
                 .add("G01", {})
                 .add("drill_at", {
-                  x: element.x,
-                  y: (element.y + offset) * y_multiplier,
+                  x: centerX + endPoint.x,
+                  y: (centerY + endPoint.y) * y_multiplier,
                 })
                 .add("M16", {})
                 .add("G05", {})
@@ -148,9 +216,10 @@ export const convertSoupToExcellonDrillCommands = ({
           }
         } else if (!hole_diameter) continue
         else if (diameterToToolNumber[hole_diameter] === i) {
+          const { x, y } = getHoleCenter(element)
           builder.add("drill_at", {
-            x: element.x,
-            y: element.y * (flip_y_axis ? -1 : 1),
+            x,
+            y: y * (flip_y_axis ? -1 : 1),
           })
         }
       }

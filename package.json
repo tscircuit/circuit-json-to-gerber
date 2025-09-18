@@ -27,7 +27,7 @@
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
     "tsup": "^8.2.4",
-    "tscircuit": "^0.0.653"
+    "tscircuit": "^0.0.657"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",

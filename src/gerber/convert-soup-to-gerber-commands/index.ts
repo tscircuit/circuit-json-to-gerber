@@ -461,14 +461,27 @@ export const convertSoupToGerberCommands = (
               glayer.push(...gb.build())
             } else {
               const apertureConfig = getApertureConfigFromPcbPlatedHole(element)
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, apertureConfig),
-                  })
-                  .add("flash_operation", { x: element.x, y: mfy(element.y) })
-                  .build(),
-              )
+              const rotation =
+                "rect_ccw_rotation" in element &&
+                typeof element.rect_ccw_rotation === "number"
+                  ? element.rect_ccw_rotation
+                  : undefined
+
+              const gb = gerberBuilder().add("select_aperture", {
+                aperture_number: findApertureNumber(glayer, apertureConfig),
+              })
+
+              if (rotation) {
+                gb.add("load_rotation", { rotation_degrees: rotation })
+              }
+
+              gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
+
+              if (rotation) {
+                gb.add("load_rotation", { rotation_degrees: 0 })
+              }
+
+              glayer.push(...gb.build())
             }
           }
         }

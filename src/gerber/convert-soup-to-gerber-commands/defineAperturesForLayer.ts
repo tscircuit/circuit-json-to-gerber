@@ -225,10 +225,15 @@ export const getApertureConfigFromPcbPlatedHole = (
       circle_center_offset: elm.outer_height / 2,
     }
   }
-  if (elm.shape === "circular_hole_with_rect_pad") {
+  const shape = elm.shape
+  if (
+    shape === "circular_hole_with_rect_pad" ||
+    shape === "pill_hole_with_rect_pad" ||
+    shape === "rotated_pill_hole_with_rect_pad"
+  ) {
     if (!("rect_pad_width" in elm && "rect_pad_height" in elm)) {
       throw new Error(
-        "Invalid circular_hole_with_rect_pad shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
+        `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHole: missing dimensions`,
       )
     }
     return {
