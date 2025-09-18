@@ -177,8 +177,19 @@ export const convertSoupToExcellonDrillCommands = ({
                 y: centerY * y_multiplier,
               })
             } else {
-              const rotationRadians =
-                (getPillHoleRotation(element) * Math.PI) / 180
+              const rotationDegrees = getPillHoleRotation(element)
+              const { x: holeOffsetX, y: holeOffsetY } = getHoleOffsets(element)
+              const shouldRotate =
+                rotationDegrees !== 0 &&
+                (holeOffsetX !== 0 ||
+                  holeOffsetY !== 0 ||
+                  (element.type === "pcb_plated_hole" &&
+                    typeof element.shape === "string" &&
+                    element.shape.includes("rect_pad")))
+
+              const rotationRadians = shouldRotate
+                ? (rotationDegrees * Math.PI) / 180
+                : 0
               const cosTheta = Math.cos(rotationRadians)
               const sinTheta = Math.sin(rotationRadians)
 
