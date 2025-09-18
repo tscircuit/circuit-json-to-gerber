@@ -25,9 +25,9 @@ const buildRectPadPlatedHoles = () => {
     shape: "circular_hole_with_rect_pad",
     hole_shape: "circle",
     pad_shape: "rect",
-    hole_diameter: 0.8,
-    rect_pad_width: 1.2,
-    rect_pad_height: 1.4,
+    hole_diameter: 1.6,
+    rect_pad_width: 2.6,
+    rect_pad_height: 3.2,
     hole_offset_x: 0.25,
     hole_offset_y: -0.15,
     x: 5,
@@ -41,10 +41,10 @@ const buildRectPadPlatedHoles = () => {
     shape: "pill_hole_with_rect_pad",
     hole_shape: "pill",
     pad_shape: "rect",
-    hole_width: 2,
-    hole_height: 1,
-    rect_pad_width: 3,
-    rect_pad_height: 3,
+    hole_width: 3.4,
+    hole_height: 1.8,
+    rect_pad_width: 5,
+    rect_pad_height: 5,
     hole_offset_x: -0.1,
     hole_offset_y: 0.2,
     x: 1,
@@ -58,11 +58,11 @@ const buildRectPadPlatedHoles = () => {
     shape: "rotated_pill_hole_with_rect_pad",
     hole_shape: "rotated_pill",
     pad_shape: "rect",
-    hole_width: 1,
-    hole_height: 3,
+    hole_width: 1.8,
+    hole_height: 3.8,
     hole_ccw_rotation: 0,
-    rect_pad_width: 3.5,
-    rect_pad_height: 2.5,
+    rect_pad_width: 4.5,
+    rect_pad_height: 3.4,
     rect_ccw_rotation: 0,
     hole_offset_x: 0.2,
     hole_offset_y: 0.3,
@@ -92,6 +92,18 @@ test("circular hole with rect pad applies hole offsets", () => {
   })
 })
 
+const buildSnapshotBoard = (pcb_board_id: string) =>
+  ({
+    type: "pcb_board",
+    pcb_board_id,
+    center: { x: 0, y: 0 },
+    width: 32,
+    height: 32,
+    num_layers: 2,
+    thickness: 1.6,
+    material: "fr4",
+  }) satisfies Record<string, unknown>
+
 test("pill hole with rect pad applies offsets to slot path", () => {
   const { pill: hole } = buildRectPadPlatedHoles()
   const commands = convertSoupToExcellonDrillCommands({
@@ -102,16 +114,16 @@ test("pill hole with rect pad applies offsets to slot path", () => {
   const drillCommands = getDrillCommands(commands)
 
   expect(drillCommands).toHaveLength(2)
-  expect(drillCommands[0]).toEqual({
+  expect(drillCommands[0]).toMatchObject({
     command_code: "drill_at",
-    x: 0.4,
     y: 1.2,
   })
-  expect(drillCommands[1]).toEqual({
+  expect(drillCommands[0].x).toBeCloseTo(0.1, 5)
+  expect(drillCommands[1]).toMatchObject({
     command_code: "drill_at",
-    x: 1.4,
     y: 1.2,
   })
+  expect(drillCommands[1].x).toBeCloseTo(1.7, 5)
 })
 
 test("rotated pill hole with rect pad applies offsets when flipped", () => {
@@ -139,16 +151,7 @@ test("rotated pill hole with rect pad applies offsets when flipped", () => {
 
 test("circular plated hole with rect pad produces expected gerber snapshot", async () => {
   const { circular } = buildRectPadPlatedHoles()
-  const board = {
-    type: "pcb_board",
-    pcb_board_id: "rect_pad_offset_board",
-    center: { x: 0, y: 0 },
-    width: 12,
-    height: 12,
-    num_layers: 2,
-    thickness: 1.6,
-    material: "fr4",
-  } satisfies Record<string, unknown>
+  const board = buildSnapshotBoard("rect_pad_offset_board_circular")
 
   const soup = [
     board as unknown as AnyCircuitElement,
@@ -170,4 +173,30 @@ test("circular plated hole with rect pad produces expected gerber snapshot", asy
     ...gerberOutput,
     "plated-holes.drl": drillOutput,
   }).toMatchGerberSnapshot(import.meta.path, "circular-rect-pad-offset")
+})
+
+test("pill plated hole with rect pad produces expected gerber snapshot", async () => {
+  const { pill } = buildRectPadPlatedHoles()
+  const board = buildSnapshotBoard("rect_pad_offset_board_pill")
+
+  const soup = [
+    board as unknown as AnyCircuitElement,
+    pill as unknown as AnyCircuitElement,
+  ]
+
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(soup),
+  )
+
+  const drillOutput = stringifyExcellonDrill(
+    convertSoupToExcellonDrillCommands({
+      circuitJson: soup,
+      is_plated: true,
+    }),
+  )
+
+  await expect({
+    ...gerberOutput,
+    "plated-holes.drl": drillOutput,
+  }).toMatchGerberSnapshot(import.meta.path, "pill-rect-pad-offset")
 })
