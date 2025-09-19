@@ -212,7 +212,7 @@ const injectPasteRotation = (
   return svg.replace(pasteGroupRegex, (match, open, content, close) => {
     let updatedContent = content
     const useRegex = /<use\b[^>]*?\/?>/g
-    updatedContent = updatedContent.replace(useRegex, (useTag) => {
+    updatedContent = updatedContent.replace(useRegex, (useTag: string) => {
       const xMatch = useTag.match(/\sx="(-?[\d.]+)"/)
       const yMatch = useTag.match(/\sy="(-?[\d.]+)"/)
       if (!xMatch || !yMatch) return useTag
