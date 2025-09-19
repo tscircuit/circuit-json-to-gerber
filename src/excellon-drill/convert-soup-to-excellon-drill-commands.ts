@@ -35,7 +35,7 @@ export const convertSoupToExcellonDrillCommands = ({
     })
     .add("header_attribute", {
       attribute_name: "TF.FileFunction",
-      attribute_value: "Plated,1,2,PTH",
+      attribute_value: is_plated ? "Plated,1,2,PTH" : "NonPlated,1,2,NPTH",
     })
     .add("FMAT", { format: 2 }) // Assuming format 2 for the example
     .add("unit_format", { unit: "METRIC", lz: null })
@@ -47,35 +47,42 @@ export const convertSoupToExcellonDrillCommands = ({
   // Define tools
   for (const element of circuitJson) {
     if (
-      element.type === "pcb_plated_hole" ||
-      element.type === "pcb_hole" ||
-      element.type === "pcb_via"
+      element.type !== "pcb_plated_hole" &&
+      element.type !== "pcb_hole" &&
+      element.type !== "pcb_via"
     ) {
-      let hole_diameter: number | undefined
+      continue
+    }
 
-      if ("hole_diameter" in element) {
-        hole_diameter = element.hole_diameter
-      } else if (
-        element.type === "pcb_plated_hole" &&
-        element.shape === "pill"
-      ) {
-        // For pill shapes, use the minimum dimension as the hole diameter
-        hole_diameter = Math.min(element.hole_width, element.hole_height)
-      }
+    if (
+      !is_plated &&
+      (element.type === "pcb_plated_hole" || element.type === "pcb_via")
+    ) {
+      continue
+    }
 
-      if (!hole_diameter) continue
+    const holeDiameter =
+      "hole_diameter" in element && typeof element.hole_diameter === "number"
+        ? element.hole_diameter
+        : "hole_width" in element &&
+            typeof element.hole_width === "number" &&
+            "hole_height" in element &&
+            typeof element.hole_height === "number"
+          ? Math.min(element.hole_width, element.hole_height)
+          : undefined
 
-      if (!diameterToToolNumber[hole_diameter]) {
-        builder.add("aper_function_header", {
-          is_plated: true,
-        })
-        builder.add("define_tool", {
-          tool_number: tool_counter,
-          diameter: hole_diameter,
-        })
-        diameterToToolNumber[hole_diameter] = tool_counter
-        tool_counter++
-      }
+    if (!holeDiameter) continue
+
+    if (!diameterToToolNumber[holeDiameter]) {
+      builder.add("aper_function_header", {
+        is_plated,
+      })
+      builder.add("define_tool", {
+        tool_number: tool_counter,
+        diameter: holeDiameter,
+      })
+      diameterToToolNumber[holeDiameter] = tool_counter
+      tool_counter++
     }
   }
 
@@ -83,7 +90,9 @@ export const convertSoupToExcellonDrillCommands = ({
   builder.add("G90", {})
   builder.add("G05", {})
 
-  // Execute drills for tool N
+  // --------------------
+  // Execute drills/slots
+  // --------------------
   for (let i = 10; i < tool_counter; i++) {
     builder.add("use_tool", { tool_number: i })
     for (const element of circuitJson) {
@@ -95,64 +104,113 @@ export const convertSoupToExcellonDrillCommands = ({
         if (
           !is_plated &&
           (element.type === "pcb_plated_hole" || element.type === "pcb_via")
-        )
+        ) {
           continue
-        let hole_diameter: number | undefined
-
-        if ("hole_diameter" in element) {
-          hole_diameter = element.hole_diameter
         }
 
-        if (element.type === "pcb_plated_hole" && element.shape === "pill") {
-          hole_diameter = Math.min(element.hole_width, element.hole_height)
+        const holeDiameter =
+          "hole_diameter" in element &&
+          typeof element.hole_diameter === "number"
+            ? element.hole_diameter
+            : "hole_width" in element &&
+                typeof element.hole_width === "number" &&
+                "hole_height" in element &&
+                typeof element.hole_height === "number"
+              ? Math.min(element.hole_width, element.hole_height)
+              : undefined
 
-          // For pill shapes, we need to route the hole
-          if (diameterToToolNumber[hole_diameter] === i) {
-            const y_multiplier = flip_y_axis ? -1 : 1
+        if (!holeDiameter || diameterToToolNumber[holeDiameter] !== i) {
+          continue
+        }
 
-            if (element.hole_width > element.hole_height) {
-              // Horizontal pill
-              const offset = (element.hole_width - element.hole_height) / 2
-              builder
-                .add("G00", {})
-                .add("drill_at", {
-                  x: element.x - offset,
-                  y: element.y * y_multiplier,
-                })
-                .add("M15", {})
-                .add("G01", {})
-                .add("drill_at", {
-                  x: element.x + offset,
-                  y: element.y * y_multiplier,
-                })
-                .add("M16", {})
-                .add("G05", {})
-            } else {
-              // Vertical pill
-              const offset = (element.hole_height - element.hole_width) / 2
-              builder
-                .add("G00", {})
-                .add("drill_at", {
-                  x: element.x,
-                  y: (element.y - offset) * y_multiplier,
-                })
-                .add("M15", {})
-                .add("G01", {})
-                .add("drill_at", {
-                  x: element.x,
-                  y: (element.y + offset) * y_multiplier,
-                })
-                .add("M16", {})
-                .add("G05", {})
-            }
+        const elementX =
+          "x" in element && typeof element.x === "number" ? element.x : 0
+        const elementY =
+          "y" in element && typeof element.y === "number" ? element.y : 0
+        const offsetX =
+          "hole_offset_x" in element &&
+          typeof element.hole_offset_x === "number"
+            ? element.hole_offset_x
+            : 0
+        const offsetY =
+          "hole_offset_y" in element &&
+          typeof element.hole_offset_y === "number"
+            ? element.hole_offset_y
+            : 0
+        const centerX = elementX + offsetX
+        const centerY = elementY + offsetY
+        const yMultiplier = flip_y_axis ? -1 : 1
+
+        if (
+          "hole_width" in element &&
+          typeof element.hole_width === "number" &&
+          "hole_height" in element &&
+          typeof element.hole_height === "number"
+        ) {
+          const holeWidth = element.hole_width
+          const holeHeight = element.hole_height
+          const maxDim = Math.max(holeWidth, holeHeight)
+          const minDim = Math.min(holeWidth, holeHeight)
+
+          if (Math.abs(maxDim - minDim) <= 1e-6) {
+            builder.add("drill_at", {
+              x: centerX,
+              y: centerY * yMultiplier,
+            })
+            continue
           }
-        } else if (!hole_diameter) continue
-        else if (diameterToToolNumber[hole_diameter] === i) {
-          builder.add("drill_at", {
-            x: element.x,
-            y: element.y * (flip_y_axis ? -1 : 1),
+
+          const rotationDegrees =
+            "hole_ccw_rotation" in element &&
+            typeof element.hole_ccw_rotation === "number"
+              ? element.hole_ccw_rotation
+              : "ccw_rotation" in element &&
+                  typeof element.ccw_rotation === "number"
+                ? element.ccw_rotation
+                : 0
+          const rotationRadians = (rotationDegrees * Math.PI) / 180
+          const cosTheta = Math.cos(rotationRadians)
+          const sinTheta = Math.sin(rotationRadians)
+
+          const isWidthMajor = holeWidth >= holeHeight
+          const slotHalfLength = (maxDim - minDim) / 2
+          const startRelative = isWidthMajor
+            ? { x: -slotHalfLength, y: 0 }
+            : { x: 0, y: -slotHalfLength }
+          const endRelative = isWidthMajor
+            ? { x: slotHalfLength, y: 0 }
+            : { x: 0, y: slotHalfLength }
+
+          const rotatePoint = ({ x, y }: { x: number; y: number }) => ({
+            x: x * cosTheta - y * sinTheta,
+            y: x * sinTheta + y * cosTheta,
           })
+
+          const startPoint = rotatePoint(startRelative)
+          const endPoint = rotatePoint(endRelative)
+
+          const startX = centerX + startPoint.x
+          const startY = (centerY + startPoint.y) * yMultiplier
+          const endX = centerX + endPoint.x
+          const endY = (centerY + endPoint.y) * yMultiplier
+
+          builder
+            .add("drill_at", {
+              x: startX,
+              y: startY,
+            })
+            .add("G85", {
+              x: endX,
+              y: endY,
+              width: minDim,
+            })
+          continue
         }
+
+        builder.add("drill_at", {
+          x: centerX,
+          y: centerY * yMultiplier,
+        })
       }
     }
   }

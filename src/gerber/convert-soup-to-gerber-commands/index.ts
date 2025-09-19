@@ -108,6 +108,23 @@ export const convertSoupToGerberCommands = (
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
 
+  const rotationLookup = new Map<string, number>()
+  for (const element of soup) {
+    if (
+      element.type === "pcb_plated_hole" &&
+      "x" in element &&
+      typeof element.x === "number" &&
+      "y" in element &&
+      typeof element.y === "number"
+    ) {
+      const rotation =
+        "ccw_rotation" in element && typeof element.ccw_rotation === "number"
+          ? element.ccw_rotation
+          : 0
+      rotationLookup.set(`${element.x}:${element.y}`, rotation)
+    }
+  }
+
   for (const layer of ["top", "bottom", "edgecut"] as const) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
@@ -337,19 +354,28 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer) {
-          for (const glayer of [glayers[getGerberLayerName(layer, "paste")]]) {
-            glayer.push(
-              ...gerberBuilder()
-                .add("select_aperture", {
-                  aperture_number: findApertureNumber(
-                    glayer,
-                    getApertureConfigFromPcbSolderPaste(element),
-                  ),
-                })
-                .add("flash_operation", { x: element.x, y: mfy(element.y) })
-                .build(),
-            )
+          const glayer = glayers[getGerberLayerName(layer, "paste")]
+          const aperture_number = findApertureNumber(
+            glayer,
+            getApertureConfigFromPcbSolderPaste(element),
+          )
+          const rotation =
+            "ccw_rotation" in element &&
+            typeof element.ccw_rotation === "number"
+              ? element.ccw_rotation
+              : (rotationLookup.get(`${element.x}:${element.y}`) ?? 0)
+
+          const gb = gerberBuilder().add("select_aperture", {
+            aperture_number,
+          })
+          if (rotation) {
+            gb.add("load_rotation", { rotation_degrees: rotation })
           }
+          gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
+          if (rotation) {
+            gb.add("load_rotation", { rotation_degrees: 0 })
+          }
+          glayer.push(...gb.build())
         }
       } else if (element.type === "pcb_plated_hole") {
         if (element.layers.includes(layer as any)) {
@@ -357,18 +383,55 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
+            // --- Compute effective copper pad dimensions ---
+            const holeW =
+              "hole_width" in element && typeof element.hole_width === "number"
+                ? element.hole_width
+                : 0
+            const holeH =
+              "hole_height" in element &&
+              typeof element.hole_height === "number"
+                ? element.hole_height
+                : 0
+
+            const padWidthCandidates: number[] = [holeW]
+            if (
+              "outer_width" in element &&
+              typeof (element as any).outer_width === "number"
+            ) {
+              padWidthCandidates.push((element as any).outer_width)
+            }
+            if (
+              "rect_pad_width" in element &&
+              typeof element.rect_pad_width === "number"
+            ) {
+              padWidthCandidates.push(element.rect_pad_width)
+            }
+            const padW = Math.max(...padWidthCandidates)
+
+            const padHeightCandidates: number[] = [holeH]
+            if (
+              "outer_height" in element &&
+              typeof (element as any).outer_height === "number"
+            ) {
+              padHeightCandidates.push((element as any).outer_height)
+            }
+            if (
+              "rect_pad_height" in element &&
+              typeof element.rect_pad_height === "number"
+            ) {
+              padHeightCandidates.push(element.rect_pad_height)
+            }
+            const padH = Math.max(...padHeightCandidates)
+
             if (element.shape === "pill") {
-              // For pill shapes, use a circular aperture and draw the connecting line
+              // Use min dimension as slot width (aperture circle)
               const circleApertureConfig = {
                 standard_template_code: "C" as const,
-                diameter:
-                  element.outer_width > element.outer_height
-                    ? element.outer_height
-                    : element.outer_width,
+                diameter: Math.min(padW, padH),
               }
 
-              // Find existing aperture number or get next available
-              let aperture_number = 10
+              let aperture_number: number
               try {
                 aperture_number = findApertureNumber(
                   glayer,
@@ -383,7 +446,6 @@ export const convertSoupToGerberCommands = (
                     9,
                   ) + 1
 
-                // Add the aperture definition
                 glayer.push(
                   ...gerberBuilder()
                     .add("define_aperture_template", {
@@ -412,17 +474,14 @@ export const convertSoupToGerberCommands = (
                 }
               }
 
-              const isHorizontal = element.outer_width > element.outer_height
+              const isHorizontal = padW >= padH
               const offset = isHorizontal
-                ? (element.outer_width - element.outer_height) / 2
-                : (element.outer_height - element.outer_width) / 2
+                ? (padW - padH) / 2
+                : (padH - padW) / 2
 
               if (offset <= 0) {
                 const center = rotateAndTranslate(0, 0)
-                gb.add("flash_operation", {
-                  x: center.x,
-                  y: mfy(center.y),
-                })
+                gb.add("flash_operation", { x: center.x, y: mfy(center.y) })
               } else {
                 const startRelative = isHorizontal
                   ? { x: -offset, y: 0 }
@@ -460,15 +519,31 @@ export const convertSoupToGerberCommands = (
 
               glayer.push(...gb.build())
             } else {
-              const apertureConfig = getApertureConfigFromPcbPlatedHole(element)
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, apertureConfig),
-                  })
-                  .add("flash_operation", { x: element.x, y: mfy(element.y) })
-                  .build(),
-              )
+              // Non-pill shapes (rect, circle)
+              const apertureConfig = getApertureConfigFromPcbPlatedHole({
+                ...element,
+                ...(element.shape !== "circle"
+                  ? { outer_width: padW, outer_height: padH }
+                  : {}),
+              })
+              const rotation =
+                "rect_ccw_rotation" in element &&
+                typeof element.rect_ccw_rotation === "number"
+                  ? element.rect_ccw_rotation
+                  : undefined
+
+              const gb = gerberBuilder().add("select_aperture", {
+                aperture_number: findApertureNumber(glayer, apertureConfig),
+              })
+
+              if (rotation)
+                gb.add("load_rotation", { rotation_degrees: rotation })
+
+              gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
+
+              if (rotation) gb.add("load_rotation", { rotation_degrees: 0 })
+
+              glayer.push(...gb.build())
             }
           }
         }

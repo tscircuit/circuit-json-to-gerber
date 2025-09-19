@@ -10,9 +10,8 @@ export const aper_function_header = defineExcellonDrillCommand({
     is_plated: z.boolean(),
   }),
   stringify({ is_plated }) {
-    if (!is_plated) {
-      throw new Error("not implemented")
-    }
-    return "; #@! TA.AperFunction,Plated,PTH,ComponentDrill"
+    return is_plated
+      ? "; #@! TA.AperFunction,Plated,PTH,ComponentDrill"
+      : "; #@! TA.AperFunction,NonPlated,NPTH,ComponentDrill"
   },
 })
