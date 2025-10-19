@@ -6,30 +6,24 @@ import {
 } from "src/gerber/stringify-gerber"
 import { maybeOutputGerber } from "tests/fixtures/maybe-output-gerber"
 
-test("generates outline edge cuts when explicit outline is provided", async () => {
-  const boardWithOutline: AnyCircuitElement = {
+test("generates rectangular edge cuts when width/height are provided", async () => {
+  const board: AnyCircuitElement = {
     type: "pcb_board",
-    pcb_board_id: "board_outline",
-    width: 0,
-    height: 0,
-    thickness: 1.6,
+    pcb_board_id: "board_rect",
+    center: { x: 25, y: -10 },
+    width: 40,
+    height: 20,
     num_layers: 2,
-    center: { x: 0, y: 0 },
+    thickness: 1.6,
     material: "fr4",
-    outline: [
-      { x: 0, y: 0 },
-      { x: 20, y: 0 },
-      { x: 22, y: 6 },
-      { x: 4, y: 12 },
-    ],
   }
 
   const smtPad1: AnyCircuitElement = {
     type: "pcb_smtpad",
     pcb_smtpad_id: "smt1",
-    x: 5,
-    y: 4,
-    width: 2,
+    x: 10,
+    y: -10,
+    width: 1.5,
     height: 1.5,
     shape: "rect",
     layer: "top",
@@ -38,21 +32,19 @@ test("generates outline edge cuts when explicit outline is provided", async () =
   const smtPad2: AnyCircuitElement = {
     type: "pcb_smtpad",
     pcb_smtpad_id: "smt2",
-    x: 15,
-    y: 8,
-    width: 1.5,
-    height: 2,
+    x: 30,
+    y: -5,
+    width: 2,
+    height: 1,
     shape: "rect",
     layer: "top",
   }
 
-  const gerber_cmds = convertSoupToGerberCommands([boardWithOutline, smtPad1, smtPad2], {
-    flip_y_axis: true,
-  })
+  const gerber_cmds = convertSoupToGerberCommands([board, smtPad1, smtPad2])
 
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
 
   await maybeOutputGerber(gerberOutput, "")
 
-  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "outline")
+  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "rectangular")
 })
