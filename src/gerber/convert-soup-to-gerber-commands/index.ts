@@ -593,44 +593,51 @@ export const convertSoupToGerberCommands = (
         const gerberBuild = gerberBuilder().add("select_aperture", {
           aperture_number: 10,
         })
+
         if (outline && outline.length > 2) {
-          gerberBuild.add("move_operation", outline[0])
+          const firstPoint = outline[0]
+          gerberBuild.add("move_operation", {
+            x: firstPoint.x,
+            y: mfy(firstPoint.y),
+          })
+
           for (let i = 1; i < outline.length; i++) {
-            gerberBuild.add("plot_operation", outline[i])
+            const point = outline[i]
+            gerberBuild.add("plot_operation", { x: point.x, y: mfy(point.y) })
+          }
+
+          const lastPoint = outline[outline.length - 1]
+          if (lastPoint.x !== firstPoint.x || lastPoint.y !== firstPoint.y) {
+            gerberBuild.add("plot_operation", {
+              x: firstPoint.x,
+              y: mfy(firstPoint.y),
+            })
           }
         } else {
+          const { x: centerX = 0, y: centerY = 0 } = center ?? { x: 0, y: 0 }
+          const halfWidth = width / 2
+          const halfHeight = height / 2
+
           gerberBuild
             .add("move_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: centerX - halfWidth,
+              y: mfy(centerY - halfHeight),
             })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y - height / 2),
+              x: centerX + halfWidth,
+              y: mfy(centerY - halfHeight),
             })
-            // .add("move_operation", {
-            //   x: center.x + width / 2,
-            //   y: center.y - height / 2,
-            // })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y + height / 2),
+              x: centerX + halfWidth,
+              y: mfy(centerY + halfHeight),
             })
-            // .add("move_operation", {
-            //   x: center.x + width / 2,
-            //   y: center.y + height / 2,
-            // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y + height / 2),
+              x: centerX - halfWidth,
+              y: mfy(centerY + halfHeight),
             })
-            // .add("move_operation", {
-            //   x: center.x - width / 2,
-            //   y: center.y + height / 2,
-            // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: centerX - halfWidth,
+              y: mfy(centerY - halfHeight),
             })
         }
 
