@@ -737,7 +737,7 @@ export const convertSoupToGerberCommands = (
         element.type === "pcb_copper_pour" &&
         layer === element.layer
       ) {
-        const glayer = glayers[getGerberLayerName(layer, "copper")]
+        const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
 
         const pour_builder = gerberBuilder()
           .add("select_aperture", { aperture_number: 10 })
@@ -922,7 +922,13 @@ export const convertSoupToGerberCommands = (
 
         pour_builder.add("end_region_statement", {})
 
-        glayer.push(...pour_builder.build())
+        const pour_commands = pour_builder.build()
+        copper_glayer.push(...pour_commands)
+
+        if ((element as any).covered_with_solder_mask === false) {
+          const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
+          mask_layer.push(...pour_commands)
+        }
       }
     }
   }

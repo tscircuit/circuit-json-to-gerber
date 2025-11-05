@@ -27,6 +27,7 @@ test("generate gerber with copper pour", async () => {
       layer: "top",
       shape: "brep",
       source_net_id: "net1",
+      covered_with_solder_mask: false,
       brep_shape: {
         outer_ring: {
           vertices: [
@@ -55,6 +56,7 @@ test("generate gerber with copper pour", async () => {
       layer: "top",
       shape: "brep",
       source_net_id: "net2",
+      covered_with_solder_mask: true,
       brep_shape: {
         outer_ring: {
           vertices: [
@@ -111,13 +113,13 @@ test("generate gerber with copper pour", async () => {
         ],
       },
     } as PcbCopperPour,
-    // pour_brep_4: bottom layer pour (should not be rendered)
     {
       type: "pcb_copper_pour",
       pcb_copper_pour_id: "pour_brep_4",
       layer: "bottom",
       shape: "brep",
       source_net_id: "net4",
+      covered_with_solder_mask: false,
       brep_shape: {
         outer_ring: {
           vertices: [
@@ -127,6 +129,7 @@ test("generate gerber with copper pour", async () => {
             { x: -30, y: -30, bulge: 0.5 },
           ],
         },
+        inner_rings: [],
       },
     } as PcbCopperPour,
     // pour_rect_1: A rect pour with rotation
