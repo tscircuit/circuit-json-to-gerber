@@ -352,6 +352,50 @@ export const convertSoupToGerberCommands = (
             glayer.push(...gb.build())
           }
         }
+      } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
+        if (element.layer === layer) {
+          const layers_to_add_to = [
+            glayers[getGerberLayerName(layer, "copper")],
+          ]
+
+          // Add to soldermask layer unless explicitly covered
+          if (
+            !("is_covered_with_solder_mask" in element) ||
+            element.is_covered_with_solder_mask !== false
+          ) {
+            layers_to_add_to.push(
+              glayers[getGerberLayerName(layer, "soldermask")],
+            )
+          }
+
+          for (const glayer of layers_to_add_to) {
+            const pad_builder = gerberBuilder()
+              .add("select_aperture", { aperture_number: 10 })
+              .add("start_region_statement", {})
+
+            const { points } = element as any
+            if (points && points.length > 0) {
+              pad_builder.add("move_operation", {
+                x: points[0].x,
+                y: mfy(points[0].y),
+              })
+              for (let i = 1; i < points.length; i++) {
+                pad_builder.add("plot_operation", {
+                  x: points[i].x,
+                  y: mfy(points[i].y),
+                })
+              }
+              pad_builder.add("plot_operation", {
+                x: points[0].x,
+                y: mfy(points[0].y),
+              })
+            }
+
+            pad_builder.add("end_region_statement", {})
+
+            glayer.push(...pad_builder.build())
+          }
+        }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]

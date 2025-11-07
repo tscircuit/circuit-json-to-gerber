@@ -110,6 +110,10 @@ export const getApertureConfigFromPcbSmtpad = (
       y_size: elm.height,
     }
   }
+  if (elm.shape === "polygon") {
+    // Polygon shapes don't use apertures - they're drawn as regions
+    throw new Error("Polygon SMT pads are drawn as regions, not apertures")
+  }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
@@ -292,7 +296,7 @@ function getAllApertureTemplateConfigsForLayer(
 
   for (const elm of soup) {
     if (elm.type === "pcb_smtpad") {
-      if (elm.layer === layer) {
+      if (elm.layer === layer && elm.shape !== "polygon") {
         addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
       }
     } else if (elm.type === "pcb_solder_paste") {
