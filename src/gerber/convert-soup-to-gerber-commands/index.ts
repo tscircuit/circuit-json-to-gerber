@@ -632,6 +632,12 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_board" && layer === "edgecut") {
+        // Skip boards that are inside a panel - only render the panel outline
+        const board = element as any
+        if (board.pcb_panel_id) {
+          continue
+        }
+
         const glayer = glayers.Edge_Cuts
         const { width, height, center, outline } = element
         const gerberBuild = gerberBuilder().add("select_aperture", {
@@ -677,6 +683,36 @@ export const convertSoupToGerberCommands = (
               y: mfy(center.y - height / 2),
             })
         }
+
+        glayer.push(...gerberBuild.build())
+      } else if (element.type === "pcb_panel" && layer === "edgecut") {
+        const glayer = glayers.Edge_Cuts
+        const panel = element as any
+        const { width, height, center } = panel
+        const gerberBuild = gerberBuilder()
+          .add("select_aperture", {
+            aperture_number: 10,
+          })
+          .add("move_operation", {
+            x: center.x - width / 2,
+            y: mfy(center.y - height / 2),
+          })
+          .add("plot_operation", {
+            x: center.x + width / 2,
+            y: mfy(center.y - height / 2),
+          })
+          .add("plot_operation", {
+            x: center.x + width / 2,
+            y: mfy(center.y + height / 2),
+          })
+          .add("plot_operation", {
+            x: center.x - width / 2,
+            y: mfy(center.y + height / 2),
+          })
+          .add("plot_operation", {
+            x: center.x - width / 2,
+            y: mfy(center.y - height / 2),
+          })
 
         glayer.push(...gerberBuild.build())
       } else if (element.type === "pcb_cutout") {
