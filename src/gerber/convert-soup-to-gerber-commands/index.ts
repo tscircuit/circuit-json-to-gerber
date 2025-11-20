@@ -639,7 +639,7 @@ export const convertSoupToGerberCommands = (
         }
 
         const glayer = glayers.Edge_Cuts
-        const { width = 0, height = 0, center, outline } = element
+        const { width, height, center, outline } = element
         const gerberBuild = gerberBuilder().add("select_aperture", {
           aperture_number: 10,
         })
@@ -651,36 +651,36 @@ export const convertSoupToGerberCommands = (
         } else {
           gerberBuild
             .add("move_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x + width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x + width / 2,
             //   y: center.y - height / 2,
             // })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y + height / 2),
+              x: center!.x + width! / 2,
+              y: mfy(center!.y + height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x + width / 2,
             //   y: center.y + height / 2,
             // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y + height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y + height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x - width / 2,
             //   y: center.y + height / 2,
             // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
         }
 
@@ -688,30 +688,30 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_panel" && layer === "edgecut") {
         const glayer = glayers.Edge_Cuts
         const panel = element as any
-        const { width = 0, height = 0, center } = panel
+        const { width, height, center } = panel
         const gerberBuild = gerberBuilder()
           .add("select_aperture", {
             aperture_number: 10,
           })
           .add("move_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
           .add("plot_operation", {
-            x: center.x + width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x + width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
           .add("plot_operation", {
-            x: center.x + width / 2,
-            y: mfy(center.y + height / 2),
+            x: center!.x + width! / 2,
+            y: mfy(center!.y + height! / 2),
           })
           .add("plot_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y + height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y + height! / 2),
           })
           .add("plot_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
 
         glayer.push(...gerberBuild.build())
