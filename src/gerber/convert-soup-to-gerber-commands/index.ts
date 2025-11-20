@@ -651,36 +651,36 @@ export const convertSoupToGerberCommands = (
         } else {
           gerberBuild
             .add("move_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x + width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x + width / 2,
             //   y: center.y - height / 2,
             // })
             .add("plot_operation", {
-              x: center.x + width / 2,
-              y: mfy(center.y + height / 2),
+              x: center!.x + width! / 2,
+              y: mfy(center!.y + height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x + width / 2,
             //   y: center.y + height / 2,
             // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y + height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y + height! / 2),
             })
             // .add("move_operation", {
             //   x: center.x - width / 2,
             //   y: center.y + height / 2,
             // })
             .add("plot_operation", {
-              x: center.x - width / 2,
-              y: mfy(center.y - height / 2),
+              x: center!.x - width! / 2,
+              y: mfy(center!.y - height! / 2),
             })
         }
 
@@ -694,24 +694,24 @@ export const convertSoupToGerberCommands = (
             aperture_number: 10,
           })
           .add("move_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
           .add("plot_operation", {
-            x: center.x + width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x + width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
           .add("plot_operation", {
-            x: center.x + width / 2,
-            y: mfy(center.y + height / 2),
+            x: center!.x + width! / 2,
+            y: mfy(center!.y + height! / 2),
           })
           .add("plot_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y + height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y + height! / 2),
           })
           .add("plot_operation", {
-            x: center.x - width / 2,
-            y: mfy(center.y - height / 2),
+            x: center!.x - width! / 2,
+            y: mfy(center!.y - height! / 2),
           })
 
         glayer.push(...gerberBuild.build())
@@ -725,45 +725,117 @@ export const convertSoupToGerberCommands = (
           const el = element as PcbCutout
 
           if (el.shape === "rect") {
-            const { center, width, height, rotation } = el
+            const { center, width, height, rotation, corner_radius } = el
             const w = width / 2
             const h = height / 2
+            const r = Math.max(
+              0,
+              Math.min(corner_radius ?? 0, Math.abs(w), Math.abs(h)),
+            )
 
-            const points = [
-              { x: -w, y: h }, // Top-left
-              { x: w, y: h }, // Top-right
-              { x: w, y: -h }, // Bottom-right
-              { x: -w, y: -h }, // Bottom-left
-            ]
-
-            let transformMatrix = identity()
-            if (rotation) {
-              const angle_rad = (rotation * Math.PI) / 180
-              transformMatrix = rotate(angle_rad)
+            const makeTransformMatrix = () => {
+              let transformMatrix = identity()
+              if (rotation) {
+                const angle_rad = (rotation * Math.PI) / 180
+                transformMatrix = rotate(angle_rad)
+              }
+              return compose(translate(center.x, center.y), transformMatrix)
             }
-            transformMatrix = compose(
-              translate(center.x, center.y),
-              transformMatrix,
-            )
 
-            const transformedPoints = points.map((p) =>
-              applyToPoint(transformMatrix, p),
-            )
+            const transformMatrix = makeTransformMatrix()
 
-            cutout_builder.add("move_operation", {
-              x: transformedPoints[0].x,
-              y: mfy(transformedPoints[0].y),
-            })
-            for (let i = 1; i < transformedPoints.length; i++) {
+            if (r > 0) {
+              const startPoint = { x: -w + r, y: h }
+
+              let currentPoint = applyToPoint(transformMatrix, startPoint)
+
+              cutout_builder.add("move_operation", {
+                x: currentPoint.x,
+                y: mfy(currentPoint.y),
+              })
+
+              const addLine = (point: { x: number; y: number }) => {
+                const transformedPoint = applyToPoint(transformMatrix, point)
+                cutout_builder.add("plot_operation", {
+                  x: transformedPoint.x,
+                  y: mfy(transformedPoint.y),
+                })
+                currentPoint = transformedPoint
+              }
+
+              const addArc = (options: {
+                point: { x: number; y: number }
+                center: { x: number; y: number }
+              }) => {
+                const transformedPoint = applyToPoint(
+                  transformMatrix,
+                  options.point,
+                )
+                const transformedCenter = applyToPoint(
+                  transformMatrix,
+                  options.center,
+                )
+
+                cutout_builder
+                  .add("set_movement_mode_to_clockwise_circular", {})
+                  .add("plot_operation", {
+                    x: transformedPoint.x,
+                    y: mfy(transformedPoint.y),
+                    i: transformedCenter.x - currentPoint.x,
+                    j: mfy(transformedCenter.y) - mfy(currentPoint.y),
+                  })
+                  .add("set_movement_mode_to_linear", {})
+
+                currentPoint = transformedPoint
+              }
+
+              addLine({ x: w - r, y: h })
+              addArc({
+                point: { x: w, y: h - r },
+                center: { x: w - r, y: h - r },
+              })
+              addLine({ x: w, y: -h + r })
+              addArc({
+                point: { x: w - r, y: -h },
+                center: { x: w - r, y: -h + r },
+              })
+              addLine({ x: -w + r, y: -h })
+              addArc({
+                point: { x: -w, y: -h + r },
+                center: { x: -w + r, y: -h + r },
+              })
+              addLine({ x: -w, y: h - r })
+              addArc({
+                point: { x: -w + r, y: h },
+                center: { x: -w + r, y: h - r },
+              })
+            } else {
+              const points = [
+                { x: -w, y: h }, // Top-left
+                { x: w, y: h }, // Top-right
+                { x: w, y: -h }, // Bottom-right
+                { x: -w, y: -h }, // Bottom-left
+              ]
+
+              const transformedPoints = points.map((p) =>
+                applyToPoint(transformMatrix, p),
+              )
+
+              cutout_builder.add("move_operation", {
+                x: transformedPoints[0].x,
+                y: mfy(transformedPoints[0].y),
+              })
+              for (let i = 1; i < transformedPoints.length; i++) {
+                cutout_builder.add("plot_operation", {
+                  x: transformedPoints[i].x,
+                  y: mfy(transformedPoints[i].y),
+                })
+              }
               cutout_builder.add("plot_operation", {
-                x: transformedPoints[i].x,
-                y: mfy(transformedPoints[i].y),
+                x: transformedPoints[0].x,
+                y: mfy(transformedPoints[0].y),
               })
             }
-            cutout_builder.add("plot_operation", {
-              x: transformedPoints[0].x,
-              y: mfy(transformedPoints[0].y),
-            })
           } else if (el.shape === "circle") {
             const { center, radius } = el
 

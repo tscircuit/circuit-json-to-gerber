@@ -27,11 +27,13 @@
     "gerber-to-svg": "^4.2.8",
     "pcb-stackup": "^4.2.8",
     "tsup": "^8.2.4",
-    "tscircuit": "^0.0.863"
+    "tscircuit": "^0.0.863",
+    "circuit-json": "^0.0.317"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
-    "tscircuit": "*"
+    "tscircuit": "*",
+    "circuit-json": "*"
   },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.2",
