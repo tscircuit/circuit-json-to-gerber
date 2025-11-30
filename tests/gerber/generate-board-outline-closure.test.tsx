@@ -1,10 +1,11 @@
 import { Circuit } from "@tscircuit/core"
 import { expect, test } from "bun:test"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
+import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
 // Regression test: outlines should be closed in the Edge_Cuts layer
 // even if the provided outline path does not repeat the starting point.
-test("board outline paths are closed and flipped when required", () => {
+test("board outline paths are closed and flipped when required", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board
@@ -41,4 +42,13 @@ test("board outline paths are closed and flipped when required", () => {
     { command_code: "D01", x: 0, y: -5 },
     { command_code: "D01", x: 0, y: 0 },
   ])
+
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(soup as any, { flip_y_axis: true }),
+  )
+
+  await expect(gerberOutput).toMatchGerberSnapshot(
+    import.meta.path,
+    "outline-closure",
+  )
 })
