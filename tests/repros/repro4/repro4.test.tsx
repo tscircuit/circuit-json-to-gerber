@@ -28,5 +28,5 @@ test("Generate interconnect 15x4 board", async () => {
     ...gerberOutput,
     "drill.drl": excellonDrillOutput,
     "drill_npth.drl": excellonDrillOutputUnplated,
-  }).toMatchGerberSnapshot(import.meta.path)
+  }).toMatchGerberSnapshot(import.meta.path, "interconnect15x4")
 })
