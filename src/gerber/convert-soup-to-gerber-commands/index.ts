@@ -644,9 +644,24 @@ export const convertSoupToGerberCommands = (
           aperture_number: 10,
         })
         if (outline && outline.length > 2) {
-          gerberBuild.add("move_operation", outline[0])
+          const firstPoint = outline[0]
+          gerberBuild.add("move_operation", {
+            x: firstPoint.x,
+            y: mfy(firstPoint.y),
+          })
           for (let i = 1; i < outline.length; i++) {
-            gerberBuild.add("plot_operation", outline[i])
+            gerberBuild.add("plot_operation", {
+              x: outline[i].x,
+              y: mfy(outline[i].y),
+            })
+          }
+
+          const lastPoint = outline[outline.length - 1]
+          if (lastPoint.x !== firstPoint.x || lastPoint.y !== firstPoint.y) {
+            gerberBuild.add("plot_operation", {
+              x: firstPoint.x,
+              y: mfy(firstPoint.y),
+            })
           }
         } else {
           gerberBuild
