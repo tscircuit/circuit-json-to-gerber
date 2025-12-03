@@ -7,7 +7,8 @@
     "build": "tsup-node src/index.ts src/cli.ts --format esm --dts --sourcemap",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "start": "bun --bun site/index.html"
+    "start": "bun --bun site/index.html",
+    "build:site": "bun build site/index.html --outdir ./site-export"
   },
   "files": [
     "dist"

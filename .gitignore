@@ -186,3 +186,5 @@ gerber-output.zip
 *.diff.png
 
 tmp*
+.vercel
+site-export

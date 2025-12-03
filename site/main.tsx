@@ -108,58 +108,42 @@ function App() {
   )
 
   const generatePreviews = async (output: GerberOutput) => {
-    try {
-      // Create layers array for pcb-stackup
-      const layers = Object.entries(output).map(([filename, content]) => ({
-        filename,
-        gerber: Readable.from(content),
-      }))
-
-      const stackup = await pcbStackup(layers)
-
-      const svgs: LayerSvgs = {
-        layers: {},
-      }
-
-      // Extract top and bottom views
-      if (stackup.top?.svg) {
-        svgs.top = stackup.top.svg
-      }
-      if (stackup.bottom?.svg) {
-        svgs.bottom = stackup.bottom.svg
-      }
-
-      // Also extract individual layer SVGs
-      for (const [key, value] of Object.entries(stackup)) {
-        if (value && typeof value === "object" && "svg" in value) {
-          svgs.layers[key] = (value as { svg: string }).svg
-        }
-      }
-
-      setLayerSvgs(svgs)
-    } catch (err) {
-      console.error("Failed to generate previews:", err)
-      // Fallback: generate individual layer SVGs using gerber-to-svg
-      await generateFallbackPreviews(output)
-    }
-  }
-
-  const generateFallbackPreviews = async (output: GerberOutput) => {
     const svgs: LayerSvgs = { layers: {} }
+
+    // Define layer colors for better visualization
+    const layerColors: Record<string, string> = {
+      F_Cu: "#c93",
+      B_Cu: "#c93",
+      F_Mask: "#004200",
+      B_Mask: "#004200",
+      F_SilkScreen: "#fff",
+      B_SilkScreen: "#fff",
+      F_Paste: "#999",
+      B_Paste: "#999",
+      Edge_Cuts: "#ff0",
+    }
 
     for (const [filename, content] of Object.entries(output)) {
       if (filename.endsWith(".drl")) continue
       try {
-        const svg = await new Promise<string>((resolve, reject) => {
-          gerberToSvg(Readable.from(content), {}, (err: Error | null, result: string) => {
-            if (err) reject(err)
-            else resolve(result)
-          })
+        // Use gerber-to-svg with string input (synchronous mode)
+        const converter = gerberToSvg(content, {
+          attributes: { color: layerColors[filename] || "#fff" },
         })
+        const svg = converter.toString()
         svgs.layers[filename] = svg
       } catch (err) {
         console.warn(`Failed to convert ${filename}:`, err)
       }
+    }
+
+    // Set first available layer as default if no top/bottom
+    const layerKeys = Object.keys(svgs.layers)
+    if (layerKeys.includes("F_Cu")) {
+      svgs.top = svgs.layers.F_Cu
+    }
+    if (layerKeys.includes("B_Cu")) {
+      svgs.bottom = svgs.layers.B_Cu
     }
 
     setLayerSvgs(svgs)
