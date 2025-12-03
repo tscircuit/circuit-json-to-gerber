@@ -149,6 +149,21 @@ export const convertSoupToGerberCommands = (
                   .build(),
               )
             }
+          } else if (a.route_type === "via" && b.route_type === "wire") {
+            if (b.layer === layer) {
+              const glayer = glayers[getGerberLayerName(layer, "copper")]
+              glayer.push(
+                ...gerberBuilder()
+                  .add("select_aperture", {
+                    aperture_number: findApertureNumber(glayer, {
+                      trace_width: b.width,
+                    }),
+                  })
+                  .add("move_operation", { x: a.x, y: mfy(a.y) })
+                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
+                  .build(),
+              )
+            }
           }
         }
       } else if (element.type === "pcb_silkscreen_path") {
