@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react"
+import { useState, useCallback } from "react"
 import { createRoot } from "react-dom/client"
 import type { AnyCircuitElement } from "circuit-json"
 import { convertSoupToGerberCommands } from "../src/gerber/convert-soup-to-gerber-commands"
@@ -7,20 +7,11 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
-import gerberToSvg from "gerber-to-svg"
 
 type GerberOutput = Record<string, string>
 
-type LayerSvgs = {
-  top?: string
-  bottom?: string
-  layers: Record<string, string>
-}
-
 function App() {
   const [gerberOutput, setGerberOutput] = useState<GerberOutput | null>(null)
-  const [layerSvgs, setLayerSvgs] = useState<LayerSvgs | null>(null)
-  const [selectedView, setSelectedView] = useState<string>("top")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string>("")
@@ -56,9 +47,6 @@ function App() {
       }
 
       setGerberOutput(fullOutput)
-
-      // Generate SVG previews using pcb-stackup
-      await generatePreviews(fullOutput)
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to process file")
       console.error(err)
@@ -107,48 +95,6 @@ function App() {
     [processFile],
   )
 
-  const generatePreviews = async (output: GerberOutput) => {
-    const svgs: LayerSvgs = { layers: {} }
-
-    // Define layer colors for better visualization
-    const layerColors: Record<string, string> = {
-      F_Cu: "#c93",
-      B_Cu: "#c93",
-      F_Mask: "#004200",
-      B_Mask: "#004200",
-      F_SilkScreen: "#fff",
-      B_SilkScreen: "#fff",
-      F_Paste: "#999",
-      B_Paste: "#999",
-      Edge_Cuts: "#ff0",
-    }
-
-    for (const [filename, content] of Object.entries(output)) {
-      if (filename.endsWith(".drl")) continue
-      try {
-        // Use gerber-to-svg with string input (synchronous mode)
-        const converter = gerberToSvg(content, {
-          attributes: { color: layerColors[filename] || "#fff" },
-        })
-        const svg = converter.toString()
-        svgs.layers[filename] = svg
-      } catch (err) {
-        console.warn(`Failed to convert ${filename}:`, err)
-      }
-    }
-
-    // Set first available layer as default if no top/bottom
-    const layerKeys = Object.keys(svgs.layers)
-    if (layerKeys.includes("F_Cu")) {
-      svgs.top = svgs.layers.F_Cu
-    }
-    if (layerKeys.includes("B_Cu")) {
-      svgs.bottom = svgs.layers.B_Cu
-    }
-
-    setLayerSvgs(svgs)
-  }
-
   const handleDownloadZip = useCallback(async () => {
     if (!gerberOutput) return
 
@@ -186,23 +132,6 @@ function App() {
     a.click()
     URL.revokeObjectURL(url)
   }, [gerberOutput, fileName])
-
-  const currentSvg = useMemo(() => {
-    if (!layerSvgs) return null
-    if (selectedView === "top") return layerSvgs.top
-    if (selectedView === "bottom") return layerSvgs.bottom
-    return layerSvgs.layers[selectedView]
-  }, [layerSvgs, selectedView])
-
-  const availableViews = useMemo(() => {
-    const views: string[] = []
-    if (layerSvgs?.top) views.push("top")
-    if (layerSvgs?.bottom) views.push("bottom")
-    if (layerSvgs?.layers) {
-      views.push(...Object.keys(layerSvgs.layers).filter((k) => k !== "top" && k !== "bottom"))
-    }
-    return views
-  }, [layerSvgs])
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -275,42 +204,28 @@ function App() {
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-4">Preview</h2>
 
-              {/* View Selection Tabs */}
-              {availableViews.length > 0 && (
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {availableViews.map((view) => (
-                    <button
-                      type="button"
-                      key={view}
-                      onClick={() => setSelectedView(view)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                        selectedView === view
-                          ? "bg-blue-600 text-white"
-                          : "bg-gray-700 text-gray-300 hover:bg-gray-600"
-                      }`}
-                    >
-                      {view === "top"
-                        ? "Top View"
-                        : view === "bottom"
-                          ? "Bottom View"
-                          : view.replace(/_/g, " ")}
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              {/* SVG Preview */}
-              <div className="bg-gray-900 rounded-lg p-4 min-h-[400px] flex items-center justify-center">
-                {currentSvg ? (
-                  <div
-                    className="w-full h-full flex items-center justify-center [&>svg]:max-w-full [&>svg]:max-h-[400px]"
-                    dangerouslySetInnerHTML={{ __html: currentSvg }}
+              {/* SVG Preview Placeholder */}
+              <div className="bg-gray-900 rounded-lg p-4 min-h-[400px] flex flex-col items-center justify-center">
+                <svg
+                  className="w-16 h-16 text-gray-600 mb-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={1.5}
+                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
                   />
-                ) : (
-                  <p className="text-gray-500">
-                    {isLoading ? "Generating preview..." : "No preview available"}
-                  </p>
-                )}
+                </svg>
+                <p className="text-gray-500 text-center">
+                  Preview coming soon
+                </p>
+                <p className="text-gray-600 text-sm mt-2 text-center">
+                  Download the Gerber files to view in your preferred viewer
+                </p>
               </div>
             </div>
 
