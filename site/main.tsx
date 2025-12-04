@@ -7,7 +7,7 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
-import { parseGerberFile, renderGerberToSvg } from "gerberts/lib/index.ts"
+import { parseGerberFile, renderGerberToSvg } from "gerberts"
 
 type GerberOutput = Record<string, string>
 type SvgOutput = Record<string, string>
@@ -204,7 +204,9 @@ function App() {
                     strokeLinejoin="round"
                   />
                 </svg>
-                <p className={`mt-2 text-sm ${isDragging ? "text-blue-400" : "text-gray-400"}`}>
+                <p
+                  className={`mt-2 text-sm ${isDragging ? "text-blue-400" : "text-gray-400"}`}
+                >
                   {isLoading
                     ? "Processing..."
                     : isDragging
@@ -259,7 +261,9 @@ function App() {
                 {svgOutput && selectedLayer && svgOutput[selectedLayer] ? (
                   <div
                     className="w-full h-full"
-                    dangerouslySetInnerHTML={{ __html: svgOutput[selectedLayer] }}
+                    dangerouslySetInnerHTML={{
+                      __html: svgOutput[selectedLayer],
+                    }}
                   />
                 ) : (
                   <>
@@ -349,7 +353,9 @@ function App() {
         {/* Instructions */}
         {!gerberOutput && !isLoading && (
           <div className="text-center text-gray-400 mt-8">
-            <p className="mb-2">Upload a Circuit JSON file to convert it to Gerber format.</p>
+            <p className="mb-2">
+              Upload a Circuit JSON file to convert it to Gerber format.
+            </p>
             <p className="text-sm">
               Circuit JSON files can be exported from{" "}
               <a

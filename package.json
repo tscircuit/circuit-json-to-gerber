@@ -28,7 +28,7 @@
     "circuit-json": "^0.0.317",
     "commander": "^12.1.0",
     "gerber-to-svg": "^4.2.8",
-    "gerberts": "^0.0.1",
+    "gerberts": "^0.0.3",
     "jszip": "^3.10.1",
     "pcb-stackup": "^4.2.8",
     "react": "^19.2.1",
