@@ -7,11 +7,15 @@ import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
+import { parseGerberFile, renderGerberToSvg } from "gerberts/lib/index.ts"
 
 type GerberOutput = Record<string, string>
+type SvgOutput = Record<string, string>
 
 function App() {
   const [gerberOutput, setGerberOutput] = useState<GerberOutput | null>(null)
+  const [svgOutput, setSvgOutput] = useState<SvgOutput | null>(null)
+  const [selectedLayer, setSelectedLayer] = useState<string>("")
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [fileName, setFileName] = useState<string>("")
@@ -44,6 +48,35 @@ function App() {
         ...gerberStrings,
         "drill.drl": stringifyExcellonDrill(drillCmds),
         "drill_npth.drl": stringifyExcellonDrill(drillCmdsNpth),
+      }
+
+      // Convert gerbers to SVGs using gerberts
+      const svgs: SvgOutput = {}
+      for (const [name, content] of Object.entries(fullOutput)) {
+        // Skip drill files for now (they need different parsing)
+        if (name.endsWith(".drl")) continue
+        try {
+          const gerberFile = parseGerberFile(content)
+          let svg = renderGerberToSvg(gerberFile, {
+            strokeColor: "#00ff00",
+            fillColor: "#00ff00",
+            backgroundColor: "#1a1a1a",
+            padding: 1,
+          })
+          // Replace fixed width/height with 100% to fill container
+          svg = svg.replace(/width="[^"]*"/, 'width="100%"')
+          svg = svg.replace(/height="[^"]*"/, 'height="100%"')
+          svgs[name] = svg
+        } catch (e) {
+          console.warn(`Failed to render ${name} to SVG:`, e)
+        }
+      }
+
+      setSvgOutput(svgs)
+      // Select first layer by default
+      const firstLayer = Object.keys(svgs)[0]
+      if (firstLayer) {
+        setSelectedLayer(firstLayer)
       }
 
       setGerberOutput(fullOutput)
@@ -204,28 +237,51 @@ function App() {
             <div className="bg-gray-800 rounded-lg p-6">
               <h2 className="text-xl font-semibold mb-4">Preview</h2>
 
-              {/* SVG Preview Placeholder */}
-              <div className="bg-gray-900 rounded-lg p-4 min-h-[400px] flex flex-col items-center justify-center">
-                <svg
-                  className="w-16 h-16 text-gray-600 mb-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                  aria-hidden="true"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+              {/* Layer Selector */}
+              {svgOutput && Object.keys(svgOutput).length > 0 && (
+                <div className="mb-4">
+                  <select
+                    value={selectedLayer}
+                    onChange={(e) => setSelectedLayer(e.target.value)}
+                    className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
+                  >
+                    {Object.keys(svgOutput).map((layer) => (
+                      <option key={layer} value={layer}>
+                        {layer}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* SVG Preview */}
+              <div className="bg-gray-900 rounded-lg p-4 h-[400px] flex items-center justify-center overflow-hidden">
+                {svgOutput && selectedLayer && svgOutput[selectedLayer] ? (
+                  <div
+                    className="w-full h-full"
+                    dangerouslySetInnerHTML={{ __html: svgOutput[selectedLayer] }}
                   />
-                </svg>
-                <p className="text-gray-500 text-center">
-                  Preview coming soon
-                </p>
-                <p className="text-gray-600 text-sm mt-2 text-center">
-                  Download the Gerber files to view in your preferred viewer
-                </p>
+                ) : (
+                  <>
+                    <svg
+                      className="w-16 h-16 text-gray-600 mb-4"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={1.5}
+                        d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
+                      />
+                    </svg>
+                    <p className="text-gray-500 text-center">
+                      No preview available
+                    </p>
+                  </>
+                )}
               </div>
             </div>
 
