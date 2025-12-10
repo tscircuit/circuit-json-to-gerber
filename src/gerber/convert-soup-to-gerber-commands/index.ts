@@ -7,6 +7,7 @@ import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbCopperText,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
@@ -125,6 +126,223 @@ export const convertSoupToGerberCommands = (
     }
   }
 
+  const renderVectorText = (
+    element: any,
+    layer: "top" | "bottom",
+    layerType: "copper" | "silkscreen",
+    getApertureConfig: (elm: any) => any,
+  ) => {
+    if (element.layer !== layer) return
+    // The acctual Uppercase letters are 70% of the font size
+    // sources: https://forum.generic-mapping-tools.org/t/what-exactly-is-the-custom-font-s-height-point-size-ratio/1265/2
+    const CAP_HEIGHT_SCALE = 0.7 // Adjust based on your font's metrics
+    const glayer = glayers[getGerberLayerName(layer, layerType)]
+    const apertureConfig = getApertureConfig(element)
+    const gerber = gerberBuilder().add("select_aperture", {
+      aperture_number: findApertureNumber(glayer, apertureConfig),
+    })
+
+    let initialX = element.anchor_position.x
+    let initialY = element.anchor_position.y
+    const fontSize = element.font_size * CAP_HEIGHT_SCALE
+    const letterSpacing = fontSize * 0.4
+    const spaceWidth = fontSize * 0.5
+
+    const textWidth =
+      element.text.split("").reduce((width: number, char: string) => {
+        if (char === " ") {
+          return width + spaceWidth + letterSpacing
+        }
+        return width + fontSize + letterSpacing
+      }, 0) - letterSpacing
+
+    const textHeight = fontSize
+
+    const anchorAlignment =
+      element.anchor_alignment ||
+      (():
+        | "top_center"
+        | "bottom_center"
+        | "center_left"
+        | "center_right"
+        | undefined => {
+        const side = (element as any).anchor_side as
+          | "top"
+          | "bottom"
+          | "left"
+          | "right"
+          | undefined
+        if (!side) return undefined
+        switch (side) {
+          case "top":
+            return "top_center"
+          case "bottom":
+            return "bottom_center"
+          case "left":
+            return "center_left"
+          case "right":
+            return "center_right"
+        }
+      })() ||
+      "center"
+
+    switch (anchorAlignment) {
+      case "top_left":
+        break
+      case "top_center":
+        initialX -= textWidth / 2
+        break
+      case "top_right":
+        initialX -= textWidth
+        break
+      case "center_right":
+        initialY -= textHeight / 2
+        break
+      case "center_left":
+        initialX -= textWidth
+        initialY -= textHeight / 2
+        break
+      case "bottom_left":
+        initialY -= textHeight
+        break
+      case "bottom_center":
+        initialX -= textWidth / 2
+        initialY -= textHeight
+        break
+      case "bottom_right":
+        initialX -= textWidth
+        initialY -= textHeight
+        break
+      default:
+        initialX -= textWidth / 2
+        initialY -= textHeight / 2
+        break
+    }
+
+    let anchoredX = initialX
+    const anchoredY = initialY
+
+    let rotation = element.ccw_rotation || 0
+    const cx = anchoredX + textWidth / 2
+    const cy = anchoredY + textHeight / 2
+    const transforms: Matrix[] = []
+
+    const shouldMirror =
+      element.is_mirrored !== undefined
+        ? element.is_mirrored
+        : element.layer === "bottom"
+
+    if (shouldMirror) {
+      transforms.push(
+        translate(cx, cy),
+        { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 },
+        translate(-cx, -cy),
+      )
+      rotation = -rotation
+    }
+
+    if (rotation) {
+      const rad = (rotation * Math.PI) / 180
+      transforms.push(translate(cx, cy), rotate(rad), translate(-cx, -cy))
+    }
+
+    const transformMatrix =
+      transforms.length > 0 ? compose(...transforms) : undefined
+
+    const applyTransform = (point: { x: number; y: number }) =>
+      transformMatrix ? applyToPoint(transformMatrix, point) : point
+
+    if (layerType === "copper" && element.is_knockout) {
+      const padding = element.knockout_padding ?? {
+        left: 0.2,
+        right: 0.2,
+        top: 0.2,
+        bottom: 0.2,
+      }
+
+      const paddedRect = [
+        { x: initialX - padding.left, y: initialY - padding.top },
+        {
+          x: initialX + textWidth + padding.right,
+          y: initialY - padding.top,
+        },
+        {
+          x: initialX + textWidth + padding.right,
+          y: initialY + textHeight + padding.bottom,
+        },
+        {
+          x: initialX - padding.left,
+          y: initialY + textHeight + padding.bottom,
+        },
+      ].map(applyTransform)
+
+      glayer.push(
+        ...gerberBuilder()
+          .add("select_aperture", {
+            aperture_number: findApertureNumber(glayer, apertureConfig),
+          })
+          .add("start_region_statement", {})
+          .add("move_operation", {
+            x: paddedRect[0].x,
+            y: mfy(paddedRect[0].y),
+          })
+          .add("plot_operation", {
+            x: paddedRect[1].x,
+            y: mfy(paddedRect[1].y),
+          })
+          .add("plot_operation", {
+            x: paddedRect[2].x,
+            y: mfy(paddedRect[2].y),
+          })
+          .add("plot_operation", {
+            x: paddedRect[3].x,
+            y: mfy(paddedRect[3].y),
+          })
+          .add("plot_operation", {
+            x: paddedRect[0].x,
+            y: mfy(paddedRect[0].y),
+          })
+          .add("end_region_statement", {})
+          .build(),
+      )
+
+      glayer.push(
+        ...gerberBuilder().add("set_layer_polarity", { polarity: "C" }).build(),
+      )
+    }
+
+    for (const char of element.text.toUpperCase()) {
+      if (char === " ") {
+        anchoredX += spaceWidth + letterSpacing
+        continue
+      }
+
+      const letterPaths = lineAlphabet[char] || []
+      for (const path of letterPaths) {
+        const x1 = anchoredX + path.x1 * fontSize
+        const y1 = anchoredY + path.y1 * fontSize
+        const x2 = anchoredX + path.x2 * fontSize
+        const y2 = anchoredY + path.y2 * fontSize
+
+        const p1 = applyTransform({ x: x1, y: y1 })
+        const p2 = applyTransform({ x: x2, y: y2 })
+
+        gerber.add("move_operation", { x: p1.x, y: mfy(p1.y) })
+        gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
+      }
+
+      anchoredX += fontSize + letterSpacing
+    }
+
+    glayer.push(...gerber.build())
+
+    if (layerType === "copper" && element.is_knockout) {
+      glayer.push(
+        ...gerberBuilder().add("set_layer_polarity", { polarity: "D" }).build(),
+      )
+    }
+  }
+
   for (const layer of ["top", "bottom", "edgecut"] as const) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
@@ -176,154 +394,23 @@ export const convertSoupToGerberCommands = (
 
           glayer.push(...gerber.build())
         }
-      } else if (element.type === "pcb_silkscreen_text") {
-        if (element.layer === layer) {
-          // The acctual Uppercase letters are 70% of the font size
-          // sources: https://forum.generic-mapping-tools.org/t/what-exactly-is-the-custom-font-s-height-point-size-ratio/1265/2?utm_source=chatgpt.com
-          const CAP_HEIGHT_SCALE = 0.7 // Adjust based on your font's metrics
-          const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
-          const apertureConfig = getApertureConfigFromPcbSilkscreenText(element)
-          const gerber = gerberBuilder().add("select_aperture", {
-            aperture_number: findApertureNumber(glayer, apertureConfig),
-          })
-
-          let initialX = element.anchor_position.x
-          let initialY = element.anchor_position.y
-          const fontSize = element.font_size * CAP_HEIGHT_SCALE
-          const letterSpacing = fontSize * 0.4
-          const spaceWidth = fontSize * 0.5
-
-          const textWidth =
-            element.text.split("").reduce((width, char) => {
-              if (char === " ") {
-                return width + spaceWidth + letterSpacing
-              }
-              return width + fontSize + letterSpacing
-            }, 0) - letterSpacing
-
-          const textHeight = fontSize
-
-          const anchorAlignment =
-            element.anchor_alignment ||
-            (():
-              | "top_center"
-              | "bottom_center"
-              | "center_left"
-              | "center_right"
-              | undefined => {
-              const side = (element as any).anchor_side as
-                | "top"
-                | "bottom"
-                | "left"
-                | "right"
-                | undefined
-              if (!side) return undefined
-              switch (side) {
-                case "top":
-                  return "top_center"
-                case "bottom":
-                  return "bottom_center"
-                case "left":
-                  return "center_left"
-                case "right":
-                  return "center_right"
-              }
-            })() ||
-            "center"
-
-          switch (anchorAlignment) {
-            case "top_left":
-              break
-            case "top_center":
-              initialX -= textWidth / 2
-              break
-            case "top_right":
-              initialX -= textWidth
-              break
-            case "center_right":
-              initialY -= textHeight / 2
-              break
-            case "center_left":
-              initialX -= textWidth
-              initialY -= textHeight / 2
-              break
-            case "bottom_left":
-              initialY -= textHeight
-              break
-            case "bottom_center":
-              initialX -= textWidth / 2
-              initialY -= textHeight
-              break
-            case "bottom_right":
-              initialX -= textWidth
-              initialY -= textHeight
-              break
-            default:
-              initialX -= textWidth / 2
-              initialY -= textHeight / 2
-              break
-          }
-
-          let anchoredX = initialX
-          const anchoredY = initialY
-
-          let rotation = element.ccw_rotation || 0
-          const cx = anchoredX + textWidth / 2
-          const cy = anchoredY + textHeight / 2
-          const transforms: Matrix[] = []
-
-          // Apply mirroring and rotation for the bottom layer only
-          if (element.layer === "bottom") {
-            transforms.push(
-              translate(cx, cy),
-              { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 }, // Horizontal flip
-              translate(-cx, -cy),
-            )
-            rotation = -rotation // Reverse rotation for bottom layer
-          }
-
-          // Apply rotation if present
-          if (rotation) {
-            const rad = (rotation * Math.PI) / 180
-            transforms.push(
-              translate(cx, cy), // Translate to center of rotation
-              rotate(rad), // Apply rotation
-              translate(-cx, -cy), // Translate back
-            )
-          }
-
-          // Process each character in the text
-          for (const char of element.text.toUpperCase()) {
-            if (char === " ") {
-              anchoredX += spaceWidth + letterSpacing
-              continue
-            }
-
-            const letterPaths = lineAlphabet[char] || []
-            for (const path of letterPaths) {
-              const x1 = anchoredX + path.x1 * fontSize
-              const y1 = anchoredY + path.y1 * fontSize
-              const x2 = anchoredX + path.x2 * fontSize
-              const y2 = anchoredY + path.y2 * fontSize
-
-              // Apply transformations after positioning
-              let p1 = { x: x1, y: y1 }
-              let p2 = { x: x2, y: y2 }
-
-              if (transforms.length > 0) {
-                const transformMatrix = compose(...transforms)
-                p1 = applyToPoint(transformMatrix, p1)
-                p2 = applyToPoint(transformMatrix, p2)
-              }
-
-              gerber.add("move_operation", { x: p1.x, y: mfy(p1.y) })
-              gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
-            }
-
-            anchoredX += fontSize + letterSpacing // Move to next character position
-          }
-          glayer.push(...gerber.build())
-        }
+      } else if (
+        element.type === "pcb_silkscreen_text" &&
+        layer !== "edgecut"
+      ) {
+        renderVectorText(
+          element,
+          layer,
+          "silkscreen",
+          getApertureConfigFromPcbSilkscreenText,
+        )
+      } else if (element.type === "pcb_copper_text" && layer !== "edgecut") {
+        renderVectorText(
+          element,
+          layer,
+          "copper",
+          getApertureConfigFromPcbCopperText,
+        )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer) {
           for (const glayer of [

@@ -3,6 +3,7 @@ import type {
   LayerRef,
   PCBPlatedHole,
   PCBSMTPad,
+  PcbCopperText,
   PcbVia,
   PcbHole,
   PcbSolderPaste,
@@ -131,6 +132,18 @@ export const getApertureConfigFromPcbSilkscreenPath = (
 
 export const getApertureConfigFromPcbSilkscreenText = (
   elm: PcbSilkscreenText,
+): ApertureTemplateConfig => {
+  if ("font_size" in elm) {
+    return {
+      standard_template_code: "C",
+      diameter: elm.font_size / 8, // font size and diamater have different units of measurement
+    }
+  }
+  throw new Error(`Provide font_size for: ${elm as any}`)
+}
+
+export const getApertureConfigFromPcbCopperText = (
+  elm: PcbCopperText,
 ): ApertureTemplateConfig => {
   if ("font_size" in elm) {
     return {
@@ -317,6 +330,10 @@ function getAllApertureTemplateConfigsForLayer(
       addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
     else if (elm.type === "pcb_silkscreen_text")
       addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
+    else if (elm.type === "pcb_copper_text") {
+      if (elm.layer === layer)
+        addConfigIfNew(getApertureConfigFromPcbCopperText(elm))
+    }
   }
 
   return configs
