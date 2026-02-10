@@ -36,6 +36,7 @@ export const convertSoupToGerberCommands = (
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
+  const hasPanel = soup.some((e) => e.type === "pcb_panel")
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -719,11 +720,8 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_board" && layer === "edgecut") {
-        // Skip boards that are inside a panel - only render the panel outline
-        const board = element as any
-        if (board.pcb_panel_id) {
-          continue
-        }
+        // Skip boards when a panel exists
+        if (hasPanel) continue
 
         const glayer = glayers.Edge_Cuts
         const { width, height, center, outline } = element
