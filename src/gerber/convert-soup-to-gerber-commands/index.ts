@@ -27,6 +27,7 @@ import {
   translate,
   type Matrix,
 } from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
 
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
@@ -167,7 +168,7 @@ export const convertSoupToGerberCommands = (
         | "center_left"
         | "center_right"
         | undefined => {
-        const side = (element as any).anchor_side as
+        const side = element.anchor_side as
           | "top"
           | "bottom"
           | "left"
@@ -344,6 +345,252 @@ export const convertSoupToGerberCommands = (
     }
   }
 
+  // Helper to draw a ring into a gerber builder (used for copper pours)
+  const drawRingToBuilder = (
+    builder: ReturnType<typeof gerberBuilder>,
+    ring: {
+      vertices: Array<{ x: number; y: number; bulge?: number }>
+    },
+  ) => {
+    if (!ring || ring.vertices.length === 0) return
+
+    builder.add("move_operation", {
+      x: ring.vertices[0].x,
+      y: mfy(ring.vertices[0].y),
+    })
+
+    const vertices_loop = [...ring.vertices, ring.vertices[0]]
+
+    for (let i = 0; i < vertices_loop.length - 1; i++) {
+      const start = vertices_loop[i]
+      const end = vertices_loop[i + 1]
+
+      if (start.bulge && Math.abs(start.bulge) > 1e-9) {
+        const bulge = (opts.flip_y_axis ? -1 : 1) * (start.bulge as number)
+        if (bulge > 0) {
+          // CCW
+          builder.add("set_movement_mode_to_counterclockwise_circular", {})
+        } else {
+          // CW
+          builder.add("set_movement_mode_to_clockwise_circular", {})
+        }
+
+        const p1 = { x: start.x, y: start.y }
+        const p2 = { x: end.x, y: end.y }
+
+        const dx = p2.x - p1.x
+        const dy = p2.y - p1.y
+        const d = Math.sqrt(dx * dx + dy * dy)
+
+        if (d < 1e-9) {
+          builder.add("set_movement_mode_to_linear", {})
+          builder.add("plot_operation", {
+            x: end.x,
+            y: mfy(end.y),
+          })
+          continue
+        }
+
+        const abs_b = Math.abs(bulge)
+        const theta = 4 * Math.atan(abs_b)
+        if (Math.abs(Math.sin(theta / 2)) < 1e-9) {
+          builder.add("set_movement_mode_to_linear", {})
+          builder.add("plot_operation", {
+            x: end.x,
+            y: mfy(end.y),
+          })
+          continue
+        }
+        const R = d / (2 * Math.sin(theta / 2))
+        const alpha = (Math.PI - theta) / 2
+        const phi = Math.atan2(dy, dx)
+        const delta_angle = bulge > 0 ? alpha : -alpha
+        const angle_p1_center = phi + delta_angle
+        const Cx = p1.x + R * Math.cos(angle_p1_center)
+        const Cy = p1.y + R * Math.sin(angle_p1_center)
+
+        const i_offset = Cx - p1.x
+        const j_offset = Cy - p1.y
+
+        builder.add("plot_operation", {
+          x: end.x,
+          y: mfy(end.y),
+          i: i_offset,
+          j: opts.flip_y_axis ? -j_offset : j_offset,
+        })
+      } else {
+        // line
+        builder.add("set_movement_mode_to_linear", {})
+        builder.add("plot_operation", { x: end.x, y: mfy(end.y) })
+      }
+    }
+  }
+
+  // To conform to Gerber spec (CCW outer, CW inner) from tscircuit
+  // spec (CW outer, CCW inner), we must reverse both.
+  const reverseRing = (ring: {
+    vertices: Array<{ x: number; y: number; bulge?: number }>
+  }): {
+    vertices: Array<{ x: number; y: number; bulge?: number }>
+  } => {
+    const { vertices } = ring
+    if (!vertices || vertices.length === 0) return { vertices: [] }
+    const n = vertices.length
+
+    const reversed_pts = [...vertices].reverse()
+
+    const new_vertices = reversed_pts.map((pt, i) => {
+      const bulge_v_idx = (n - 2 - i + n) % n
+      const bulge = vertices[bulge_v_idx].bulge
+      return { ...pt, bulge: bulge ? -bulge : undefined }
+    })
+
+    return { vertices: new_vertices }
+  }
+
+  // FIRST PASS: Process copper pours first
+  // Copper pours must be rendered before traces/pads/vias so that:
+  // 1. Pour is drawn (LPD - dark)
+  // 2. Cutouts are drawn (LPC - clear)
+  // 3. Traces/pads/vias are drawn on top (LPD - dark)
+  for (const layer of ["top", "bottom"] as const) {
+    for (const element of soup) {
+      if (element.type === "pcb_copper_pour" && layer === element.layer) {
+        const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
+
+        // Collect all pour commands for this element
+        const all_pour_commands: AnyGerberCommand[] = []
+
+        if (element.shape === "brep") {
+          const { brep_shape } = element
+          if (!brep_shape) continue
+          const { outer_ring, inner_rings } = brep_shape
+
+          // Draw outer ring as a filled region (dark polarity - default)
+          const outer_builder = gerberBuilder()
+            .add("select_aperture", { aperture_number: 10 })
+            .add("start_region_statement", {})
+
+          drawRingToBuilder(outer_builder, reverseRing(outer_ring))
+
+          outer_builder.add("end_region_statement", {})
+          all_pour_commands.push(...outer_builder.build())
+
+          // Draw inner rings (cutouts) using clear polarity
+          // Each inner ring is drawn as a separate region with LPC (clear)
+          if (inner_rings && inner_rings.length > 0) {
+            // Switch to clear polarity
+            all_pour_commands.push(
+              ...gerberBuilder()
+                .add("set_layer_polarity", { polarity: "C" })
+                .build(),
+            )
+
+            for (const inner_ring of inner_rings) {
+              const inner_builder = gerberBuilder()
+                .add("select_aperture", { aperture_number: 10 })
+                .add("start_region_statement", {})
+
+              // For clear polarity, we don't need to reverse - draw as-is
+              // The polarity handles the "hole" semantics
+              drawRingToBuilder(inner_builder, inner_ring)
+
+              inner_builder.add("end_region_statement", {})
+              all_pour_commands.push(...inner_builder.build())
+            }
+
+            // Switch back to dark polarity
+            all_pour_commands.push(
+              ...gerberBuilder()
+                .add("set_layer_polarity", { polarity: "D" })
+                .build(),
+            )
+          }
+        } else if (element.shape === "rect") {
+          const { center, width, height, rotation } = element
+          const w = (width as number) / 2
+          const h = (height as number) / 2
+
+          const points = [
+            { x: -w, y: h }, // Top-left
+            { x: w, y: h }, // Top-right
+            { x: w, y: -h }, // Bottom-right
+            { x: -w, y: -h }, // Bottom-left
+          ]
+
+          let transformMatrix = identity()
+          if (rotation) {
+            const angle_rad = ((rotation as number) * Math.PI) / 180
+            transformMatrix = rotate(angle_rad)
+          }
+          transformMatrix = compose(
+            translate(center.x, center.y),
+            transformMatrix,
+          )
+
+          const transformedPoints = points.map((p) =>
+            applyToPoint(transformMatrix, p),
+          )
+
+          const rect_builder = gerberBuilder()
+            .add("select_aperture", { aperture_number: 10 })
+            .add("start_region_statement", {})
+
+          rect_builder.add("move_operation", {
+            x: transformedPoints[0].x,
+            y: mfy(transformedPoints[0].y),
+          })
+          for (let i = 1; i < transformedPoints.length; i++) {
+            rect_builder.add("plot_operation", {
+              x: transformedPoints[i].x,
+              y: mfy(transformedPoints[i].y),
+            })
+          }
+          rect_builder.add("plot_operation", {
+            x: transformedPoints[0].x,
+            y: mfy(transformedPoints[0].y),
+          })
+
+          rect_builder.add("end_region_statement", {})
+          all_pour_commands.push(...rect_builder.build())
+        } else if (element.shape === "polygon") {
+          const { points } = element
+          if (points.length > 0) {
+            const poly_builder = gerberBuilder()
+              .add("select_aperture", { aperture_number: 10 })
+              .add("start_region_statement", {})
+
+            poly_builder.add("move_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+            for (let i = 1; i < points.length; i++) {
+              poly_builder.add("plot_operation", {
+                x: points[i].x,
+                y: mfy(points[i].y),
+              })
+            }
+            poly_builder.add("plot_operation", {
+              x: points[0].x,
+              y: mfy(points[0].y),
+            })
+
+            poly_builder.add("end_region_statement", {})
+            all_pour_commands.push(...poly_builder.build())
+          }
+        }
+
+        copper_glayer.push(...all_pour_commands)
+
+        if (element.covered_with_solder_mask === false) {
+          const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
+          mask_layer.push(...all_pour_commands)
+        }
+      }
+    }
+  }
+
+  // SECOND PASS: Process all other elements (traces, pads, vias, etc.)
   for (const layer of ["top", "bottom", "edgecut"] as const) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
@@ -461,7 +708,7 @@ export const convertSoupToGerberCommands = (
               .add("select_aperture", { aperture_number: 10 })
               .add("start_region_statement", {})
 
-            const { points } = element as any
+            const { points } = element
             if (points && points.length > 0) {
               pad_builder.add("move_operation", {
                 x: points[0].x,
@@ -529,9 +776,9 @@ export const convertSoupToGerberCommands = (
             const padWidthCandidates: number[] = [holeW]
             if (
               "outer_width" in element &&
-              typeof (element as any).outer_width === "number"
+              typeof element.outer_width === "number"
             ) {
-              padWidthCandidates.push((element as any).outer_width)
+              padWidthCandidates.push(element.outer_width)
             }
             if (
               "rect_pad_width" in element &&
@@ -544,9 +791,9 @@ export const convertSoupToGerberCommands = (
             const padHeightCandidates: number[] = [holeH]
             if (
               "outer_height" in element &&
-              typeof (element as any).outer_height === "number"
+              typeof element.outer_height === "number"
             ) {
-              padHeightCandidates.push((element as any).outer_height)
+              padHeightCandidates.push(element.outer_height)
             }
             if (
               "rect_pad_height" in element &&
@@ -574,7 +821,7 @@ export const convertSoupToGerberCommands = (
                   Math.max(
                     ...glayer
                       .filter((cmd) => "aperture_number" in cmd)
-                      .map((cmd) => (cmd as any).aperture_number),
+                      .map((cmd) => cmd.aperture_number),
                     9,
                   ) + 1
 
@@ -783,7 +1030,7 @@ export const convertSoupToGerberCommands = (
         glayer.push(...gerberBuild.build())
       } else if (element.type === "pcb_panel" && layer === "edgecut") {
         const glayer = glayers.Edge_Cuts
-        const panel = element as any
+        const panel = element
         const { width, height, center } = panel
         const gerberBuild = gerberBuilder()
           .add("select_aperture", {
@@ -980,202 +1227,6 @@ export const convertSoupToGerberCommands = (
             }
           }
           ec_layer.push(...cutout_builder.build())
-        }
-      } else if (
-        element.type === "pcb_copper_pour" &&
-        layer === element.layer
-      ) {
-        const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
-
-        const pour_builder = gerberBuilder()
-          .add("select_aperture", { aperture_number: 10 })
-          .add("start_region_statement", {})
-
-        if (element.shape === "brep") {
-          const { brep_shape } = element as any
-          if (!brep_shape) continue
-          const { outer_ring, inner_rings } = brep_shape
-
-          const drawRing = (ring: {
-            vertices: Array<{ x: number; y: number; bulge?: number }>
-          }) => {
-            if (!ring || ring.vertices.length === 0) return
-
-            pour_builder.add("move_operation", {
-              x: ring.vertices[0].x,
-              y: mfy(ring.vertices[0].y),
-            })
-
-            const vertices_loop = [...ring.vertices, ring.vertices[0]]
-
-            for (let i = 0; i < vertices_loop.length - 1; i++) {
-              const start = vertices_loop[i]
-              const end = vertices_loop[i + 1]
-
-              if (start.bulge && Math.abs(start.bulge) > 1e-9) {
-                const bulge =
-                  (opts.flip_y_axis ? -1 : 1) * (start.bulge as number)
-                if (bulge > 0) {
-                  // CCW
-                  pour_builder.add(
-                    "set_movement_mode_to_counterclockwise_circular",
-                    {},
-                  )
-                } else {
-                  // CW
-                  pour_builder.add(
-                    "set_movement_mode_to_clockwise_circular",
-                    {},
-                  )
-                }
-
-                const p1 = { x: start.x, y: start.y }
-                const p2 = { x: end.x, y: end.y }
-
-                const dx = p2.x - p1.x
-                const dy = p2.y - p1.y
-                const d = Math.sqrt(dx * dx + dy * dy)
-
-                if (d < 1e-9) {
-                  pour_builder.add("set_movement_mode_to_linear", {})
-                  pour_builder.add("plot_operation", {
-                    x: end.x,
-                    y: mfy(end.y),
-                  })
-                  continue
-                }
-
-                const abs_b = Math.abs(bulge)
-                const theta = 4 * Math.atan(abs_b)
-                if (Math.abs(Math.sin(theta / 2)) < 1e-9) {
-                  pour_builder.add("set_movement_mode_to_linear", {})
-                  pour_builder.add("plot_operation", {
-                    x: end.x,
-                    y: mfy(end.y),
-                  })
-                  continue
-                }
-                const R = d / (2 * Math.sin(theta / 2))
-                const alpha = (Math.PI - theta) / 2
-                const phi = Math.atan2(dy, dx)
-                const delta_angle = bulge > 0 ? alpha : -alpha
-                const angle_p1_center = phi + delta_angle
-                const Cx = p1.x + R * Math.cos(angle_p1_center)
-                const Cy = p1.y + R * Math.sin(angle_p1_center)
-
-                const i_offset = Cx - p1.x
-                const j_offset = Cy - p1.y
-
-                pour_builder.add("plot_operation", {
-                  x: end.x,
-                  y: mfy(end.y),
-                  i: i_offset,
-                  j: opts.flip_y_axis ? -j_offset : j_offset,
-                })
-              } else {
-                // line
-                pour_builder.add("set_movement_mode_to_linear", {})
-                pour_builder.add("plot_operation", { x: end.x, y: mfy(end.y) })
-              }
-            }
-          }
-
-          // To conform to Gerber spec (CCW outer, CW inner) from tscircuit
-          // spec (CW outer, CCW inner), we must reverse both.
-          const reverseRing = (ring: {
-            vertices: Array<{ x: number; y: number; bulge?: number }>
-          }): {
-            vertices: Array<{ x: number; y: number; bulge?: number }>
-          } => {
-            const { vertices } = ring
-            if (!vertices || vertices.length === 0) return { vertices: [] }
-            const n = vertices.length
-
-            const reversed_pts = [...vertices].reverse()
-
-            const new_vertices = reversed_pts.map((pt, i) => {
-              const bulge_v_idx = (n - 2 - i + n) % n
-              const bulge = vertices[bulge_v_idx].bulge
-              return { ...pt, bulge: bulge ? -bulge : undefined }
-            })
-
-            return { vertices: new_vertices }
-          }
-
-          drawRing(reverseRing(outer_ring))
-          if (inner_rings) {
-            for (const inner_ring of inner_rings) {
-              drawRing(reverseRing(inner_ring))
-            }
-          }
-        } else if (element.shape === "rect") {
-          const { center, width, height, rotation } = element
-          const w = (width as number) / 2
-          const h = (height as number) / 2
-
-          const points = [
-            { x: -w, y: h }, // Top-left
-            { x: w, y: h }, // Top-right
-            { x: w, y: -h }, // Bottom-right
-            { x: -w, y: -h }, // Bottom-left
-          ]
-
-          let transformMatrix = identity()
-          if (rotation) {
-            const angle_rad = ((rotation as number) * Math.PI) / 180
-            transformMatrix = rotate(angle_rad)
-          }
-          transformMatrix = compose(
-            translate(center.x, center.y),
-            transformMatrix,
-          )
-
-          const transformedPoints = points.map((p) =>
-            applyToPoint(transformMatrix, p),
-          )
-
-          pour_builder.add("move_operation", {
-            x: transformedPoints[0].x,
-            y: mfy(transformedPoints[0].y),
-          })
-          for (let i = 1; i < transformedPoints.length; i++) {
-            pour_builder.add("plot_operation", {
-              x: transformedPoints[i].x,
-              y: mfy(transformedPoints[i].y),
-            })
-          }
-          pour_builder.add("plot_operation", {
-            x: transformedPoints[0].x,
-            y: mfy(transformedPoints[0].y),
-          })
-        } else if (element.shape === "polygon") {
-          const { points } = element as any
-          if (points.length > 0) {
-            pour_builder.add("move_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
-            for (let i = 1; i < points.length; i++) {
-              pour_builder.add("plot_operation", {
-                x: points[i].x,
-                y: mfy(points[i].y),
-              })
-            }
-            pour_builder.add("plot_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
-          }
-        }
-
-        pour_builder.add("end_region_statement", {})
-
-        const pour_commands = pour_builder.build()
-        copper_glayer.push(...pour_commands)
-
-        if ((element as any).covered_with_solder_mask === false) {
-          const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
-          mask_layer.push(...pour_commands)
         }
       }
     }
