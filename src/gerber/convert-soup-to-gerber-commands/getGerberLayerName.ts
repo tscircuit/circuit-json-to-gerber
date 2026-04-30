@@ -1,10 +1,14 @@
 import type { LayerRef } from "circuit-json"
 import type { GerberLayerName } from "./GerberLayerName"
 
-const layerRefToGerberPrefix = {
+const layerRefToGerberPrefix: Record<string, string> = {
   top: "F_",
   bottom: "B_",
-} as const
+  inner1: "In1_",
+  inner2: "In2_",
+  inner3: "In3_",
+  inner4: "In4_",
+}
 const layerTypeToGerberSuffix = {
   copper: "Cu",
   silkscreen: "SilkScreen",
@@ -18,5 +22,9 @@ export const getGerberLayerName = (
   layer_type: "copper" | "silkscreen" | "soldermask" | "paste",
 ): GerberLayerName => {
   if (layer_ref === "edgecut") return "Edge_Cuts"
-  return `${layerRefToGerberPrefix[layer_ref as keyof typeof layerRefToGerberPrefix]}${layerTypeToGerberSuffix[layer_type]}`
+  const prefix = layerRefToGerberPrefix[layer_ref as string]
+  if (!prefix) {
+    throw new Error(`Unknown layer ref: ${layer_ref}`)
+  }
+  return `${prefix}${layerTypeToGerberSuffix[layer_type]}` as GerberLayerName
 }

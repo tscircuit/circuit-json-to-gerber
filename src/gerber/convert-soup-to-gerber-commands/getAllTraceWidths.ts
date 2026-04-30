@@ -18,8 +18,16 @@ export function getAllTraceWidths(
     }
   }
 
-  return {
+  const result: Record<string, number[]> = {
     top: Array.from(widths.top || []),
     bottom: Array.from(widths.bottom || []),
-  } as any
+  }
+
+  for (const inner of ["inner1", "inner2", "inner3", "inner4"] as const) {
+    if (widths[inner]) {
+      result[inner] = Array.from(widths[inner])
+    }
+  }
+
+  return result as any
 }
