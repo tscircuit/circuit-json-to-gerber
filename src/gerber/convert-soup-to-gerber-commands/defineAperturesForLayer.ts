@@ -25,7 +25,7 @@ export function defineAperturesForLayer({
 }: {
   glayer: AnyGerberCommand[]
   soup: AnyCircuitElement[]
-  glayer_name: GerberLayerName
+  glayer_name: string
 }) {
   const getNextApertureNumber = () => {
     const highest_aperture_number = glayer.reduce((acc, command) => {
@@ -47,10 +47,21 @@ export function defineAperturesForLayer({
   )
 
   // Add all trace width apertures
-  const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(soup)
-  for (const width of traceWidths[
-    glayer_name.startsWith("F_") ? "top" : "bottom"
-  ]) {
+  const traceWidths: Record<string, number[]> = getAllTraceWidths(soup)
+  const layerRefForGlayer = glayer_name.startsWith("F_")
+    ? "top"
+    : glayer_name.startsWith("B_")
+      ? "bottom"
+      : glayer_name.startsWith("In1_")
+        ? "inner1"
+        : glayer_name.startsWith("In2_")
+          ? "inner2"
+          : glayer_name.startsWith("In3_")
+            ? "inner3"
+            : glayer_name.startsWith("In4_")
+              ? "inner4"
+              : "top"
+  for (const width of traceWidths[layerRefForGlayer] ?? []) {
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {

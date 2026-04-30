@@ -2,8 +2,12 @@ import type { AnyGerberCommand } from "src/gerber/any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
 import packageJson from "../../../package.json"
 
-const layerAndTypeToFileFunction = {
+const layerAndTypeToFileFunction: Record<string, string> = {
   "top-copper": "Copper,L1,Top",
+  "inner1-copper": "Copper,L2,Inr",
+  "inner2-copper": "Copper,L3,Inr",
+  "inner3-copper": "Copper,L4,Inr",
+  "inner4-copper": "Copper,L5,Inr",
   "bottom-copper": "Copper,L2,Bot",
   "top-soldermask": "Soldermask,Top",
   "bottom-soldermask": "Soldermask,Bot",
@@ -12,7 +16,6 @@ const layerAndTypeToFileFunction = {
   "top-paste": "Paste,Top",
   "bottom-paste": "Paste,Bot",
   edgecut: "Profile,NP",
-  // TODO inner layers
 }
 
 /**

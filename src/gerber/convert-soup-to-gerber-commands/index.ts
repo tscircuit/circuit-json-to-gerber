@@ -38,6 +38,25 @@ export const convertSoupToGerberCommands = (
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
   const hasPanel = soup.some((e) => e.type === "pcb_panel")
+
+  // Detect which inner copper layers have traces in this design
+  const innerLayersUsed = new Set<"inner1" | "inner2" | "inner3" | "inner4">()
+  for (const element of soup) {
+    if (element.type === "pcb_trace") {
+      for (const segment of element.route) {
+        if (
+          segment.route_type === "wire" &&
+          (segment.layer === "inner1" ||
+            segment.layer === "inner2" ||
+            segment.layer === "inner3" ||
+            segment.layer === "inner4")
+        ) {
+          innerLayersUsed.add(segment.layer as any)
+        }
+      }
+    }
+  }
+
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -76,6 +95,26 @@ export const convertSoupToGerberCommands = (
     }),
   }
 
+  // Initialize inner copper layers that are actually used
+  const innerLayerGlayerNames: Array<{
+    inner: "inner1" | "inner2" | "inner3" | "inner4"
+    glayerKey: keyof LayerToGerberCommandsMap
+  }> = [
+    { inner: "inner1", glayerKey: "In1_Cu" },
+    { inner: "inner2", glayerKey: "In2_Cu" },
+    { inner: "inner3", glayerKey: "In3_Cu" },
+    { inner: "inner4", glayerKey: "In4_Cu" },
+  ]
+
+  for (const { inner, glayerKey } of innerLayerGlayerNames) {
+    if (innerLayersUsed.has(inner)) {
+      glayers[glayerKey] = getCommandHeaders({
+        layer: inner,
+        layer_type: "copper",
+      })
+    }
+  }
+
   for (const glayer_name of [
     "F_Cu",
     "B_Cu",
@@ -93,6 +132,19 @@ export const convertSoupToGerberCommands = (
       glayer,
       glayer_name,
     })
+  }
+
+  // Initialize apertures for inner copper layers
+  for (const { glayerKey } of innerLayerGlayerNames) {
+    const glayer = glayers[glayerKey]
+    if (glayer) {
+      defineCommonMacros(glayer)
+      defineAperturesForLayer({
+        soup,
+        glayer,
+        glayer_name: glayerKey as any,
+      })
+    }
   }
 
   // Edgecuts has a single aperature
@@ -591,7 +643,13 @@ export const convertSoupToGerberCommands = (
   }
 
   // SECOND PASS: Process all other elements (traces, pads, vias, etc.)
-  for (const layer of ["top", "bottom", "edgecut"] as const) {
+  const activeInnerLayers = Array.from(innerLayersUsed)
+  for (const layer of [
+    "top",
+    ...activeInnerLayers,
+    "bottom",
+    "edgecut",
+  ] as const) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
         const { route } = element
@@ -603,17 +661,19 @@ export const convertSoupToGerberCommands = (
           if (a.route_type === "wire") {
             if (a.layer === layer) {
               const glayer = glayers[getGerberLayerName(layer, "copper")]
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, {
-                      trace_width: a.width,
-                    }),
-                  })
-                  .add("move_operation", { x: a.x, y: mfy(a.y) })
-                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
-                  .build(),
-              )
+              if (glayer) {
+                glayer.push(
+                  ...gerberBuilder()
+                    .add("select_aperture", {
+                      aperture_number: findApertureNumber(glayer, {
+                        trace_width: a.width,
+                      }),
+                    })
+                    .add("move_operation", { x: a.x, y: mfy(a.y) })
+                    .add("plot_operation", { x: b.x, y: mfy(b.y) })
+                    .build(),
+                )
+              }
             }
           }
         }
@@ -644,7 +704,7 @@ export const convertSoupToGerberCommands = (
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&
-        layer !== "edgecut"
+        (layer === "top" || layer === "bottom")
       ) {
         renderVectorText(
           element,
@@ -652,7 +712,10 @@ export const convertSoupToGerberCommands = (
           "silkscreen",
           getApertureConfigFromPcbSilkscreenText,
         )
-      } else if (element.type === "pcb_copper_text" && layer !== "edgecut") {
+      } else if (
+        element.type === "pcb_copper_text" &&
+        (layer === "top" || layer === "bottom")
+      ) {
         renderVectorText(
           element,
           layer,

@@ -11,6 +11,7 @@ export type LayerToGerberCommandsMap = {
   B_Mask: AnyGerberCommand[]
   B_Paste: AnyGerberCommand[]
   Edge_Cuts: AnyGerberCommand[]
+  [key: string]: AnyGerberCommand[]
 }
 
 export type GerberLayerName = keyof LayerToGerberCommandsMap
