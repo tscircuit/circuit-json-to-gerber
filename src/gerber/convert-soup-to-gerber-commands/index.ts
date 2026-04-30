@@ -907,7 +907,8 @@ export const convertSoupToGerberCommands = (
               })
               const rotation =
                 "rect_ccw_rotation" in element &&
-                typeof element.rect_ccw_rotation === "number"
+                typeof element.rect_ccw_rotation === "number" &&
+                Math.abs(padW - padH) > 1e-9
                   ? element.rect_ccw_rotation
                   : undefined
 
