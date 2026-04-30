@@ -7,7 +7,6 @@ import {
   stringifyExcellonDrill,
 } from "src/excellon-drill"
 import { Circuit } from "@tscircuit/core"
-import { ArduinoShield } from "@tscircuit/common"
 
 const boardWidth = "70mm"
 const boardHeight = "36mm"
@@ -19,22 +18,13 @@ const drv8833CenterX = 8
 test("Generate pinheader board", async () => {
   const circuit = new Circuit()
   circuit.add(
-    <ArduinoShield
-      boardProps={{
-        width: boardWidth,
-        height: boardHeight,
-        minViaHoleDiameter: 1.5,
-        minViaPadDiameter: 2.6,
-        minTraceWidth: 0.33,
-        minTraceToPadEdgeClearance: 0.25,
-      }}
-      chipProps={{
-        connections: {
-          GND1: "net.GND",
-          VIN: "net.VMOTOR",
-          V5: "net.V5",
-        },
-      }}
+    <board
+      width={boardWidth}
+      height={boardHeight}
+      minViaHoleDiameter={1.5}
+      minViaPadDiameter={2.6}
+      minTraceWidth={0.33}
+      minTraceToPadEdgeClearance={0.25}
     >
       {/* <hole
       name="FID1"
@@ -272,7 +262,7 @@ test("Generate pinheader board", async () => {
 
       <trace from=".R_PWR > .pin1" to="net.VMOTOR" />
       <trace from=".R_PWR > .pin2" to=".D_PWR > .anode" />
-    </ArduinoShield>,
+    </board>,
   )
   const circuitJson = circuit.getCircuitJson()
 
