@@ -12,6 +12,10 @@ const layerAndTypeToFileFunction = {
   "top-paste": "Paste,Top",
   "bottom-paste": "Paste,Bot",
   edgecut: "Profile,NP",
+  "inner1-copper": "Copper,L3,Inr",
+  "inner2-copper": "Copper,L4,Inr",
+  "inner3-copper": "Copper,L5,Inr",
+  "inner4-copper": "Copper,L6,Inr",
   // TODO inner layers
 }
 

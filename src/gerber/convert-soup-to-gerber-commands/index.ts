@@ -71,6 +71,14 @@ export const convertSoupToGerberCommands = (
       layer: "bottom",
       layer_type: "paste",
     }),
+    In1_Cu: getCommandHeaders({
+      layer: "inner1",
+      layer_type: "copper",
+    }),
+    In2_Cu: getCommandHeaders({
+      layer: "inner2",
+      layer_type: "copper",
+    }),
     Edge_Cuts: getCommandHeaders({
       layer: "edgecut",
     }),
@@ -79,6 +87,8 @@ export const convertSoupToGerberCommands = (
   for (const glayer_name of [
     "F_Cu",
     "B_Cu",
+    "In1_Cu",
+    "In2_Cu",
     "F_Mask",
     "B_Mask",
     "F_Paste",
