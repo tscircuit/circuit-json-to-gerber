@@ -1,4 +1,4 @@
-import type { AnyCircuitElement } from "circuit-json"
+import type { AnyCircuitElement, LayerRef } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -38,6 +38,13 @@ export const convertSoupToGerberCommands = (
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
   const hasPanel = soup.some((e) => e.type === "pcb_panel")
+  // Detect if this is a 4+ layer board (has inner1/inner2 traces)
+  const hasInnerLayers = soup.some(
+    (e: any) =>
+      e.type === "pcb_trace" &&
+      e.route?.some((r: any) => r.layer === "inner1" || r.layer === "inner2"),
+  )
+
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -55,6 +62,18 @@ export const convertSoupToGerberCommands = (
       layer: "top",
       layer_type: "paste",
     }),
+    ...(hasInnerLayers
+      ? {
+          In1_Cu: getCommandHeaders({
+            layer: "inner1",
+            layer_type: "copper",
+          }),
+          In2_Cu: getCommandHeaders({
+            layer: "inner2",
+            layer_type: "copper",
+          }),
+        }
+      : {}),
     B_Cu: getCommandHeaders({
       layer: "bottom",
       layer_type: "copper",
@@ -74,7 +93,7 @@ export const convertSoupToGerberCommands = (
     Edge_Cuts: getCommandHeaders({
       layer: "edgecut",
     }),
-  }
+  } as LayerToGerberCommandsMap
 
   for (const glayer_name of [
     "F_Cu",
@@ -130,7 +149,7 @@ export const convertSoupToGerberCommands = (
 
   const renderVectorText = (
     element: any,
-    layer: "top" | "bottom",
+    layer: LayerRef,
     layerType: "copper" | "silkscreen",
     getApertureConfig: (elm: any) => any,
   ) => {
@@ -591,7 +610,10 @@ export const convertSoupToGerberCommands = (
   }
 
   // SECOND PASS: Process all other elements (traces, pads, vias, etc.)
-  for (const layer of ["top", "bottom", "edgecut"] as const) {
+  const allLayers: Array<LayerRef | "edgecut"> = hasInnerLayers
+    ? ["top", "inner1", "inner2", "bottom", "edgecut"]
+    : ["top", "bottom", "edgecut"]
+  for (const layer of allLayers) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
         const { route } = element

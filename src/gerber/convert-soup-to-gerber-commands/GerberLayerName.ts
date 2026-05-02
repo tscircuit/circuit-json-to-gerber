@@ -6,6 +6,8 @@ export type LayerToGerberCommandsMap = {
   F_SilkScreen: AnyGerberCommand[]
   F_Mask: AnyGerberCommand[]
   F_Paste: AnyGerberCommand[]
+  In1_Cu: AnyGerberCommand[]
+  In2_Cu: AnyGerberCommand[]
   B_Cu: AnyGerberCommand[]
   B_SilkScreen: AnyGerberCommand[]
   B_Mask: AnyGerberCommand[]
