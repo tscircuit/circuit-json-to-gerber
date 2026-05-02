@@ -1,5 +1,8 @@
 import type { LayerRef } from "circuit-json"
-import type { GerberLayerName, LayerToGerberCommandsMap } from "./GerberLayerName"
+import type {
+  GerberLayerName,
+  LayerToGerberCommandsMap,
+} from "./GerberLayerName"
 
 const layerRefToGerberPrefix = {
   top: "F_",
