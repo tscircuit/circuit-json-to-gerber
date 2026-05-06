@@ -27,5 +27,5 @@ export const getGerberLayerName = (
   if (layer_ref.startsWith("inner") && layer_type !== "copper") {
     throw new Error(`Inner layer ${layer_ref} only supports copper gerbers`)
   }
-  return `${layerRefToGerberPrefix[layer_ref as keyof typeof layerRefToGerberPrefix]}${layerTypeToGerberSuffix[layer_type]}`
+  return `${layerRefToGerberPrefix[layer_ref as keyof typeof layerRefToGerberPrefix]}${layerTypeToGerberSuffix[layer_type]}` as GerberLayerName
 }
