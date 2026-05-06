@@ -328,10 +328,23 @@ const getUnionViewBox = (
 const getSvgDefsContent = (svg: string) =>
   svg.match(/<defs>([\s\S]*?)<\/defs>/)?.[1] ?? ""
 
-const getGerberLayerSvgContent = (svg: string) =>
-  svg.match(
+const hasRenderedSvgGeometry = (svg: string) =>
+  /<(path|use|circle|rect|polygon|polyline|line|ellipse)\b/.test(
+    svg.replace(/<defs>[\s\S]*?<\/defs>/g, ""),
+  )
+
+const getGerberLayerSvgContent = (svg: string, layerName: string) => {
+  const contentMatch = svg.match(
     /<g transform="[^"]+" fill="currentColor" stroke="currentColor">([\s\S]*?)<\/g><\/svg>$/,
-  )?.[1] ?? ""
+  )
+  if (contentMatch) return contentMatch[1]
+
+  if (!hasRenderedSvgGeometry(svg)) return ""
+
+  throw new Error(
+    `Could not extract rendered SVG content for Gerber layer "${layerName}"`,
+  )
+}
 
 const renderGerberLayerOverlaySvg = async (
   gerberOutput: Record<string, string>,
@@ -352,7 +365,7 @@ const renderGerberLayerOverlaySvg = async (
         svg,
         viewBox: parseSvgViewBox(svg),
         defs: getSvgDefsContent(svg),
-        content: getGerberLayerSvgContent(svg),
+        content: getGerberLayerSvgContent(svg, layerName),
       }
     }),
   )
