@@ -1,10 +1,10 @@
+import type { LayerRef } from "circuit-json"
 import type { AnyGerberCommand } from "src/gerber/any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
 import packageJson from "../../../package.json"
 
 const layerAndTypeToFileFunction = {
   "top-copper": "Copper,L1,Top",
-  "bottom-copper": "Copper,L2,Bot",
   "top-soldermask": "Soldermask,Top",
   "bottom-soldermask": "Soldermask,Bot",
   "top-silkscreen": "Legend,Top",
@@ -12,7 +12,12 @@ const layerAndTypeToFileFunction = {
   "top-paste": "Paste,Top",
   "bottom-paste": "Paste,Bot",
   edgecut: "Profile,NP",
-  // TODO inner layers
+}
+
+const getCopperLayerNumber = (layer: LayerRef, total_layer_count: number) => {
+  if (layer === "top") return 1
+  if (layer === "bottom") return total_layer_count
+  return Number(layer.replace("inner", "")) + 1
 }
 
 /**
@@ -31,22 +36,25 @@ const layerAndTypeToFileFunction = {
  * %LPD*%
  */
 export const getCommandHeaders = (opts: {
-  layer:
-    | "edgecut"
-    | "top"
-    | "bottom"
-    | "inner1"
-    | "inner2"
-    | "inner3"
-    | "inner4"
+  layer: "edgecut" | LayerRef
   layer_type?: "copper" | "soldermask" | "silkscreen" | "paste"
+  total_layer_count?: number
 }): AnyGerberCommand[] => {
-  const file_function =
-    layerAndTypeToFileFunction[
-      (opts.layer_type
-        ? `${opts.layer}-${opts.layer_type}`
-        : opts.layer) as keyof typeof layerAndTypeToFileFunction
-    ]
+  const total_layer_count = opts.total_layer_count ?? 2
+  let file_function: string | undefined
+  if (opts.layer_type === "copper" && opts.layer !== "edgecut") {
+    const layerNumber = getCopperLayerNumber(opts.layer, total_layer_count)
+    const layerPosition =
+      opts.layer === "top" ? "Top" : opts.layer === "bottom" ? "Bot" : "Inr"
+    file_function = `Copper,L${layerNumber},${layerPosition}`
+  } else {
+    file_function =
+      layerAndTypeToFileFunction[
+        (opts.layer_type
+          ? `${opts.layer}-${opts.layer_type}`
+          : opts.layer) as keyof typeof layerAndTypeToFileFunction
+      ]
+  }
   return (
     gerberBuilder()
       .add("add_attribute_on_file", {

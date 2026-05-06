@@ -28,6 +28,25 @@ import {
   type Matrix,
 } from "transformation-matrix"
 import type { AnyGerberCommand } from "../any_gerber_command"
+import type { LayerRef } from "circuit-json"
+
+const getLayerCount = (soup: AnyCircuitElement[]) => {
+  const board = soup.find((element) => element.type === "pcb_board") as
+    | { num_layers?: number }
+    | undefined
+  const numLayers = board?.num_layers ?? 2
+  return Math.max(2, Math.min(8, numLayers))
+}
+
+const getInnerLayerRefs = (layerCount: number): LayerRef[] =>
+  Array.from({ length: layerCount - 2 }, (_, i) => `inner${i + 1}` as LayerRef)
+
+const getGerberInnerLayerName = (layerRef: LayerRef) => {
+  if (!layerRef.startsWith("inner")) {
+    throw new Error(`Expected inner layer, got ${layerRef}`)
+  }
+  return `In${layerRef.replace("inner", "")}_Cu` as const
+}
 
 /**
  * Converts tscircuit soup to arrays of Gerber commands for each layer
@@ -38,10 +57,15 @@ export const convertSoupToGerberCommands = (
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
   const hasPanel = soup.some((e) => e.type === "pcb_panel")
+  const layerCount = getLayerCount(soup)
+  const innerLayerRefs = getInnerLayerRefs(layerCount)
+  const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
+  const outerLayerRefs = ["top", "bottom"] as const
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
       layer_type: "copper",
+      total_layer_count: layerCount,
     }),
     F_SilkScreen: getCommandHeaders({
       layer: "top",
@@ -58,6 +82,7 @@ export const convertSoupToGerberCommands = (
     B_Cu: getCommandHeaders({
       layer: "bottom",
       layer_type: "copper",
+      total_layer_count: layerCount,
     }),
     B_SilkScreen: getCommandHeaders({
       layer: "bottom",
@@ -76,15 +101,27 @@ export const convertSoupToGerberCommands = (
     }),
   }
 
+  for (const innerLayerRef of innerLayerRefs) {
+    glayers[getGerberInnerLayerName(innerLayerRef)] = getCommandHeaders({
+      layer: innerLayerRef,
+      layer_type: "copper",
+      total_layer_count: layerCount,
+    })
+  }
+
+  const copperGerberLayerNames = copperLayerRefs.map((layerRef) =>
+    getGerberLayerName(layerRef, "copper"),
+  )
+  const outerGerberLayerNames = outerLayerRefs.flatMap((layerRef) => [
+    getGerberLayerName(layerRef, "soldermask"),
+    getGerberLayerName(layerRef, "paste"),
+    getGerberLayerName(layerRef, "silkscreen"),
+  ])
+
   for (const glayer_name of [
     "F_Cu",
-    "B_Cu",
-    "F_Mask",
-    "B_Mask",
-    "F_Paste",
-    "B_Paste",
-    "F_SilkScreen",
-    "B_SilkScreen",
+    ...copperGerberLayerNames.filter((name) => name !== "F_Cu"),
+    ...outerGerberLayerNames,
   ] as const) {
     const glayer = glayers[glayer_name]
     defineCommonMacros(glayer)
@@ -130,7 +167,7 @@ export const convertSoupToGerberCommands = (
 
   const renderVectorText = (
     element: any,
-    layer: "top" | "bottom",
+    layer: LayerRef,
     layerType: "copper" | "silkscreen",
     getApertureConfig: (elm: any) => any,
   ) => {
@@ -453,7 +490,7 @@ export const convertSoupToGerberCommands = (
   // 1. Pour is drawn (LPD - dark)
   // 2. Cutouts are drawn (LPC - clear)
   // 3. Traces/pads/vias are drawn on top (LPD - dark)
-  for (const layer of ["top", "bottom"] as const) {
+  for (const layer of copperLayerRefs) {
     for (const element of soup) {
       if (element.type === "pcb_copper_pour" && layer === element.layer) {
         const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
@@ -591,7 +628,7 @@ export const convertSoupToGerberCommands = (
   }
 
   // SECOND PASS: Process all other elements (traces, pads, vias, etc.)
-  for (const layer of ["top", "bottom", "edgecut"] as const) {
+  for (const layer of [...copperLayerRefs, "edgecut"] as const) {
     for (const element of soup) {
       if (element.type === "pcb_trace") {
         const { route } = element
@@ -617,7 +654,10 @@ export const convertSoupToGerberCommands = (
             }
           }
         }
-      } else if (element.type === "pcb_silkscreen_path") {
+      } else if (
+        element.type === "pcb_silkscreen_path" &&
+        outerLayerRefs.includes(layer as any)
+      ) {
         if (element.layer === layer) {
           const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
           const apertureConfig = getApertureConfigFromPcbSilkscreenPath(element)
@@ -644,11 +684,11 @@ export const convertSoupToGerberCommands = (
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&
-        layer !== "edgecut"
+        outerLayerRefs.includes(layer as any)
       ) {
         renderVectorText(
           element,
-          layer,
+          layer as LayerRef,
           "silkscreen",
           getApertureConfigFromPcbSilkscreenText,
         )
@@ -660,7 +700,7 @@ export const convertSoupToGerberCommands = (
           getApertureConfigFromPcbCopperText,
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
-        if (element.layer === layer) {
+        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           for (const glayer of [
             glayers[getGerberLayerName(layer, "copper")],
             glayers[getGerberLayerName(layer, "soldermask")],
@@ -688,7 +728,7 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
-        if (element.layer === layer) {
+        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const layers_to_add_to = [
             glayers[getGerberLayerName(layer, "copper")],
           ]
@@ -732,7 +772,7 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_solder_paste") {
-        if (element.layer === layer) {
+        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
           const aperture_number = findApertureNumber(
             glayer,
@@ -758,10 +798,13 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_plated_hole") {
         if (element.layers.includes(layer as any)) {
-          for (const glayer of [
+          const layersToAddTo = [
             glayers[getGerberLayerName(layer, "copper")],
-            glayers[getGerberLayerName(layer, "soldermask")],
-          ]) {
+          ] as AnyGerberCommand[][]
+          if (outerLayerRefs.includes(layer as any)) {
+            layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
+          }
+          for (const glayer of layersToAddTo) {
             // --- Compute effective copper pad dimensions ---
             const holeW =
               "hole_width" in element && typeof element.hole_width === "number"
@@ -928,7 +971,7 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_hole") {
-        if (layer !== "edgecut") {
+        if (outerLayerRefs.includes(layer as any)) {
           for (const glayer of [
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {

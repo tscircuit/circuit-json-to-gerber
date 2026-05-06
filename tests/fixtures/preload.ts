@@ -1,5 +1,6 @@
 import "bun-match-svg"
 import { expect } from "bun:test"
+import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
 import { Readable } from "stream"
 
@@ -10,6 +11,26 @@ type Slot = {
 }
 
 type PasteRotationQueues = Map<string, number[]>
+
+type GerberLayerSnapshotOptions = {
+  color?: string
+}
+
+type GerberLayerOverlaySnapshotOptions = {
+  colors?: Record<string, string>
+  backgroundColor?: string
+}
+
+const kicadCopperLayerColors: Record<string, string> = {
+  F_Cu: "#c83434",
+  In1_Cu: "#7fc97f",
+  In2_Cu: "#ce7d2c",
+  In3_Cu: "#7f7fc9",
+  In4_Cu: "#c97f7f",
+  In5_Cu: "#7fc9c9",
+  In6_Cu: "#c9c97f",
+  B_Cu: "#4d7fc4",
+}
 
 const toMicrons = (valueMm: number) => valueMm * 1000
 
@@ -234,6 +255,179 @@ const injectPasteRotation = (
     return `${open}${updatedContent}${close}`
   })
 }
+
+const renderGerberLayerSvg = (
+  gerber: string,
+  id: string,
+  opts: GerberLayerSnapshotOptions = {},
+) =>
+  new Promise<string>((resolve, reject) => {
+    gerberToSvg(
+      gerber,
+      {
+        id,
+        attributes: {
+          color: opts.color ?? "#cccccc",
+        },
+      },
+      (error, svg) => {
+        if (error) {
+          reject(error)
+        } else {
+          resolve(svg)
+        }
+      },
+    )
+  })
+
+const parseSvgViewBox = (svg: string) => {
+  const viewBoxMatch = svg.match(/\bviewBox="([^"]+)"/)
+  if (!viewBoxMatch) return undefined
+
+  const [x, y, width, height] = viewBoxMatch[1]
+    .split(/\s+/)
+    .map((value) => Number(value))
+
+  if (
+    !Number.isFinite(x) ||
+    !Number.isFinite(y) ||
+    !Number.isFinite(width) ||
+    !Number.isFinite(height)
+  ) {
+    return undefined
+  }
+
+  return { x, y, width, height }
+}
+
+const getUnionViewBox = (
+  viewBoxes: Array<ReturnType<typeof parseSvgViewBox>>,
+) => {
+  const definedViewBoxes = viewBoxes.filter((viewBox) => viewBox !== undefined)
+  if (definedViewBoxes.length === 0) {
+    return { x: 0, y: 0, width: 1, height: 1 }
+  }
+
+  const minX = Math.min(...definedViewBoxes.map((viewBox) => viewBox.x))
+  const minY = Math.min(...definedViewBoxes.map((viewBox) => viewBox.y))
+  const maxX = Math.max(
+    ...definedViewBoxes.map((viewBox) => viewBox.x + viewBox.width),
+  )
+  const maxY = Math.max(
+    ...definedViewBoxes.map((viewBox) => viewBox.y + viewBox.height),
+  )
+
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  }
+}
+
+const getSvgDefsContent = (svg: string) =>
+  svg.match(/<defs>([\s\S]*?)<\/defs>/)?.[1] ?? ""
+
+const getGerberLayerSvgContent = (svg: string) =>
+  svg.match(
+    /<g transform="[^"]+" fill="currentColor" stroke="currentColor">([\s\S]*?)<\/g><\/svg>$/,
+  )?.[1] ?? ""
+
+const renderGerberLayerOverlaySvg = async (
+  gerberOutput: Record<string, string>,
+  svgName: string,
+  layerNames: string[],
+  opts: GerberLayerOverlaySnapshotOptions = {},
+) => {
+  const renderedLayers = await Promise.all(
+    layerNames.map(async (layerName) => {
+      const gerber = gerberOutput[layerName]
+      if (!gerber) {
+        throw new Error(`No Gerber output found for layer "${layerName}"`)
+      }
+
+      const svg = await renderGerberLayerSvg(gerber, `${svgName}-${layerName}`)
+      return {
+        layerName,
+        svg,
+        viewBox: parseSvgViewBox(svg),
+        defs: getSvgDefsContent(svg),
+        content: getGerberLayerSvgContent(svg),
+      }
+    }),
+  )
+
+  const edgeCutsSvg = gerberOutput.Edge_Cuts
+    ? await renderGerberLayerSvg(gerberOutput.Edge_Cuts, `${svgName}-Edge_Cuts`)
+    : undefined
+  const viewBox =
+    parseSvgViewBox(edgeCutsSvg ?? "") ??
+    getUnionViewBox(renderedLayers.map((layer) => layer.viewBox))
+  const colors = { ...kicadCopperLayerColors, ...opts.colors }
+
+  const defs = renderedLayers.map((layer) => layer.defs).join("")
+  const layerGroups = renderedLayers
+    .map((layer) => {
+      const color = colors[layer.layerName] ?? "#cccccc"
+      return `<g id="${svgName}-${layer.layerName}" fill="${color}" stroke="${color}">${layer.content}</g>`
+    })
+    .join("")
+
+  return [
+    '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
+    'xmlns:xlink="http://www.w3.org/1999/xlink" ',
+    'stroke-linecap="round" stroke-linejoin="round" stroke-width="0" ',
+    `fill-rule="evenodd" viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}" `,
+    `width="${viewBox.width / 1000}mm" height="${viewBox.height / 1000}mm">`,
+    `<defs>${defs}</defs>`,
+    `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="${opts.backgroundColor ?? "#666666"}"/>`,
+    `<g transform="scale(1,-1)">${layerGroups}</g>`,
+    "</svg>",
+  ].join("")
+}
+
+async function toMatchGerberLayerSnapshots(
+  this: any,
+  gerberOutput: Record<string, string>,
+  testPathOriginal: string,
+  svgName: string,
+  layerNames: string[],
+  opts: GerberLayerSnapshotOptions = {},
+) {
+  const layerSvgs = await Promise.all(
+    layerNames.map((layerName) => {
+      const gerber = gerberOutput[layerName]
+      if (!gerber) {
+        throw new Error(`No Gerber output found for layer "${layerName}"`)
+      }
+      return renderGerberLayerSvg(gerber, `${svgName}-${layerName}`, opts)
+    }),
+  )
+
+  return expect(layerSvgs).toMatchMultipleSvgSnapshots(
+    testPathOriginal,
+    layerNames.map((layerName) => `${svgName}-${layerName}`),
+  )
+}
+
+async function toMatchGerberLayerOverlaySnapshot(
+  this: any,
+  gerberOutput: Record<string, string>,
+  testPathOriginal: string,
+  svgName: string,
+  layerNames: string[],
+  opts: GerberLayerOverlaySnapshotOptions = {},
+) {
+  const svg = await renderGerberLayerOverlaySvg(
+    gerberOutput,
+    svgName,
+    layerNames,
+    opts,
+  )
+
+  return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
+}
+
 async function toMatchGerberSnapshot(
   this: any,
   gerberOutput: Record<string, string>,
@@ -293,6 +487,8 @@ async function toMatchGerberSnapshot(
 
 expect.extend({
   toMatchGerberSnapshot: toMatchGerberSnapshot as any,
+  toMatchGerberLayerSnapshots: toMatchGerberLayerSnapshots as any,
+  toMatchGerberLayerOverlaySnapshot: toMatchGerberLayerOverlaySnapshot as any,
 })
 
 declare module "bun:test" {
@@ -300,6 +496,18 @@ declare module "bun:test" {
     toMatchGerberSnapshot(
       testImportMetaPath: string,
       svgName?: string,
+    ): Promise<MatcherResult>
+    toMatchGerberLayerSnapshots(
+      testImportMetaPath: string,
+      svgName: string,
+      layerNames: string[],
+      opts?: GerberLayerSnapshotOptions,
+    ): Promise<MatcherResult>
+    toMatchGerberLayerOverlaySnapshot(
+      testImportMetaPath: string,
+      svgName: string,
+      layerNames: string[],
+      opts?: GerberLayerOverlaySnapshotOptions,
     ): Promise<MatcherResult>
   }
 }

@@ -1,12 +1,11 @@
 import type { AnyGerberCommand } from "../any_gerber_command"
-import type { GerberLayerName } from "../convert-soup-to-gerber-commands/GerberLayerName"
 import { stringifyGerberCommand } from "./stringify-gerber-command"
 
 export const stringifyGerberCommandLayers = (
-  commandLayers: Record<GerberLayerName, AnyGerberCommand[]>,
-): Record<GerberLayerName, string> => {
-  const stringifiedCommandLayers: Record<GerberLayerName, string> = {} as any
-  for (const layerName of Object.keys(commandLayers) as GerberLayerName[]) {
+  commandLayers: Record<string, AnyGerberCommand[]>,
+): Record<string, string> => {
+  const stringifiedCommandLayers: Record<string, string> = {}
+  for (const layerName of Object.keys(commandLayers)) {
     stringifiedCommandLayers[layerName] = commandLayers[layerName]
       .map((command) => {
         return stringifyGerberCommand(command)

@@ -1,7 +1,7 @@
 import type { AnyGerberCommand } from "../any_gerber_command"
-import type { GerberJobJson } from "./gerber-job-json"
 
 export type LayerToGerberCommandsMap = {
+  [key: string]: AnyGerberCommand[]
   F_Cu: AnyGerberCommand[]
   F_SilkScreen: AnyGerberCommand[]
   F_Mask: AnyGerberCommand[]
