@@ -306,6 +306,13 @@ function getAllApertureTemplateConfigsForLayer(
 ): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
   const configHashMap = new Set<string>()
+  const ccwRotationDegreesByPoint = new Map<string, number>()
+
+  for (const elm of soup) {
+    if (elm.type === "pcb_plated_hole") {
+      ccwRotationDegreesByPoint.set(`${elm.x}:${elm.y}`, elm.ccw_rotation ?? 0)
+    }
+  }
 
   const addConfigIfNew = (config: ApertureTemplateConfig) => {
     const hash = stableStringify(config)
@@ -322,7 +329,22 @@ function getAllApertureTemplateConfigsForLayer(
       }
     } else if (elm.type === "pcb_solder_paste") {
       if (elm.layer === layer) {
-        addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
+        const ccwRotationDegrees =
+          "ccw_rotation" in elm && typeof elm.ccw_rotation === "number"
+            ? elm.ccw_rotation
+            : (ccwRotationDegreesByPoint.get(`${elm.x}:${elm.y}`) ?? 0)
+        const normalizedCcwRotationDegrees =
+          ((ccwRotationDegrees % 360) + 360) % 360
+
+        addConfigIfNew(
+          getApertureConfigFromPcbSolderPaste(
+            elm.shape === "pill" &&
+              (normalizedCcwRotationDegrees === 90 ||
+                normalizedCcwRotationDegrees === 270)
+              ? { ...elm, width: elm.height, height: elm.width }
+              : elm,
+          ),
+        )
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
