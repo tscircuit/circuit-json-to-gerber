@@ -228,7 +228,8 @@ const injectPasteRotation = (
     Array.from(rotations.entries(), ([key, values]) => [key, [...values]]),
   )
 
-  const pasteGroupRegex = /(<g id="[^"]*_solderpaste">)([\s\S]*?)(<\/g>)/g
+  const pasteGroupRegex =
+    /(<g id="[^"]*(?:_solderpaste|[FB]_Paste)"[^>]*>)([\s\S]*?)(<\/g>)/g
 
   return svg.replace(pasteGroupRegex, (match, open, content, close) => {
     let updatedContent = content
@@ -386,7 +387,7 @@ const renderGerberLayerOverlaySvg = async (
     })
     .join("")
 
-  return [
+  const overlaySvg = [
     '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
     'xmlns:xlink="http://www.w3.org/1999/xlink" ',
     'stroke-linecap="round" stroke-linejoin="round" stroke-width="0" ',
@@ -397,6 +398,14 @@ const renderGerberLayerOverlaySvg = async (
     `<g transform="scale(1,-1)">${layerGroups}</g>`,
     "</svg>",
   ].join("")
+
+  return injectPasteRotation(
+    injectPasteRotation(
+      overlaySvg,
+      parsePastePillRotations(gerberOutput.F_Paste),
+    ),
+    parsePastePillRotations(gerberOutput.B_Paste),
+  )
 }
 
 async function toMatchGerberLayerSnapshots(
