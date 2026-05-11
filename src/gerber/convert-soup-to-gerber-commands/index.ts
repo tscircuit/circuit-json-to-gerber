@@ -779,11 +779,8 @@ export const convertSoupToGerberCommands = (
             typeof element.ccw_rotation === "number"
               ? element.ccw_rotation
               : (rotationLookup.get(`${element.x}:${element.y}`) ?? 0)
-          const normalizedCcwRotationDegrees = ((rotation % 360) + 360) % 360
           const apertureConfig =
-            element.shape === "pill" &&
-            (normalizedCcwRotationDegrees === 90 ||
-              normalizedCcwRotationDegrees === 270)
+            element.shape === "pill" && (rotation === 90 || rotation === 270)
               ? { ...element, width: element.height, height: element.width }
               : element
 

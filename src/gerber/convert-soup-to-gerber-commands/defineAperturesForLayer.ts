@@ -336,14 +336,11 @@ function getAllApertureTemplateConfigsForLayer(
           "ccw_rotation" in elm && typeof elm.ccw_rotation === "number"
             ? elm.ccw_rotation
             : (ccwRotationDegreesByPoint.get(`${elm.x}:${elm.y}`) ?? 0)
-        const normalizedCcwRotationDegrees =
-          ((ccwRotationDegrees % 360) + 360) % 360
 
         addConfigIfNew(
           getApertureConfigFromPcbSolderPaste(
             elm.shape === "pill" &&
-              (normalizedCcwRotationDegrees === 90 ||
-                normalizedCcwRotationDegrees === 270)
+              (ccwRotationDegrees === 90 || ccwRotationDegrees === 270)
               ? { ...elm, width: elm.height, height: elm.width }
               : elm,
           ),
