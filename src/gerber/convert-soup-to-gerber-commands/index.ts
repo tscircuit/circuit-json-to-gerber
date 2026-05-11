@@ -148,6 +148,23 @@ export const convertSoupToGerberCommands = (
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
 
+  const rotationLookup = new Map<string, number>()
+  for (const element of soup) {
+    if (
+      element.type === "pcb_plated_hole" &&
+      "x" in element &&
+      typeof element.x === "number" &&
+      "y" in element &&
+      typeof element.y === "number"
+    ) {
+      const rotation =
+        "ccw_rotation" in element && typeof element.ccw_rotation === "number"
+          ? element.ccw_rotation
+          : 0
+      rotationLookup.set(`${element.x}:${element.y}`, rotation)
+    }
+  }
+
   const renderVectorText = (
     element: any,
     layer: LayerRef,
@@ -757,26 +774,11 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
-          const hasRotation =
+          let rotation =
             "ccw_rotation" in element &&
             typeof element.ccw_rotation === "number"
-          let rotation = hasRotation ? element.ccw_rotation : 0
-          if (!hasRotation) {
-            const platedHole = soup.find(
-              (candidate) =>
-                candidate.type === "pcb_plated_hole" &&
-                "x" in candidate &&
-                candidate.x === element.x &&
-                "y" in candidate &&
-                candidate.y === element.y,
-            )
-            rotation =
-              platedHole &&
-              "ccw_rotation" in platedHole &&
-              typeof platedHole.ccw_rotation === "number"
-                ? platedHole.ccw_rotation
-                : 0
-          }
+              ? element.ccw_rotation
+              : (rotationLookup.get(`${element.x}:${element.y}`) ?? 0)
           const apertureConfig =
             element.shape === "pill" && (rotation === 90 || rotation === 270)
               ? { ...element, width: element.height, height: element.width }
