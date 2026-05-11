@@ -48,20 +48,6 @@ const getGerberInnerLayerName = (layerRef: LayerRef) => {
   return `In${layerRef.replace("inner", "")}_Cu` as const
 }
 
-const getPlatedHoleCcwRotation = (
-  platedHole: PcbPlatedHole | undefined,
-): number => {
-  if (!platedHole) return 0
-  switch (platedHole.shape) {
-    case "oval":
-    case "pill":
-    case "hole_with_polygon_pad":
-      return platedHole.ccw_rotation ?? 0
-    default:
-      return 0
-  }
-}
-
 /**
  * Converts Circuit JSON to arrays of Gerber commands for each layer
  */
@@ -778,12 +764,16 @@ export const convertSoupToGerberCommands = (
               : 0
           if (!rotation) {
             const platedHole = circuitJson.find(
-              (candidate): candidate is PcbPlatedHole =>
+              (
+                candidate,
+              ): candidate is PcbPlatedHole & { ccw_rotation: number } =>
                 candidate.type === "pcb_plated_hole" &&
                 candidate.x === element.x &&
-                candidate.y === element.y,
+                candidate.y === element.y &&
+                "ccw_rotation" in candidate &&
+                typeof candidate.ccw_rotation === "number",
             )
-            rotation = getPlatedHoleCcwRotation(platedHole)
+            rotation = platedHole?.ccw_rotation ?? 0
           }
           const apertureConfig =
             element.shape === "pill" && (rotation === 90 || rotation === 270)
