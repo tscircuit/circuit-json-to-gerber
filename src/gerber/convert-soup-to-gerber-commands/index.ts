@@ -1,37 +1,37 @@
-import type { AnyCircuitElement } from "circuit-json"
-import { pairs } from "../utils/pairs"
+import { lineAlphabet } from "@tscircuit/alphabet"
+import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
+import type { PcbCutout } from "circuit-json"
+import type { LayerRef } from "circuit-json"
+import {
+  type Matrix,
+  applyToPoint,
+  compose,
+  identity,
+  rotate,
+  translate,
+} from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
 import { gerberBuilder } from "../gerber-builder"
+import { pairs } from "../utils/pairs"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
 import { defineCommonMacros } from "./define-common-macros"
 import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
-  getApertureConfigFromPcbPlatedHole,
   getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbPlatedHole,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
 } from "./defineAperturesForLayer"
-import type { PcbCutout } from "circuit-json"
 import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
-import { lineAlphabet } from "@tscircuit/alphabet"
-import {
-  applyToPoint,
-  compose,
-  identity,
-  rotate,
-  translate,
-  type Matrix,
-} from "transformation-matrix"
-import type { AnyGerberCommand } from "../any_gerber_command"
-import type { LayerRef } from "circuit-json"
 
-const getLayerCount = (soup: AnyCircuitElement[]) => {
-  const board = soup.find((element) => element.type === "pcb_board") as
+const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
+  const board = circuitJson.find((element) => element.type === "pcb_board") as
     | { num_layers?: number }
     | undefined
   const numLayers = board?.num_layers ?? 2
@@ -48,16 +48,30 @@ const getGerberInnerLayerName = (layerRef: LayerRef) => {
   return `In${layerRef.replace("inner", "")}_Cu` as const
 }
 
+const getPlatedHoleCcwRotation = (
+  platedHole: PcbPlatedHole | undefined,
+): number => {
+  if (!platedHole) return 0
+  switch (platedHole.shape) {
+    case "oval":
+    case "pill":
+    case "hole_with_polygon_pad":
+      return platedHole.ccw_rotation ?? 0
+    default:
+      return 0
+  }
+}
+
 /**
- * Converts tscircuit soup to arrays of Gerber commands for each layer
+ * Converts Circuit JSON to arrays of Gerber commands for each layer
  */
 export const convertSoupToGerberCommands = (
-  soup: AnyCircuitElement[],
+  circuitJson: AnyCircuitElement[],
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
-  const hasPanel = soup.some((e) => e.type === "pcb_panel")
-  const layerCount = getLayerCount(soup)
+  const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
+  const layerCount = getLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
   const outerLayerRefs = ["top", "bottom"] as const
@@ -126,7 +140,7 @@ export const convertSoupToGerberCommands = (
     const glayer = glayers[glayer_name]
     defineCommonMacros(glayer)
     defineAperturesForLayer({
-      soup,
+      circuitJson,
       glayer,
       glayer_name,
     })
@@ -474,7 +488,7 @@ export const convertSoupToGerberCommands = (
   // 2. Cutouts are drawn (LPC - clear)
   // 3. Traces/pads/vias are drawn on top (LPD - dark)
   for (const layer of copperLayerRefs) {
-    for (const element of soup) {
+    for (const element of circuitJson) {
       if (element.type === "pcb_copper_pour" && layer === element.layer) {
         const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
 
@@ -612,7 +626,7 @@ export const convertSoupToGerberCommands = (
 
   // SECOND PASS: Process all other elements (traces, pads, vias, etc.)
   for (const layer of [...copperLayerRefs, "edgecut"] as const) {
-    for (const element of soup) {
+    for (const element of circuitJson) {
       if (element.type === "pcb_trace") {
         const { route } = element
         for (const [a, b] of pairs(route)) {
@@ -763,18 +777,13 @@ export const convertSoupToGerberCommands = (
               ? element.ccw_rotation
               : 0
           if (!rotation) {
-            const platedHole = soup.find(
-              (candidate) =>
+            const platedHole = circuitJson.find(
+              (candidate): candidate is PcbPlatedHole =>
                 candidate.type === "pcb_plated_hole" &&
                 candidate.x === element.x &&
                 candidate.y === element.y,
             )
-            rotation =
-              platedHole &&
-              "ccw_rotation" in platedHole &&
-              typeof platedHole.ccw_rotation === "number"
-                ? platedHole.ccw_rotation
-                : 0
+            rotation = getPlatedHoleCcwRotation(platedHole)
           }
           const apertureConfig =
             element.shape === "pill" && (rotation === 90 || rotation === 270)
