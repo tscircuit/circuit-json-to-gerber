@@ -1,4 +1,4 @@
-import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
+import type { AnyCircuitElement } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -763,10 +763,12 @@ export const convertSoupToGerberCommands = (
               ? element.ccw_rotation
               : 0
           if (!rotation) {
+            // Solder paste generated for a plated hole may omit its own rotation.
             const platedHole = circuitJson.find(
-              (
-                candidate,
-              ): candidate is PcbPlatedHole & { ccw_rotation: number } =>
+              (candidate): candidate is AnyCircuitElement & {
+                type: "pcb_plated_hole"
+                ccw_rotation: number
+              } =>
                 candidate.type === "pcb_plated_hole" &&
                 candidate.x === element.x &&
                 candidate.y === element.y &&
