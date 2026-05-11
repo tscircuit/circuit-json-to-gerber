@@ -310,7 +310,10 @@ function getAllApertureTemplateConfigsForLayer(
 
   for (const elm of soup) {
     if (elm.type === "pcb_plated_hole") {
-      ccwRotationDegreesByPoint.set(`${elm.x}:${elm.y}`, elm.ccw_rotation ?? 0)
+      ccwRotationDegreesByPoint.set(
+        `${elm.x}:${elm.y}`,
+        "ccw_rotation" in elm ? (elm.ccw_rotation ?? 0) : 0,
+      )
     }
   }
 

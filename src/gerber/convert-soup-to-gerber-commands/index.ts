@@ -148,7 +148,7 @@ export const convertSoupToGerberCommands = (
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
 
-  const ccwRotationDegreesByPoint = new Map<string, number>()
+  const rotationLookup = new Map<string, number>()
   for (const element of soup) {
     if (
       element.type === "pcb_plated_hole" &&
@@ -157,14 +157,11 @@ export const convertSoupToGerberCommands = (
       "y" in element &&
       typeof element.y === "number"
     ) {
-      const ccwRotationDegrees =
+      const rotation =
         "ccw_rotation" in element && typeof element.ccw_rotation === "number"
           ? element.ccw_rotation
           : 0
-      ccwRotationDegreesByPoint.set(
-        `${element.x}:${element.y}`,
-        ccwRotationDegrees,
-      )
+      rotationLookup.set(`${element.x}:${element.y}`, rotation)
     }
   }
 
@@ -777,14 +774,12 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
-          let ccwRotationDegrees =
+          let rotation =
             "ccw_rotation" in element &&
             typeof element.ccw_rotation === "number"
               ? element.ccw_rotation
-              : (ccwRotationDegreesByPoint.get(`${element.x}:${element.y}`) ??
-                0)
-          const normalizedCcwRotationDegrees =
-            ((ccwRotationDegrees % 360) + 360) % 360
+              : (rotationLookup.get(`${element.x}:${element.y}`) ?? 0)
+          const normalizedCcwRotationDegrees = ((rotation % 360) + 360) % 360
           const apertureConfig =
             element.shape === "pill" &&
             (normalizedCcwRotationDegrees === 90 ||
@@ -792,7 +787,7 @@ export const convertSoupToGerberCommands = (
               ? { ...element, width: element.height, height: element.width }
               : element
 
-          if (apertureConfig !== element) ccwRotationDegrees = 0
+          if (apertureConfig !== element) rotation = 0
 
           const aperture_number = findApertureNumber(
             glayer,
@@ -802,13 +797,13 @@ export const convertSoupToGerberCommands = (
           const gb = gerberBuilder().add("select_aperture", {
             aperture_number,
           })
-          if (ccwRotationDegrees) {
+          if (rotation) {
             gb.add("load_rotation", {
-              rotation_degrees: ccwRotationDegrees,
+              rotation_degrees: rotation,
             })
           }
           gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
-          if (ccwRotationDegrees) {
+          if (rotation) {
             gb.add("load_rotation", { rotation_degrees: 0 })
           }
           glayer.push(...gb.build())
