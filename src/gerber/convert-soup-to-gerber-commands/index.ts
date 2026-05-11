@@ -1,34 +1,34 @@
-import { lineAlphabet } from "@tscircuit/alphabet"
 import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
-import type { PcbCutout } from "circuit-json"
-import type { LayerRef } from "circuit-json"
-import {
-  type Matrix,
-  applyToPoint,
-  compose,
-  identity,
-  rotate,
-  translate,
-} from "transformation-matrix"
-import type { AnyGerberCommand } from "../any_gerber_command"
-import { gerberBuilder } from "../gerber-builder"
 import { pairs } from "../utils/pairs"
+import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
 import { defineCommonMacros } from "./define-common-macros"
 import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
-  getApertureConfigFromPcbCopperText,
   getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbCopperText,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromPcbVia,
 } from "./defineAperturesForLayer"
+import type { PcbCutout } from "circuit-json"
 import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
+import { lineAlphabet } from "@tscircuit/alphabet"
+import {
+  applyToPoint,
+  compose,
+  identity,
+  rotate,
+  translate,
+  type Matrix,
+} from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import type { LayerRef } from "circuit-json"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
