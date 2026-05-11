@@ -757,29 +757,24 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
-          let rotation =
+          let rotation = 0
+          if (
             "ccw_rotation" in element &&
             typeof element.ccw_rotation === "number"
-              ? element.ccw_rotation
-              : 0
-          if (!rotation) {
-            const platedHole = soup.find(
-              (candidate) =>
-                candidate.type === "pcb_plated_hole" &&
-                candidate.x === element.x &&
-                candidate.y === element.y,
-            )
-            rotation =
-              platedHole &&
-              "ccw_rotation" in platedHole &&
-              typeof platedHole.ccw_rotation === "number"
-                ? platedHole.ccw_rotation
-                : 0
+          ) {
+            rotation = element.ccw_rotation
           }
-          const apertureConfig =
-            element.shape === "pill" && (rotation === 90 || rotation === 270)
-              ? { ...element, width: element.height, height: element.width }
-              : element
+          let apertureConfig = element
+          if (
+            element.shape === "pill" &&
+            (rotation === 90 || rotation === 270)
+          ) {
+            apertureConfig = {
+              ...element,
+              width: element.height,
+              height: element.width,
+            }
+          }
 
           if (apertureConfig !== element) rotation = 0
 
