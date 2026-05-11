@@ -765,7 +765,9 @@ export const convertSoupToGerberCommands = (
           if (!rotation) {
             // Solder paste generated for a plated hole may omit its own rotation.
             const platedHole = circuitJson.find(
-              (candidate): candidate is AnyCircuitElement & {
+              (
+                candidate,
+              ): candidate is AnyCircuitElement & {
                 type: "pcb_plated_hole"
                 ccw_rotation: number
               } =>
