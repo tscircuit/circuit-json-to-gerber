@@ -74,7 +74,10 @@ export function defineAperturesForLayer({
   }
 
   // Add all pcb smtpad, plated hole etc. aperatures
-  const apertureConfigs = getAllApertureTemplateConfigsForLayer(circuitJson, layerRef)
+  const apertureConfigs = getAllApertureTemplateConfigsForLayer(
+    circuitJson,
+    layerRef,
+  )
 
   for (const apertureConfig of apertureConfigs) {
     glayer.push(
