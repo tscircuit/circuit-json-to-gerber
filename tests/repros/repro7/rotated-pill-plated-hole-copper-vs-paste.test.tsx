@@ -29,15 +29,10 @@ test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
   )
   await circuit.renderUntilSettled()
 
-  const circuitJson = circuit.getCircuitJson().map((element) => {
-    if (element.type === "pcb_solder_paste") {
-      return { ...element, ccw_rotation: 270 }
-    }
-    return element
-  })
+  const circuitJson = circuit.getCircuitJson()
 
   const gerberOutput = stringifyGerberCommandLayers(
-    convertSoupToGerberCommands(circuitJson),
+    convertSoupToGerberCommands(circuitJson as any),
   )
 
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
