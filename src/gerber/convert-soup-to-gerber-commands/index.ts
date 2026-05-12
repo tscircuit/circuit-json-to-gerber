@@ -780,24 +780,20 @@ export const convertSoupToGerberCommands = (
             }
           }
 
-          let apertureConfig = element
+          let apertureConfig = getApertureConfigFromPcbSolderPaste(element)
           if (
             element.shape === "pill" &&
             (rotation === 90 || rotation === 270)
           ) {
-            apertureConfig = {
+            apertureConfig = getApertureConfigFromPcbSolderPaste({
               ...element,
               width: element.height,
               height: element.width,
-            }
+            })
+            rotation = 0
           }
 
-          if (apertureConfig !== element) rotation = 0
-
-          const aperture_number = findApertureNumber(
-            glayer,
-            getApertureConfigFromPcbSolderPaste(apertureConfig),
-          )
+          const aperture_number = findApertureNumber(glayer, apertureConfig)
 
           const gb = gerberBuilder().add("select_aperture", {
             aperture_number,
