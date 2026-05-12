@@ -1,4 +1,4 @@
-import type { AnyCircuitElement } from "circuit-json"
+import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -757,32 +757,40 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
-          let rotation =
+          let rotation = 0
+          if (
             "ccw_rotation" in element &&
             typeof element.ccw_rotation === "number"
-              ? element.ccw_rotation
-              : 0
-          if (!rotation) {
+          ) {
+            rotation = element.ccw_rotation
+          } else {
             // Solder paste generated for a plated hole may omit its own rotation.
             const platedHole = circuitJson.find(
               (
                 candidate,
-              ): candidate is AnyCircuitElement & {
-                type: "pcb_plated_hole"
-                ccw_rotation: number
-              } =>
+              ): candidate is PcbPlatedHole & { ccw_rotation: number } =>
                 candidate.type === "pcb_plated_hole" &&
                 candidate.x === element.x &&
                 candidate.y === element.y &&
                 "ccw_rotation" in candidate &&
                 typeof candidate.ccw_rotation === "number",
             )
-            rotation = platedHole?.ccw_rotation ?? 0
+            if (platedHole) {
+              rotation = platedHole.ccw_rotation
+            }
           }
-          const apertureConfig =
-            element.shape === "pill" && (rotation === 90 || rotation === 270)
-              ? { ...element, width: element.height, height: element.width }
-              : element
+
+          let apertureConfig = element
+          if (
+            element.shape === "pill" &&
+            (rotation === 90 || rotation === 270)
+          ) {
+            apertureConfig = {
+              ...element,
+              width: element.height,
+              height: element.width,
+            }
+          }
 
           if (apertureConfig !== element) rotation = 0
 
