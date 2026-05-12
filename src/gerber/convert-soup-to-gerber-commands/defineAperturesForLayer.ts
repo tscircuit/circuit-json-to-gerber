@@ -32,11 +32,11 @@ const getLayerRefFromGerberLayerName = (
 
 export function defineAperturesForLayer({
   glayer,
-  soup,
+  circuitJson,
   glayer_name,
 }: {
   glayer: AnyGerberCommand[]
-  soup: AnyCircuitElement[]
+  circuitJson: AnyCircuitElement[]
   glayer_name: GerberLayerName
 }) {
   const getNextApertureNumber = () => {
@@ -59,7 +59,7 @@ export function defineAperturesForLayer({
   )
 
   // Add all trace width apertures
-  const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(soup)
+  const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(circuitJson)
   const layerRef = getLayerRefFromGerberLayerName(glayer_name)
   for (const width of traceWidths[layerRef]) {
     glayer.push(
@@ -74,7 +74,10 @@ export function defineAperturesForLayer({
   }
 
   // Add all pcb smtpad, plated hole etc. aperatures
-  const apertureConfigs = getAllApertureTemplateConfigsForLayer(soup, layerRef)
+  const apertureConfigs = getAllApertureTemplateConfigsForLayer(
+    circuitJson,
+    layerRef,
+  )
 
   for (const apertureConfig of apertureConfigs) {
     glayer.push(
@@ -301,7 +304,7 @@ export const getApertureConfigFromPcbVia = (
 }
 
 function getAllApertureTemplateConfigsForLayer(
-  soup: AnyCircuitElement[],
+  circuitJson: AnyCircuitElement[],
   layer: LayerRef,
 ): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
@@ -315,7 +318,7 @@ function getAllApertureTemplateConfigsForLayer(
     }
   }
 
-  for (const elm of soup) {
+  for (const elm of circuitJson) {
     if (elm.type === "pcb_smtpad") {
       if (elm.layer === layer && elm.shape !== "polygon") {
         addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
@@ -323,6 +326,15 @@ function getAllApertureTemplateConfigsForLayer(
     } else if (elm.type === "pcb_solder_paste") {
       if (elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
+        if (elm.shape === "pill") {
+          addConfigIfNew(
+            getApertureConfigFromPcbSolderPaste({
+              ...elm,
+              width: elm.height,
+              height: elm.width,
+            }),
+          )
+        }
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
