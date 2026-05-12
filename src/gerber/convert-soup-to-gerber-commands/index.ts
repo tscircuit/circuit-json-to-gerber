@@ -764,7 +764,7 @@ export const convertSoupToGerberCommands = (
           ) {
             rotation = element.ccw_rotation
           } else {
-            // Solder paste generated for a plated hole may omit its own rotation.
+            // Solder paste has no rotation, so use the matching plated hole's rotation.
             const platedHole = circuitJson.find(
               (
                 candidate,
