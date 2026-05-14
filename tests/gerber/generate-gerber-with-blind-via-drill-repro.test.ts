@@ -1,6 +1,7 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
 import {
+  convertSoupToExcellonDrillCommandLayers,
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "src/excellon-drill"
@@ -77,6 +78,19 @@ const makeBottomDiagnosticSvg = ({
   ].join("")
 }
 
+const makeDrillSpanDiagnosticSvg = ({
+  name,
+  drills,
+}: {
+  name: string
+  drills: Array<{ x: number; y: number }>
+}) =>
+  makeBottomDiagnosticSvg({
+    name,
+    bottomCopperPads: [],
+    bottomDrills: drills,
+  })
+
 const getDrillPoints = (drillOutput: string) =>
   [...drillOutput.matchAll(/^X(-?\d+\.\d+)Y(-?\d+\.\d+)$/gm)].map(
     ([, x, y]) => ({
@@ -85,10 +99,13 @@ const getDrillPoints = (drillOutput: string) =>
     }),
   )
 
-test("repro: blind via is emitted in through-board drill output", async () => {
+test("blind via is not emitted in through-board drill output", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
+  const drillLayers = convertSoupToExcellonDrillCommandLayers({
+    circuitJson,
+  })
   const drillOutput = stringifyExcellonDrill(
     convertSoupToExcellonDrillCommands({
       circuitJson,
@@ -99,16 +116,42 @@ test("repro: blind via is emitted in through-board drill output", async () => {
   expect(gerberOutput.F_Cu).toContain("X-04000000Y000000000D03*")
   expect(gerberOutput.In1_Cu).toContain("X-04000000Y000000000D03*")
   expect(gerberOutput.B_Cu).not.toContain("X-04000000Y000000000D03*")
-  expect(drillOutput).toContain("#@! TF.FileFunction,Plated,1,2,PTH")
-  expect(drillOutput).toContain("X-4.0000Y0.0000")
+  expect(drillOutput).toContain("#@! TF.FileFunction,Plated,1,4,PTH")
+  expect(drillOutput).not.toContain("X-4.0000Y0.0000")
+  expect(drillOutput).toContain("X4.0000Y0.0000")
+
+  expect(Object.keys(drillLayers).sort()).toEqual([
+    "drill-L1-L2.drl",
+    "drill-L1-L4.drl",
+  ])
+  expect(stringifyExcellonDrill(drillLayers["drill-L1-L2.drl"])).toContain(
+    "X-4.0000Y0.0000",
+  )
+  expect(stringifyExcellonDrill(drillLayers["drill-L1-L4.drl"])).toContain(
+    "X4.0000Y0.0000",
+  )
 
   expect([
+    makeDrillSpanDiagnosticSvg({
+      name: "blind-via-drill-repro-L1-L2-drill",
+      drills: getDrillPoints(
+        stringifyExcellonDrill(drillLayers["drill-L1-L2.drl"]),
+      ),
+    }),
+    makeDrillSpanDiagnosticSvg({
+      name: "blind-via-drill-repro-L1-L4-drill",
+      drills: getDrillPoints(
+        stringifyExcellonDrill(drillLayers["drill-L1-L4.drl"]),
+      ),
+    }),
     makeBottomDiagnosticSvg({
       name: "blind-via-drill-repro-bottom-diagnostic",
       bottomCopperPads: [{ x: 4, y: 0 }],
       bottomDrills: getDrillPoints(drillOutput),
     }),
   ]).toMatchMultipleSvgSnapshots(import.meta.path, [
+    "blind-via-drill-repro-L1-L2-drill",
+    "blind-via-drill-repro-L1-L4-drill",
     "blind-via-drill-repro-bottom-diagnostic",
   ])
 })

@@ -7,7 +7,10 @@ import { resolve, dirname, basename } from "node:path"
 import { fileURLToPath } from "node:url"
 import archiver from "archiver"
 import { convertSoupToGerberCommands, stringifyGerberCommandLayers } from "./"
-import { convertSoupToExcellonDrillCommands, stringifyExcellonDrill } from "./"
+import {
+  convertSoupToExcellonDrillCommandLayers,
+  stringifyExcellonDrill,
+} from "./"
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 
@@ -26,20 +29,17 @@ program
 
       // Convert to gerber commands
       const gerberCmds = convertSoupToGerberCommands(circuitJson)
-      const excellonDrillCmds = convertSoupToExcellonDrillCommands({
+      const excellonDrillCmdLayers = convertSoupToExcellonDrillCommandLayers({
         circuitJson,
-        is_plated: true,
-      })
-      const excellonDrillUnplatedCmds = convertSoupToExcellonDrillCommands({
-        circuitJson,
-        is_plated: false,
       })
 
       // Stringify all outputs
       const gerberOutput = stringifyGerberCommandLayers(gerberCmds)
-      const excellonDrillOutput = stringifyExcellonDrill(excellonDrillCmds)
-      const excellonDrillUnplatedOutput = stringifyExcellonDrill(
-        excellonDrillUnplatedCmds,
+      const excellonDrillOutput = Object.fromEntries(
+        Object.entries(excellonDrillCmdLayers).map(([filename, commands]) => [
+          filename,
+          stringifyExcellonDrill(commands),
+        ]),
       )
 
       // Create output ZIP file
@@ -56,8 +56,9 @@ program
       }
 
       // Add drill files
-      archive.append(excellonDrillOutput, { name: "plated.drl" })
-      archive.append(excellonDrillUnplatedOutput, { name: "unplated.drl" })
+      for (const [filename, content] of Object.entries(excellonDrillOutput)) {
+        archive.append(content, { name: filename })
+      }
 
       await archive.finalize()
 

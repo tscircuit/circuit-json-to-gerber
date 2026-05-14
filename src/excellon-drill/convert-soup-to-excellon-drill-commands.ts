@@ -1,17 +1,181 @@
-import type { AnyCircuitElement } from "circuit-json"
+import type { AnyCircuitElement, LayerRef } from "circuit-json"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
+
+export type DrillLayerSpan = {
+  from_layer: LayerRef
+  to_layer: LayerRef
+}
+
+const getLayerCount = (circuitJson: Array<AnyCircuitElement>) => {
+  const board = circuitJson.find((element) => element.type === "pcb_board") as
+    | { num_layers?: number }
+    | undefined
+  if (!board || typeof board.num_layers !== "number") {
+    return 2
+  }
+  return Math.max(2, board.num_layers)
+}
+
+const getLayerNumber = (layer: LayerRef, layerCount: number) => {
+  if (layer === "top") return 1
+  if (layer === "bottom") return layerCount
+
+  const innerLayerMatch = layer.match(/^inner([1-6])$/)
+  if (innerLayerMatch) {
+    const innerLayerNumber = Number(innerLayerMatch[1])
+    if (innerLayerNumber >= 1 && innerLayerNumber <= layerCount - 2) {
+      return innerLayerNumber + 1
+    }
+  }
+
+  throw new Error(`Invalid layer "${layer}" for ${layerCount}-layer board`)
+}
+
+const normalizeLayerSpan = (
+  span: DrillLayerSpan,
+  layerCount: number,
+): DrillLayerSpan => {
+  const fromLayerNumber = getLayerNumber(span.from_layer, layerCount)
+  const toLayerNumber = getLayerNumber(span.to_layer, layerCount)
+
+  if (fromLayerNumber <= toLayerNumber) {
+    return span
+  }
+
+  return {
+    from_layer: span.to_layer,
+    to_layer: span.from_layer,
+  }
+}
+
+const getPlatedElementLayerSpan = (
+  element: AnyCircuitElement,
+  layerCount: number,
+): DrillLayerSpan | undefined => {
+  if (element.type !== "pcb_plated_hole" && element.type !== "pcb_via") {
+    return undefined
+  }
+
+  if (
+    "from_layer" in element &&
+    typeof element.from_layer === "string" &&
+    "to_layer" in element &&
+    typeof element.to_layer === "string"
+  ) {
+    return normalizeLayerSpan(
+      {
+        from_layer: element.from_layer as LayerRef,
+        to_layer: element.to_layer as LayerRef,
+      },
+      layerCount,
+    )
+  }
+
+  let layers: LayerRef[] = []
+  if ("layers" in element && Array.isArray(element.layers)) {
+    layers = element.layers as LayerRef[]
+  }
+  if (layers.length > 0) {
+    const sortedLayers = [...layers].sort(
+      (a, b) => getLayerNumber(a, layerCount) - getLayerNumber(b, layerCount),
+    )
+    return {
+      from_layer: sortedLayers[0],
+      to_layer: sortedLayers[sortedLayers.length - 1],
+    }
+  }
+
+  return {
+    from_layer: "top",
+    to_layer: "bottom",
+  }
+}
+
+const getDefaultPlatedDrillLayerSpan = (): DrillLayerSpan => ({
+  from_layer: "top",
+  to_layer: "bottom",
+})
+
+const getRequestedLayerSpan = (layer_span?: DrillLayerSpan) => {
+  if (layer_span) {
+    return layer_span
+  }
+  return getDefaultPlatedDrillLayerSpan()
+}
+
+const isSameLayerSpan = (
+  a: DrillLayerSpan,
+  b: DrillLayerSpan,
+  layerCount: number,
+) => {
+  const normalizedA = normalizeLayerSpan(a, layerCount)
+  const normalizedB = normalizeLayerSpan(b, layerCount)
+  return (
+    normalizedA.from_layer === normalizedB.from_layer &&
+    normalizedA.to_layer === normalizedB.to_layer
+  )
+}
+
+const shouldIncludeElement = ({
+  element,
+  is_plated,
+  layer_span,
+  layerCount,
+}: {
+  element: AnyCircuitElement
+  is_plated: boolean
+  layer_span?: DrillLayerSpan
+  layerCount: number
+}) => {
+  if (
+    element.type !== "pcb_plated_hole" &&
+    element.type !== "pcb_hole" &&
+    element.type !== "pcb_via"
+  ) {
+    return false
+  }
+
+  if (!is_plated) return element.type === "pcb_hole"
+  if (element.type === "pcb_hole") return false
+
+  const elementLayerSpan = getPlatedElementLayerSpan(element, layerCount)
+  if (!elementLayerSpan) return false
+  const requestedLayerSpan = getRequestedLayerSpan(layer_span)
+
+  return isSameLayerSpan(elementLayerSpan, requestedLayerSpan, layerCount)
+}
+
+const getFileFunctionLayerSpan = ({
+  circuitJson,
+  is_plated,
+  layer_span,
+}: {
+  circuitJson: Array<AnyCircuitElement>
+  is_plated: boolean
+  layer_span?: DrillLayerSpan
+}) => {
+  const layerCount = getLayerCount(circuitJson)
+  if (!is_plated) return `NonPlated,1,${layerCount},NPTH`
+
+  const requestedLayerSpan = getRequestedLayerSpan(layer_span)
+  const span = normalizeLayerSpan(requestedLayerSpan, layerCount)
+  return `Plated,${getLayerNumber(span.from_layer, layerCount)},${getLayerNumber(span.to_layer, layerCount)},PTH`
+}
 
 export const convertSoupToExcellonDrillCommands = ({
   circuitJson,
   is_plated,
   flip_y_axis = false,
+  layer_span,
 }: {
   circuitJson: Array<AnyCircuitElement>
   is_plated: boolean
   flip_y_axis?: boolean
+  layer_span?: DrillLayerSpan
 }): Array<AnyExcellonDrillCommand> => {
   const builder = excellonDrill()
+  const layerCount = getLayerCount(circuitJson)
 
   // Start sequence commands
   builder.add("M48", {})
@@ -35,7 +199,11 @@ export const convertSoupToExcellonDrillCommands = ({
     })
     .add("header_attribute", {
       attribute_name: "TF.FileFunction",
-      attribute_value: is_plated ? "Plated,1,2,PTH" : "NonPlated,1,2,NPTH",
+      attribute_value: getFileFunctionLayerSpan({
+        circuitJson,
+        is_plated,
+        layer_span,
+      }),
     })
     .add("FMAT", { format: 2 }) // Assuming format 2 for the example
     .add("unit_format", { unit: "METRIC", lz: null })
@@ -47,16 +215,12 @@ export const convertSoupToExcellonDrillCommands = ({
   // Define tools
   for (const element of circuitJson) {
     if (
-      element.type !== "pcb_plated_hole" &&
-      element.type !== "pcb_hole" &&
-      element.type !== "pcb_via"
-    ) {
-      continue
-    }
-
-    if (
-      !is_plated &&
-      (element.type === "pcb_plated_hole" || element.type === "pcb_via")
+      !shouldIncludeElement({
+        element,
+        is_plated,
+        layer_span,
+        layerCount,
+      })
     ) {
       continue
     }
@@ -102,8 +266,12 @@ export const convertSoupToExcellonDrillCommands = ({
         element.type === "pcb_via"
       ) {
         if (
-          !is_plated &&
-          (element.type === "pcb_plated_hole" || element.type === "pcb_via")
+          !shouldIncludeElement({
+            element,
+            is_plated,
+            layer_span,
+            layerCount,
+          })
         ) {
           continue
         }
@@ -218,4 +386,72 @@ export const convertSoupToExcellonDrillCommands = ({
   builder.add("M30", {})
 
   return builder.build()
+}
+
+const getDrillLayerSpanKey = (span: DrillLayerSpan, layerCount: number) => {
+  const normalizedSpan = normalizeLayerSpan(span, layerCount)
+  return `L${getLayerNumber(normalizedSpan.from_layer, layerCount)}-L${getLayerNumber(normalizedSpan.to_layer, layerCount)}`
+}
+
+const hasDrillGeometry = (element: AnyCircuitElement) => {
+  if ("hole_diameter" in element && typeof element.hole_diameter === "number") {
+    return true
+  }
+
+  return (
+    "hole_width" in element &&
+    typeof element.hole_width === "number" &&
+    "hole_height" in element &&
+    typeof element.hole_height === "number"
+  )
+}
+
+export const convertSoupToExcellonDrillCommandLayers = ({
+  circuitJson,
+  flip_y_axis = false,
+}: {
+  circuitJson: Array<AnyCircuitElement>
+  flip_y_axis?: boolean
+}): Record<string, Array<AnyExcellonDrillCommand>> => {
+  const layerCount = getLayerCount(circuitJson)
+  const platedSpans = new Map(
+    circuitJson.flatMap((element): Array<[string, DrillLayerSpan]> => {
+      const span = getPlatedElementLayerSpan(element, layerCount)
+      if (!span) {
+        return []
+      }
+      return [[getDrillLayerSpanKey(span, layerCount), span]]
+    }),
+  )
+  const platedDrillLayers = Object.fromEntries(
+    [...platedSpans.entries()].sort().map(([spanKey, span]) => [
+      `drill-${spanKey}.drl`,
+      convertSoupToExcellonDrillCommands({
+        circuitJson,
+        is_plated: true,
+        flip_y_axis,
+        layer_span: span,
+      }),
+    ]),
+  )
+  const hasNonPlatedDrill = circuitJson.some((element) => {
+    if (element.type !== "pcb_hole") {
+      return false
+    }
+
+    return hasDrillGeometry(element)
+  })
+
+  if (!hasNonPlatedDrill) {
+    return platedDrillLayers
+  }
+
+  return {
+    ...platedDrillLayers,
+    "drill_npth.drl": convertSoupToExcellonDrillCommands({
+      circuitJson,
+      is_plated: false,
+      flip_y_axis,
+    }),
+  }
 }
