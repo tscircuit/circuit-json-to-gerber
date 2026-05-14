@@ -447,10 +447,9 @@ async function toMatchGerberSnapshot(
   testPathOriginal: string,
   svgName?: string,
 ) {
-  const slots = [
-    ...parseDrillSlots(gerberOutput["drill.drl"]),
-    ...parseDrillSlots(gerberOutput["drill_npth.drl"]),
-  ]
+  const slots = Object.entries(gerberOutput)
+    .filter(([filename]) => filename.endsWith(".drl"))
+    .flatMap(([, drill]) => parseDrillSlots(drill))
 
   const pasteRotations = {
     top: parsePastePillRotations(gerberOutput["F_Paste"]),
