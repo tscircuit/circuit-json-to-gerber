@@ -39,6 +39,6 @@ test("smtpad soldermask margin expands the mask opening", async () => {
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
     "smtpad-soldermask-margin-repro",
-    ["F_Cu", "F_Mask"],
+    ["F_Mask", "F_Cu"],
   )
 })
