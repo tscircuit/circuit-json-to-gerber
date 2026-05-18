@@ -7,6 +7,7 @@ import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromCirclePcbHoleSoldermask,
   getApertureConfigFromPcbCopperText,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
@@ -1042,7 +1043,7 @@ export const convertSoupToGerberCommands = (
                 .add("select_aperture", {
                   aperture_number: findApertureNumber(
                     glayer,
-                    getApertureConfigFromCirclePcbHole(element),
+                    getApertureConfigFromCirclePcbHoleSoldermask(element),
                   ),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })

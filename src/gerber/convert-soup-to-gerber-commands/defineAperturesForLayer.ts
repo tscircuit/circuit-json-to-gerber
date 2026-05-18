@@ -323,6 +323,24 @@ export const getApertureConfigFromCirclePcbHole = (
   }
 }
 
+export const getApertureConfigFromCirclePcbHoleSoldermask = (
+  elm: PcbHole,
+): ApertureTemplateConfig => {
+  if (!("hole_diameter" in elm)) {
+    throw new Error(
+      `Invalid shape called in getApertureConfigFromCirclePcbHoleSoldermask: ${elm.hole_shape}`,
+    )
+  }
+  let soldermaskMargin = 0
+  if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
+    soldermaskMargin = elm.soldermask_margin
+  }
+  return {
+    standard_template_code: "C",
+    diameter: elm.hole_diameter + soldermaskMargin * 2,
+  }
+}
+
 export const getApertureConfigFromOuterDiameter = (elm: {
   outer_diameter?: number
 }): ApertureTemplateConfig => {
@@ -397,9 +415,14 @@ function getAllApertureTemplateConfigsForLayer({
       ) {
         continue
       }
-      if (elm.hole_shape === "circle")
-        addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
-      else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
+      if (elm.hole_shape === "circle") {
+        if (isSoldermaskLayer) {
+          addConfigIfNew(getApertureConfigFromCirclePcbHoleSoldermask(elm))
+        } else {
+          addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
+        }
+      } else
+        console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
       addConfigIfNew(getApertureConfigFromOuterDiameter(elm))
     } else if (elm.type === "pcb_trace") {
