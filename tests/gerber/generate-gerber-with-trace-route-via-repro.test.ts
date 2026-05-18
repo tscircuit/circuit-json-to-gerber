@@ -47,7 +47,7 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: trace route vias do not emit via pads, drill hits, or following layer segments", async () => {
+test("trace route vias emit via pads, drill hits, and following layer segments", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -60,10 +60,10 @@ test("repro: trace route vias do not emit via pads, drill hits, or following lay
 
   expect(gerberOutput.F_Cu).toContain("X-04000000Y000000000D02*")
   expect(gerberOutput.F_Cu).toContain("X000000000Y000000000D01*")
-  expect(gerberOutput.F_Cu).not.toContain("X000000000Y000000000D03*")
-  expect(gerberOutput.B_Cu).not.toContain("X000000000Y000000000D03*")
-  expect(gerberOutput.B_Cu).not.toContain("X004000000Y000000000D01*")
-  expect(drillOutput).not.toContain("X0.0000Y0.0000")
+  expect(gerberOutput.F_Cu).toContain("X000000000Y000000000D03*")
+  expect(gerberOutput.B_Cu).toContain("X000000000Y000000000D03*")
+  expect(gerberOutput.B_Cu).toContain("X004000000Y000000000D01*")
+  expect(drillOutput).toContain("X0.0000Y0.0000")
 
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
