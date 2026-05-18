@@ -163,6 +163,47 @@ const getFileFunctionLayerSpan = ({
   return `Plated,${getLayerNumber(span.from_layer, layerCount)},${getLayerNumber(span.to_layer, layerCount)},PTH`
 }
 
+const getTraceRouteViaElements = (
+  circuitJson: Array<AnyCircuitElement>,
+): Array<AnyCircuitElement> => {
+  const routeVias: Array<AnyCircuitElement> = []
+
+  for (const element of circuitJson) {
+    if (element.type !== "pcb_trace") {
+      continue
+    }
+
+    for (const [index, point] of element.route.entries()) {
+      if (
+        point.route_type !== "via" ||
+        typeof point.hole_diameter !== "number" ||
+        typeof point.outer_diameter !== "number"
+      ) {
+        continue
+      }
+
+      routeVias.push({
+        type: "pcb_via",
+        pcb_via_id: `${element.pcb_trace_id}_route_via_${index}`,
+        x: point.x,
+        y: point.y,
+        hole_diameter: point.hole_diameter,
+        outer_diameter: point.outer_diameter,
+        from_layer: point.from_layer,
+        to_layer: point.to_layer,
+        layers: [point.from_layer, point.to_layer],
+      })
+    }
+  }
+
+  return routeVias
+}
+
+const getDrillableElements = (circuitJson: Array<AnyCircuitElement>) => [
+  ...circuitJson,
+  ...getTraceRouteViaElements(circuitJson),
+]
+
 export const convertSoupToExcellonDrillCommands = ({
   circuitJson,
   is_plated,
@@ -176,6 +217,7 @@ export const convertSoupToExcellonDrillCommands = ({
 }): Array<AnyExcellonDrillCommand> => {
   const builder = excellonDrill()
   const layerCount = getLayerCount(circuitJson)
+  const drillableElements = getDrillableElements(circuitJson)
 
   // Start sequence commands
   builder.add("M48", {})
@@ -213,7 +255,7 @@ export const convertSoupToExcellonDrillCommands = ({
   const diameterToToolNumber: Record<number, number> = {}
 
   // Define tools
-  for (const element of circuitJson) {
+  for (const element of drillableElements) {
     if (
       !shouldIncludeElement({
         element,
@@ -259,7 +301,7 @@ export const convertSoupToExcellonDrillCommands = ({
   // --------------------
   for (let i = 10; i < tool_counter; i++) {
     builder.add("use_tool", { tool_number: i })
-    for (const element of circuitJson) {
+    for (const element of drillableElements) {
       if (
         element.type === "pcb_plated_hole" ||
         element.type === "pcb_hole" ||
@@ -415,13 +457,15 @@ export const convertSoupToExcellonDrillCommandLayers = ({
 }): Record<string, Array<AnyExcellonDrillCommand>> => {
   const layerCount = getLayerCount(circuitJson)
   const platedSpans = new Map(
-    circuitJson.flatMap((element): Array<[string, DrillLayerSpan]> => {
-      const span = getPlatedElementLayerSpan(element, layerCount)
-      if (!span) {
-        return []
-      }
-      return [[getDrillLayerSpanKey(span, layerCount), span]]
-    }),
+    getDrillableElements(circuitJson).flatMap(
+      (element): Array<[string, DrillLayerSpan]> => {
+        const span = getPlatedElementLayerSpan(element, layerCount)
+        if (!span) {
+          return []
+        }
+        return [[getDrillLayerSpanKey(span, layerCount), span]]
+      },
+    ),
   )
   const platedDrillLayers = Object.fromEntries(
     [...platedSpans.entries()].sort().map(([spanKey, span]) => [
