@@ -757,11 +757,7 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
           ]
 
-          // Add to soldermask layer unless explicitly covered
-          if (
-            !("is_covered_with_solder_mask" in element) ||
-            element.is_covered_with_solder_mask !== false
-          ) {
+          if (element.is_covered_with_solder_mask !== true) {
             layers_to_add_to.push(
               glayers[getGerberLayerName(layer, "soldermask")],
             )
