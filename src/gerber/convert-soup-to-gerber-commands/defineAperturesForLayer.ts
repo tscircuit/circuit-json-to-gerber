@@ -383,6 +383,12 @@ function getAllApertureTemplateConfigsForLayer({
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
+        if (
+          glayer_name.endsWith("_Mask") &&
+          elm.is_covered_with_solder_mask === true
+        ) {
+          continue
+        }
         addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
       }
     } else if (elm.type === "pcb_hole") {

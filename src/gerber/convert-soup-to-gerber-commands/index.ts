@@ -820,7 +820,10 @@ export const convertSoupToGerberCommands = (
           const layersToAddTo = [
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
-          if (outerLayerRefs.includes(layer as any)) {
+          if (
+            outerLayerRefs.includes(layer as any) &&
+            element.is_covered_with_solder_mask !== true
+          ) {
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
           }
           for (const glayer of layersToAddTo) {
