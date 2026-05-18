@@ -74,10 +74,11 @@ export function defineAperturesForLayer({
   }
 
   // Add all pcb smtpad, plated hole etc. aperatures
-  const apertureConfigs = getAllApertureTemplateConfigsForLayer(
+  const apertureConfigs = getAllApertureTemplateConfigsForLayer({
     circuitJson,
-    layerRef,
-  )
+    layer: layerRef,
+    glayer_name,
+  })
 
   for (const apertureConfig of apertureConfigs) {
     glayer.push(
@@ -124,6 +125,40 @@ export const getApertureConfigFromPcbSmtpad = (
   }
   if (elm.shape === "polygon") {
     // Polygon shapes don't use apertures - they're drawn as regions
+    throw new Error("Polygon SMT pads are drawn as regions, not apertures")
+  }
+  throw new Error(`Unsupported shape ${(elm as any).shape}`)
+}
+
+export const getApertureConfigFromPcbSmtpadSoldermask = (
+  elm: PCBSMTPad,
+): ApertureTemplateConfig => {
+  let soldermaskMargin = 0
+  if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
+    soldermaskMargin = elm.soldermask_margin
+  }
+
+  if (elm.shape === "rect") {
+    return {
+      standard_template_code: "R",
+      x_size: elm.width + soldermaskMargin * 2,
+      y_size: elm.height + soldermaskMargin * 2,
+    }
+  }
+  if (elm.shape === "circle") {
+    return {
+      standard_template_code: "C",
+      diameter: elm.radius * 2 + soldermaskMargin * 2,
+    }
+  }
+  if (elm.shape === "rotated_rect") {
+    return {
+      standard_template_code: "R",
+      x_size: elm.width + soldermaskMargin * 2,
+      y_size: elm.height + soldermaskMargin * 2,
+    }
+  }
+  if (elm.shape === "polygon") {
     throw new Error("Polygon SMT pads are drawn as regions, not apertures")
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
@@ -303,12 +338,18 @@ export const getApertureConfigFromPcbVia = (
   }
 }
 
-function getAllApertureTemplateConfigsForLayer(
-  circuitJson: AnyCircuitElement[],
-  layer: LayerRef,
-): ApertureTemplateConfig[] {
+function getAllApertureTemplateConfigsForLayer({
+  circuitJson,
+  layer,
+  glayer_name,
+}: {
+  circuitJson: AnyCircuitElement[]
+  layer: LayerRef
+  glayer_name: GerberLayerName
+}): ApertureTemplateConfig[] {
   const configs: ApertureTemplateConfig[] = []
   const configHashMap = new Set<string>()
+  const isSoldermaskLayer = glayer_name.endsWith("_Mask")
 
   const addConfigIfNew = (config: ApertureTemplateConfig) => {
     const hash = stableStringify(config)
@@ -321,7 +362,11 @@ function getAllApertureTemplateConfigsForLayer(
   for (const elm of circuitJson) {
     if (elm.type === "pcb_smtpad") {
       if (elm.layer === layer && elm.shape !== "polygon") {
-        addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+        if (isSoldermaskLayer) {
+          addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
+        } else {
+          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+        }
       }
     } else if (elm.type === "pcb_solder_paste") {
       if (elm.layer === layer) {
