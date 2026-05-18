@@ -34,7 +34,7 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: untented vias do not emit soldermask openings", () => {
+test("untented vias emit soldermask openings", () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -44,8 +44,8 @@ test("repro: untented vias do not emit soldermask openings", () => {
   expect(gerberOutput.F_Cu).toContain("X002000000Y000000000D03*")
   expect(gerberOutput.B_Cu).toContain("X002000000Y000000000D03*")
 
-  expect(gerberOutput.F_Mask).not.toContain("X-02000000Y000000000D03*")
-  expect(gerberOutput.B_Mask).not.toContain("X-02000000Y000000000D03*")
+  expect(gerberOutput.F_Mask).toContain("X-02000000Y000000000D03*")
+  expect(gerberOutput.B_Mask).toContain("X-02000000Y000000000D03*")
   expect(gerberOutput.F_Mask).not.toContain("X002000000Y000000000D03*")
   expect(gerberOutput.B_Mask).not.toContain("X002000000Y000000000D03*")
 })

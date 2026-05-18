@@ -1009,7 +1009,16 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_via") {
         if (element.layers.includes(layer as any)) {
-          for (const glayer of [glayers[getGerberLayerName(layer, "copper")]]) {
+          const layersToAddTo = [
+            glayers[getGerberLayerName(layer, "copper")],
+          ] as AnyGerberCommand[][]
+          if (
+            element.is_tented === false &&
+            outerLayerRefs.includes(layer as any)
+          ) {
+            layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
+          }
+          for (const glayer of layersToAddTo) {
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
