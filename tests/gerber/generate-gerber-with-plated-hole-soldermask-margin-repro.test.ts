@@ -25,15 +25,15 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: plated hole soldermask margin is not applied to the mask opening", async () => {
+test("plated hole soldermask margin is applied to the mask opening", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
 
   expect(gerberOutput.F_Cu).toContain("%ADD10C,1.400000*%")
   expect(gerberOutput.F_Cu).toContain("X000000000Y000000000D03*")
-  expect(gerberOutput.F_Mask).toContain("%ADD10C,1.400000*%")
-  expect(gerberOutput.F_Mask).not.toContain("%ADD10C,1.800000*%")
+  expect(gerberOutput.F_Mask).toContain("%ADD10C,1.800000*%")
+  expect(gerberOutput.F_Mask).not.toContain("%ADD10C,1.400000*%")
   expect(gerberOutput.F_Mask).toContain("X000000000Y000000000D03*")
 
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(

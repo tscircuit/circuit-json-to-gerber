@@ -309,6 +309,77 @@ export const getApertureConfigFromPcbPlatedHole = (
   )
 }
 
+export const getApertureConfigFromPcbPlatedHoleSoldermask = (
+  elm: PCBPlatedHole,
+): ApertureTemplateConfig => {
+  let soldermaskMargin = 0
+  if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
+    soldermaskMargin = elm.soldermask_margin
+  }
+
+  if (elm.shape === "circle") {
+    if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
+      throw new Error(
+        "Invalid circle shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing diameters",
+      )
+    }
+    return {
+      standard_template_code: "C",
+      diameter: elm.outer_diameter + soldermaskMargin * 2,
+    }
+  }
+
+  if (elm.shape === "pill") {
+    if (!("outer_width" in elm && "outer_height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing dimensions",
+      )
+    }
+
+    const outerWidth = elm.outer_width + soldermaskMargin * 2
+    const outerHeight = elm.outer_height + soldermaskMargin * 2
+
+    if (outerWidth > outerHeight) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: outerWidth,
+        y_size: outerHeight,
+        circle_diameter: Math.min(outerWidth, outerHeight),
+        circle_center_offset: outerWidth / 2,
+      }
+    }
+    return {
+      macro_name: "VERTPILL",
+      x_size: outerWidth,
+      y_size: outerHeight,
+      circle_diameter: Math.min(outerWidth, outerHeight),
+      circle_center_offset: outerHeight / 2,
+    }
+  }
+
+  const shape = elm.shape
+  if (
+    shape === "circular_hole_with_rect_pad" ||
+    shape === "pill_hole_with_rect_pad" ||
+    shape === "rotated_pill_hole_with_rect_pad"
+  ) {
+    if (!("rect_pad_width" in elm && "rect_pad_height" in elm)) {
+      throw new Error(
+        `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing dimensions`,
+      )
+    }
+    return {
+      standard_template_code: "R",
+      x_size: elm.rect_pad_width + soldermaskMargin * 2,
+      y_size: elm.rect_pad_height + soldermaskMargin * 2,
+    }
+  }
+
+  throw new Error(
+    `Unsupported shape in getApertureConfigFromPcbPlatedHoleSoldermask: ${elm.shape}`,
+  )
+}
+
 export const getApertureConfigFromCirclePcbHole = (
   elm: PcbHole,
 ): ApertureTemplateConfig => {
@@ -406,7 +477,11 @@ function getAllApertureTemplateConfigsForLayer({
         ) {
           continue
         }
-        addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+        if (isSoldermaskLayer) {
+          addConfigIfNew(getApertureConfigFromPcbPlatedHoleSoldermask(elm))
+        } else {
+          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+        }
       }
     } else if (elm.type === "pcb_hole") {
       if (
