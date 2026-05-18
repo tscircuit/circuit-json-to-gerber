@@ -12,7 +12,7 @@ import {
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSolderPaste,
-  getApertureConfigFromPcbVia,
+  getApertureConfigFromOuterDiameter,
 } from "./defineAperturesForLayer"
 import type { PcbCutout } from "circuit-json"
 import { findApertureNumber } from "./findApertureNumber"
@@ -664,7 +664,7 @@ export const convertSoupToGerberCommands = (
                 .add("select_aperture", {
                   aperture_number: findApertureNumber(
                     glayer,
-                    getApertureConfigFromPcbVia(point),
+                    getApertureConfigFromOuterDiameter(point),
                   ),
                 })
                 .add("flash_operation", { x: point.x, y: mfy(point.y) })
@@ -1059,7 +1059,7 @@ export const convertSoupToGerberCommands = (
                 .add("select_aperture", {
                   aperture_number: findApertureNumber(
                     glayer,
-                    getApertureConfigFromPcbVia(element),
+                    getApertureConfigFromOuterDiameter(element),
                   ),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })

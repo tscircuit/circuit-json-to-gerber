@@ -288,12 +288,12 @@ export const getApertureConfigFromCirclePcbHole = (
   }
 }
 
-export const getApertureConfigFromPcbVia = (elm: {
+export const getApertureConfigFromOuterDiameter = (elm: {
   outer_diameter?: number
 }): ApertureTemplateConfig => {
   if (typeof elm.outer_diameter !== "number") {
     throw new Error(
-      "outer_diameter not specified in getApertureConfigFromPcbVia",
+      "outer_diameter not specified in getApertureConfigFromOuterDiameter",
     )
   }
   return {
@@ -344,7 +344,7 @@ function getAllApertureTemplateConfigsForLayer(
         addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
       else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
-      addConfigIfNew(getApertureConfigFromPcbVia(elm))
+      addConfigIfNew(getApertureConfigFromOuterDiameter(elm))
     } else if (elm.type === "pcb_trace") {
       for (const point of elm.route) {
         if (
@@ -352,7 +352,7 @@ function getAllApertureTemplateConfigsForLayer(
           typeof point.outer_diameter === "number" &&
           (point.from_layer === layer || point.to_layer === layer)
         ) {
-          addConfigIfNew(getApertureConfigFromPcbVia(point))
+          addConfigIfNew(getApertureConfigFromOuterDiameter(point))
         }
       }
     } else if (elm.type === "pcb_silkscreen_path")
