@@ -11,6 +11,7 @@ import {
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
+  getApertureConfigFromPcbSmtpadSoldermask,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromOuterDiameter,
 } from "./defineAperturesForLayer"
@@ -719,11 +720,16 @@ export const convertSoupToGerberCommands = (
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
-          for (const glayer of [
-            glayers[getGerberLayerName(layer, "copper")],
-            glayers[getGerberLayerName(layer, "soldermask")],
+          for (const { glayer, apertureConfig } of [
+            {
+              glayer: glayers[getGerberLayerName(layer, "copper")],
+              apertureConfig: getApertureConfigFromPcbSmtpad(element),
+            },
+            {
+              glayer: glayers[getGerberLayerName(layer, "soldermask")],
+              apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
+            },
           ]) {
-            const apertureConfig = getApertureConfigFromPcbSmtpad(element)
             const apertureNumber = findApertureNumber(glayer, apertureConfig)
             const gb = gerberBuilder().add("select_aperture", {
               aperture_number: apertureNumber,
@@ -849,7 +855,10 @@ export const convertSoupToGerberCommands = (
           const layersToAddTo = [
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
-          if (outerLayerRefs.includes(layer as any)) {
+          if (
+            outerLayerRefs.includes(layer as any) &&
+            element.is_covered_with_solder_mask !== true
+          ) {
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
           }
           for (const glayer of layersToAddTo) {
@@ -1019,7 +1028,10 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_hole") {
-        if (outerLayerRefs.includes(layer as any)) {
+        if (
+          outerLayerRefs.includes(layer as any) &&
+          element.is_covered_with_solder_mask !== true
+        ) {
           for (const glayer of [
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
