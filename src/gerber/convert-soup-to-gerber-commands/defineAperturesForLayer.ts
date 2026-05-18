@@ -392,6 +392,12 @@ function getAllApertureTemplateConfigsForLayer({
         addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
       }
     } else if (elm.type === "pcb_hole") {
+      if (
+        glayer_name.endsWith("_Mask") &&
+        elm.is_covered_with_solder_mask === true
+      ) {
+        continue
+      }
       if (elm.hole_shape === "circle")
         addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
       else console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")

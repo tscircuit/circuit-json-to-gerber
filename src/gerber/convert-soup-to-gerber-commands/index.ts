@@ -993,7 +993,10 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_hole") {
-        if (outerLayerRefs.includes(layer as any)) {
+        if (
+          outerLayerRefs.includes(layer as any) &&
+          element.is_covered_with_solder_mask !== true
+        ) {
           for (const glayer of [
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
