@@ -7,6 +7,7 @@ import {
   defineAperturesForLayer,
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbPlatedHoleSoldermask,
   getApertureConfigFromCirclePcbHoleSoldermask,
   getApertureConfigFromPcbCopperText,
   getApertureConfigFromPcbSilkscreenPath,
@@ -996,12 +997,22 @@ export const convertSoupToGerberCommands = (
               glayer.push(...gb.build())
             } else {
               // Non-pill shapes (rect, circle)
-              const apertureConfig = getApertureConfigFromPcbPlatedHole({
+              const soldermaskGlayer =
+                glayers[getGerberLayerName(layer, "soldermask")]
+              let apertureConfig = getApertureConfigFromPcbPlatedHole({
                 ...element,
                 ...(element.shape !== "circle"
                   ? { outer_width: padW, outer_height: padH }
                   : {}),
               })
+              if (glayer === soldermaskGlayer) {
+                apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask({
+                  ...element,
+                  ...(element.shape !== "circle"
+                    ? { outer_width: padW, outer_height: padH }
+                    : {}),
+                })
+              }
               const rotation =
                 "rect_ccw_rotation" in element &&
                 typeof element.rect_ccw_rotation === "number" &&
