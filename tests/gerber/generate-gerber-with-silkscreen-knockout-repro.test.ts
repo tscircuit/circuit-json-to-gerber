@@ -13,16 +13,6 @@ const circuitJson = [
     num_layers: 2,
   },
   {
-    type: "pcb_silkscreen_path",
-    pcb_silkscreen_path_id: "silk_line_under_text",
-    layer: "top",
-    stroke_width: 0.8,
-    route: [
-      { x: -8, y: 0 },
-      { x: 8, y: 0 },
-    ],
-  },
-  {
     type: "pcb_silkscreen_text",
     pcb_silkscreen_text_id: "silk_knockout_text",
     text: "knockout",
@@ -48,9 +38,17 @@ test.failing(
       convertSoupToGerberCommands(circuitJson),
     )
 
-    await expect(gerberOutput).toMatchGerberSnapshot(
+    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
       import.meta.path,
       "silkscreen-knockout-repro",
+      circuitJson,
+      ["F_SilkScreen"],
+      {
+        colors: {
+          F_SilkScreen: "#f3f3f3",
+        },
+        backgroundColor: "#111111",
+      },
     )
 
     expect(gerberOutput.F_SilkScreen).toContain("%LPC*%")

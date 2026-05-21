@@ -8,39 +8,34 @@ const circuitJson = [
     type: "pcb_board",
     pcb_board_id: "pcb_board_0",
     center: { x: 0, y: 0 },
-    width: 10,
-    height: 8,
+    width: 12,
+    height: 10,
     num_layers: 2,
   },
   {
-    type: "pcb_smtpad",
-    pcb_smtpad_id: "pill_pad",
-    layer: "top",
-    shape: "pill",
-    width: 2.4,
-    height: 1.1,
-    radius: 0.55,
-    x: -2,
+    type: "pcb_plated_hole",
+    pcb_plated_hole_id: "polygon_plated_hole",
+    shape: "hole_with_polygon_pad",
+    hole_shape: "circle",
+    hole_diameter: 0.9,
+    pad_outline: [
+      { x: -1.8, y: -1.2 },
+      { x: 1.7, y: -1.2 },
+      { x: 2.2, y: 0.3 },
+      { x: 0.4, y: 1.8 },
+      { x: -2, y: 0.7 },
+    ],
+    hole_offset_x: 0,
+    hole_offset_y: 0,
+    x: 0,
     y: 0,
-    is_covered_with_solder_mask: false,
-  } as AnyCircuitElement,
-  {
-    type: "pcb_smtpad",
-    pcb_smtpad_id: "rotated_pill_pad",
-    layer: "top",
-    shape: "rotated_pill",
-    width: 2.4,
-    height: 1.1,
-    radius: 0.55,
-    x: 2,
-    y: 0,
-    ccw_rotation: 90,
+    layers: ["top", "bottom"],
     is_covered_with_solder_mask: false,
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
 test.failing(
-  "repro: pill and rotated pill smtpads render copper without throwing",
+  "repro: plated holes with polygon pads render copper regions",
   async () => {
     const getGerberOutput = () =>
       stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
@@ -57,7 +52,7 @@ test.failing(
     if (gerberError) {
       await expect(circuitJson).toMatchCircuitJsonPcbAndMessageSnapshot(
         import.meta.path,
-        "rotated-pill-smtpad-repro",
+        "polygon-plated-hole-support-repro",
         ["Gerber generation currently throws:", gerberError],
         {
           messageLabel: "Current failure",
@@ -69,20 +64,19 @@ test.failing(
 
     gerberOutput ??= getGerberOutput()
 
-    expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
-    expect(gerberOutput.F_Cu).toMatch(/D03\*|G36\*/)
+    expect(gerberOutput.F_Cu).toContain("G36*")
+    expect(gerberOutput.F_Cu).toContain("G37*")
+    expect(gerberOutput.B_Cu).toContain("G36*")
+    expect(gerberOutput.B_Cu).toContain("G37*")
+
+    expect(gerberOutput.F_Cu).toContain("X-01800000Y-01200000D02*")
+    expect(gerberOutput.F_Cu).toContain("X002200000Y000300000D01*")
 
     await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
       import.meta.path,
-      "rotated-pill-smtpad-repro",
+      "polygon-plated-hole-support-repro",
       circuitJson,
-      ["F_Cu"],
-      {
-        colors: {
-          F_Cu: "#c83434",
-        },
-        backgroundColor: "#111111",
-      },
+      ["F_Cu", "B_Cu"],
     )
   },
 )

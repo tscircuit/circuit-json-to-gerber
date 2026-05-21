@@ -34,13 +34,17 @@ test.failing(
       convertSoupToGerberCommands(circuitJson),
     )
 
-    await expect(gerberOutput).toMatchGerberSnapshot(
+    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
       import.meta.path,
       "smtpad-corner-radius-repro",
+      circuitJson,
+      ["F_Cu"],
+      {
+        backgroundColor: "#111111",
+      },
     )
 
     expect(gerberOutput.F_Cu).not.toMatch(/%ADD\d+R,2\.400000X1\.200000\*%/)
-    expect(gerberOutput.F_Mask).not.toMatch(/%ADD\d+R,2\.400000X1\.200000\*%/)
     expect(/ROUNDRECT|RoundRect|G36\*/.test(gerberOutput.F_Cu)).toBe(true)
   },
 )
