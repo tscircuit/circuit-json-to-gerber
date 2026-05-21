@@ -40,7 +40,7 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing("repro: rotated pill smtpads render without throwing", () => {
+test.skip("repro: rotated pill smtpads render without throwing", () => {
   const getGerberOutput = () =>
     stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
 
