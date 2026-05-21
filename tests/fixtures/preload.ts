@@ -526,7 +526,9 @@ const getGerberStackupSvg = async (
     }
   }
 
-  const hasTopLayers = layerNames.some((layerName) => layerName.startsWith("F_"))
+  const hasTopLayers = layerNames.some((layerName) =>
+    layerName.startsWith("F_"),
+  )
   const hasBottomLayers = layerNames.some((layerName) =>
     layerName.startsWith("B_"),
   )
