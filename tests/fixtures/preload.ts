@@ -1,5 +1,7 @@
 import "bun-match-svg"
 import { expect } from "bun:test"
+import type { AnyCircuitElement } from "circuit-json"
+import { convertCircuitJsonToPcbSvg, type PcbSvgOptions } from "circuit-to-svg"
 import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
 import { Readable } from "stream"
@@ -21,6 +23,19 @@ type GerberLayerOverlaySnapshotOptions = {
   backgroundColor?: string
 }
 
+type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
+  circuitJsonPcbSvgOptions?: PcbSvgOptions
+  circuitJsonLabel?: string
+  gerberLabel?: string
+}
+
+type CircuitJsonPcbMessageSnapshotOptions = {
+  circuitJsonPcbSvgOptions?: PcbSvgOptions
+  circuitJsonLabel?: string
+  messageLabel?: string
+  messageColor?: string
+}
+
 const kicadCopperLayerColors: Record<string, string> = {
   F_Cu: "#c83434",
   In1_Cu: "#7fc97f",
@@ -31,6 +46,8 @@ const kicadCopperLayerColors: Record<string, string> = {
   In6_Cu: "#c9c97f",
   B_Cu: "#4d7fc4",
 }
+
+const isDrillLayerName = (layerName: string) => layerName.endsWith(".drl")
 
 const toMicrons = (valueMm: number) => valueMm * 1000
 
@@ -256,6 +273,22 @@ const injectPasteRotation = (
   })
 }
 
+const injectSoldermaskBackdrop = (svg: string) => {
+  if (/_soldermask"/.test(svg)) return svg
+
+  const svgId = svg.match(/\bid="([^"]+)"/)?.[1]
+  const viewBox = parseSvgViewBox(svg)
+  if (!svgId || !viewBox) return svg
+
+  const stackupPrefix = svgId.replace(/_(top|bottom)$/, "")
+  const fr4Rect = `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="currentColor" class="${stackupPrefix}_fr4"/>`
+  const soldermaskRect = `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="currentColor" class="${stackupPrefix}_sm"/>`
+
+  if (!svg.includes(fr4Rect)) return svg
+
+  return svg.replace(fr4Rect, `${fr4Rect}${soldermaskRect}`)
+}
+
 const renderGerberLayerSvg = (
   gerber: string,
   id: string,
@@ -298,6 +331,90 @@ const parseSvgViewBox = (svg: string) => {
   }
 
   return { x, y, width, height }
+}
+
+const parseSvgDimension = (value?: string) => {
+  if (!value) return undefined
+  const numericValue = Number(value.match(/-?[\d.]+/)?.[0] ?? "")
+  if (!Number.isFinite(numericValue) || numericValue <= 0) return undefined
+  return numericValue
+}
+
+const parseSvgIntrinsicSize = (svg: string) => {
+  const rootTag = svg.match(/<svg\b([^>]*)>/)?.[1] ?? ""
+  const width = parseSvgDimension(rootTag.match(/\bwidth="([^"]+)"/)?.[1])
+  const height = parseSvgDimension(rootTag.match(/\bheight="([^"]+)"/)?.[1])
+  const viewBox = parseSvgViewBox(svg)
+
+  return {
+    width: width ?? viewBox?.width ?? 800,
+    height: height ?? viewBox?.height ?? 600,
+  }
+}
+
+const escapeXml = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+
+const wrapTextLines = (input: string, maxCharsPerLine = 40) => {
+  const sourceLines = input.split("\n")
+  const wrappedLines: string[] = []
+
+  for (const sourceLine of sourceLines) {
+    const words = sourceLine.trim().split(/\s+/).filter(Boolean)
+    if (words.length === 0) {
+      wrappedLines.push("")
+      continue
+    }
+
+    let currentLine = words[0]
+    for (const word of words.slice(1)) {
+      const candidate = `${currentLine} ${word}`
+      if (candidate.length <= maxCharsPerLine) {
+        currentLine = candidate
+      } else {
+        wrappedLines.push(currentLine)
+        currentLine = word
+      }
+    }
+    wrappedLines.push(currentLine)
+  }
+
+  return wrappedLines
+}
+
+const positionSvg = ({
+  svg,
+  x,
+  y,
+  width,
+  height,
+}: {
+  svg: string
+  x: number
+  y: number
+  width: number
+  height: number
+}) => {
+  const viewBox = parseSvgViewBox(svg)
+  const intrinsicSize = parseSvgIntrinsicSize(svg)
+  const rootTagMatch = svg.match(/<svg\b[^>]*>/)
+
+  if (!rootTagMatch) {
+    throw new Error("Could not find root <svg> tag while stacking snapshots")
+  }
+
+  const positionedRootTag = rootTagMatch[0]
+    .replace(/\s(?:x|y|width|height|preserveAspectRatio|viewBox)="[^"]*"/g, "")
+    .replace(
+      "<svg",
+      `<svg x="${x}" y="${y}" width="${width}" height="${height}" preserveAspectRatio="xMidYMid meet" viewBox="${viewBox?.x ?? 0} ${viewBox?.y ?? 0} ${viewBox?.width ?? intrinsicSize.width} ${viewBox?.height ?? intrinsicSize.height}"`,
+    )
+
+  return svg.replace(rootTagMatch[0], positionedRootTag)
 }
 
 const getUnionViewBox = (
@@ -399,6 +516,220 @@ const renderGerberLayerOverlaySvg = async (
   ].join("")
 }
 
+const getGerberStackupSvg = async (
+  gerberOutput: Record<string, string>,
+  layerNames: string[],
+) => {
+  for (const layerName of layerNames) {
+    if (!gerberOutput[layerName]) {
+      throw new Error(`No Gerber output found for layer "${layerName}"`)
+    }
+  }
+
+  const hasTopLayers = layerNames.some((layerName) =>
+    layerName.startsWith("F_"),
+  )
+  const hasBottomLayers = layerNames.some((layerName) =>
+    layerName.startsWith("B_"),
+  )
+  const contextualLayerNames = [
+    ...(hasTopLayers && gerberOutput.F_Mask ? ["F_Mask"] : []),
+    ...(hasBottomLayers && gerberOutput.B_Mask ? ["B_Mask"] : []),
+  ]
+
+  const stackupLayerNames = [
+    ...new Set([
+      ...layerNames,
+      ...contextualLayerNames,
+      ...(gerberOutput.Edge_Cuts ? ["Edge_Cuts"] : []),
+      ...Object.keys(gerberOutput).filter(isDrillLayerName),
+    ]),
+  ]
+
+  const layers = stackupLayerNames.map((filename) => ({
+    filename,
+    gerber: Readable.from(gerberOutput[filename]),
+  }))
+
+  const slots = Object.entries(gerberOutput)
+    .filter(([filename]) => isDrillLayerName(filename))
+    .flatMap(([, drill]) => parseDrillSlots(drill))
+
+  const pasteRotations = {
+    top: parsePastePillRotations(gerberOutput["F_Paste"]),
+    bottom: parsePastePillRotations(gerberOutput["B_Paste"]),
+  }
+  const shouldShowSoldermaskContext = contextualLayerNames.length > 0
+
+  const stackup = await pcbStackup(layers)
+  const prefersBottomView =
+    layerNames.some((layerName) => layerName.startsWith("B_")) &&
+    !layerNames.some((layerName) => layerName.startsWith("F_"))
+  const stackupView = prefersBottomView ? stackup.bottom : stackup.top
+
+  if (!stackupView?.svg) {
+    throw new Error(
+      `Could not render Gerber stackup view for layers "${layerNames.join(", ")}"`,
+    )
+  }
+
+  const svgIdMatch = stackupView.svg.match(/id="([^"]+)"/)
+  if (!svgIdMatch) return stackupView.svg
+
+  let enhancedSvg = injectSlotSvg(stackupView.svg, slots, svgIdMatch[1])
+  if (prefersBottomView) {
+    enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.bottom)
+  } else {
+    enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.top)
+  }
+  if (shouldShowSoldermaskContext) {
+    enhancedSvg = injectSoldermaskBackdrop(enhancedSvg)
+  }
+
+  return enhancedSvg
+}
+
+const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
+  circuitJson,
+  gerberOutput,
+  svgName,
+  layerNames,
+  opts = {},
+}: {
+  circuitJson: AnyCircuitElement[]
+  gerberOutput: Record<string, string>
+  svgName: string
+  layerNames: string[]
+  opts?: CircuitJsonPcbGerberSnapshotOptions
+}) => {
+  const circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
+    matchBoardAspectRatio: true,
+    backgroundColor: "#111111",
+    showPcbNotes: false,
+    ...opts.circuitJsonPcbSvgOptions,
+  })
+  const gerberSvg = await getGerberStackupSvg(gerberOutput, layerNames)
+
+  const padding = 28
+  const gutter = 28
+  const headerHeight = 32
+  const cardPadding = 20
+  const panelWidth = 720
+  const panelHeight = 520
+  const cardWidth = panelWidth + cardPadding * 2
+  const cardHeight = panelHeight + cardPadding * 2 + headerHeight
+  const totalWidth = padding * 2 + cardWidth * 2 + gutter
+  const totalHeight = padding * 2 + cardHeight
+  const cardY = padding
+  const leftCardX = padding
+  const rightCardX = padding + cardWidth + gutter
+  const contentY = cardY + headerHeight + cardPadding
+  const contentXOffset = cardPadding
+
+  return [
+    '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
+    'xmlns:xlink="http://www.w3.org/1999/xlink" ',
+    `viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">`,
+    "<defs>",
+    "<style><![CDATA[",
+    ".snapshot-label { font: 600 24px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #e5e7eb; }",
+    ".snapshot-subtitle { font: 500 16px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #94a3b8; }",
+    "]]></style>",
+    "</defs>",
+    `<rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="#0b1020"/>`,
+    `<rect x="${leftCardX}" y="${cardY}" width="${cardWidth}" height="${cardHeight}" rx="18" fill="#111827" stroke="#334155" stroke-width="2"/>`,
+    `<rect x="${rightCardX}" y="${cardY}" width="${cardWidth}" height="${cardHeight}" rx="18" fill="#111827" stroke="#334155" stroke-width="2"/>`,
+    `<text x="${leftCardX + cardPadding}" y="${cardY + 26}" class="snapshot-label">${escapeXml(opts.circuitJsonLabel ?? "Circuit JSON PCB view")}</text>`,
+    `<text x="${rightCardX + cardPadding}" y="${cardY + 26}" class="snapshot-label">${escapeXml(opts.gerberLabel ?? `Gerber view: ${layerNames.join(" + ")}`)}</text>`,
+    `<text x="${leftCardX + cardPadding}" y="${cardY + 48}" class="snapshot-subtitle">Input</text>`,
+    `<text x="${rightCardX + cardPadding}" y="${cardY + 48}" class="snapshot-subtitle">Output</text>`,
+    positionSvg({
+      svg: circuitSvg,
+      x: leftCardX + contentXOffset,
+      y: contentY,
+      width: panelWidth,
+      height: panelHeight,
+    }),
+    positionSvg({
+      svg: gerberSvg,
+      x: rightCardX + contentXOffset,
+      y: contentY,
+      width: panelWidth,
+      height: panelHeight,
+    }),
+    "</svg>",
+  ].join("")
+}
+
+const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
+  circuitJson,
+  message,
+  opts = {},
+}: {
+  circuitJson: AnyCircuitElement[]
+  message: string | string[]
+  opts?: CircuitJsonPcbMessageSnapshotOptions
+}) => {
+  const circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
+    matchBoardAspectRatio: true,
+    backgroundColor: "#111111",
+    showPcbNotes: false,
+    ...opts.circuitJsonPcbSvgOptions,
+  })
+
+  const padding = 28
+  const gutter = 28
+  const headerHeight = 32
+  const cardPadding = 20
+  const panelWidth = 720
+  const panelHeight = 520
+  const cardWidth = panelWidth + cardPadding * 2
+  const cardHeight = panelHeight + cardPadding * 2 + headerHeight
+  const totalWidth = padding * 2 + cardWidth * 2 + gutter
+  const totalHeight = padding * 2 + cardHeight
+  const cardY = padding
+  const leftCardX = padding
+  const rightCardX = padding + cardWidth + gutter
+  const contentY = cardY + headerHeight + cardPadding
+  const contentXOffset = cardPadding
+  const messageLines = Array.isArray(message)
+    ? message
+    : wrapTextLines(message, 42)
+
+  return [
+    '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
+    'xmlns:xlink="http://www.w3.org/1999/xlink" ',
+    `viewBox="0 0 ${totalWidth} ${totalHeight}" width="${totalWidth}" height="${totalHeight}">`,
+    "<defs>",
+    "<style><![CDATA[",
+    ".snapshot-label { font: 600 24px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #e5e7eb; }",
+    ".snapshot-subtitle { font: 500 16px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #94a3b8; }",
+    ".snapshot-message { font: 500 21px ui-monospace, SFMono-Regular, Menlo, monospace; fill: #f8fafc; }",
+    "]]></style>",
+    "</defs>",
+    `<rect x="0" y="0" width="${totalWidth}" height="${totalHeight}" fill="#0b1020"/>`,
+    `<rect x="${leftCardX}" y="${cardY}" width="${cardWidth}" height="${cardHeight}" rx="18" fill="#111827" stroke="#334155" stroke-width="2"/>`,
+    `<rect x="${rightCardX}" y="${cardY}" width="${cardWidth}" height="${cardHeight}" rx="18" fill="#111827" stroke="#334155" stroke-width="2"/>`,
+    `<text x="${leftCardX + cardPadding}" y="${cardY + 26}" class="snapshot-label">${escapeXml(opts.circuitJsonLabel ?? "Circuit JSON PCB view")}</text>`,
+    `<text x="${rightCardX + cardPadding}" y="${cardY + 26}" class="snapshot-label">${escapeXml(opts.messageLabel ?? "Gerber status")}</text>`,
+    `<text x="${leftCardX + cardPadding}" y="${cardY + 48}" class="snapshot-subtitle">Input</text>`,
+    `<text x="${rightCardX + cardPadding}" y="${cardY + 48}" class="snapshot-subtitle">Output</text>`,
+    positionSvg({
+      svg: circuitSvg,
+      x: leftCardX + contentXOffset,
+      y: contentY,
+      width: panelWidth,
+      height: panelHeight,
+    }),
+    `<rect x="${rightCardX + contentXOffset}" y="${contentY}" width="${panelWidth}" height="${panelHeight}" rx="14" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>`,
+    ...messageLines.map(
+      (line, index) =>
+        `<text x="${rightCardX + contentXOffset + 24}" y="${contentY + 56 + index * 30}" class="snapshot-message" fill="${opts.messageColor ?? "#fca5a5"}">${escapeXml(line)}</text>`,
+    ),
+    "</svg>",
+  ].join("")
+}
+
 async function toMatchGerberLayerSnapshots(
   this: any,
   gerberOutput: Record<string, string>,
@@ -437,6 +768,43 @@ async function toMatchGerberLayerOverlaySnapshot(
     layerNames,
     opts,
   )
+
+  return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
+}
+
+async function toMatchCircuitJsonPcbAndGerberSnapshot(
+  this: any,
+  gerberOutput: Record<string, string>,
+  testPathOriginal: string,
+  svgName: string,
+  circuitJson: AnyCircuitElement[],
+  layerNames: string[],
+  opts: CircuitJsonPcbGerberSnapshotOptions = {},
+) {
+  const svg = await renderCircuitJsonPcbAndGerberSnapshotSvg({
+    circuitJson,
+    gerberOutput,
+    svgName,
+    layerNames,
+    opts,
+  })
+
+  return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
+}
+
+async function toMatchCircuitJsonPcbAndMessageSnapshot(
+  this: any,
+  circuitJson: AnyCircuitElement[],
+  testPathOriginal: string,
+  svgName: string,
+  message: string | string[],
+  opts: CircuitJsonPcbMessageSnapshotOptions = {},
+) {
+  const svg = renderCircuitJsonPcbAndMessageSnapshotSvg({
+    circuitJson,
+    message,
+    opts,
+  })
 
   return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
 }
@@ -501,6 +869,10 @@ expect.extend({
   toMatchGerberSnapshot: toMatchGerberSnapshot as any,
   toMatchGerberLayerSnapshots: toMatchGerberLayerSnapshots as any,
   toMatchGerberLayerOverlaySnapshot: toMatchGerberLayerOverlaySnapshot as any,
+  toMatchCircuitJsonPcbAndGerberSnapshot:
+    toMatchCircuitJsonPcbAndGerberSnapshot as any,
+  toMatchCircuitJsonPcbAndMessageSnapshot:
+    toMatchCircuitJsonPcbAndMessageSnapshot as any,
 })
 
 declare module "bun:test" {
@@ -520,6 +892,19 @@ declare module "bun:test" {
       svgName: string,
       layerNames: string[],
       opts?: GerberLayerOverlaySnapshotOptions,
+    ): Promise<MatcherResult>
+    toMatchCircuitJsonPcbAndGerberSnapshot(
+      testImportMetaPath: string,
+      svgName: string,
+      circuitJson: AnyCircuitElement[],
+      layerNames: string[],
+      opts?: CircuitJsonPcbGerberSnapshotOptions,
+    ): Promise<MatcherResult>
+    toMatchCircuitJsonPcbAndMessageSnapshot(
+      testImportMetaPath: string,
+      svgName: string,
+      message: string | string[],
+      opts?: CircuitJsonPcbMessageSnapshotOptions,
     ): Promise<MatcherResult>
   }
 }
