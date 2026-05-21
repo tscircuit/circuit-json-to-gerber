@@ -122,6 +122,29 @@ export const getApertureConfigFromPcbSmtpad = (
       y_size: elm.height,
     }
   }
+  if (elm.shape === "pill") {
+    if (!("width" in elm && "height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbSmtpad: missing dimensions",
+      )
+    }
+    if (elm.width >= elm.height) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: elm.width,
+        y_size: elm.height,
+        circle_diameter: Math.min(elm.width, elm.height),
+        circle_center_offset: elm.width / 2,
+      }
+    }
+    return {
+      macro_name: "VERTPILL",
+      x_size: elm.width,
+      y_size: elm.height,
+      circle_diameter: Math.min(elm.width, elm.height),
+      circle_center_offset: elm.height / 2,
+    }
+  }
   if (elm.shape === "polygon") {
     // Polygon shapes don't use apertures - they're drawn as regions
     throw new Error("Polygon SMT pads are drawn as regions, not apertures")
@@ -155,6 +178,32 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
       standard_template_code: "R",
       x_size: elm.width + soldermaskMargin * 2,
       y_size: elm.height + soldermaskMargin * 2,
+    }
+  }
+  if (elm.shape === "pill") {
+    if (!("width" in elm && "height" in elm)) {
+      throw new Error(
+        "Invalid pill shape in getApertureConfigFromPcbSmtpadSoldermask: missing dimensions",
+      )
+    }
+    const width = elm.width + soldermaskMargin * 2
+    const height = elm.height + soldermaskMargin * 2
+
+    if (width >= height) {
+      return {
+        macro_name: "HORZPILL",
+        x_size: width,
+        y_size: height,
+        circle_diameter: Math.min(width, height),
+        circle_center_offset: width / 2,
+      }
+    }
+    return {
+      macro_name: "VERTPILL",
+      x_size: width,
+      y_size: height,
+      circle_diameter: Math.min(width, height),
+      circle_center_offset: height / 2,
     }
   }
   if (elm.shape === "polygon") {
