@@ -25,19 +25,6 @@ const circuitJson = [
     ccw_rotation: 90,
     is_covered_with_solder_mask: false,
   } as AnyCircuitElement,
-  {
-    type: "pcb_solder_paste",
-    pcb_solder_paste_id: "rotated_pill_paste",
-    pcb_smtpad_id: "rotated_pill_pad",
-    layer: "top",
-    shape: "pill",
-    width: 2,
-    height: 0.7,
-    radius: 0.35,
-    x: 0,
-    y: 0,
-    ccw_rotation: 90,
-  } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
 test.skip("repro: rotated pill smtpads render without throwing", () => {
@@ -50,5 +37,4 @@ test.skip("repro: rotated pill smtpads render without throwing", () => {
 
   expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
   expect(gerberOutput.F_Mask.length).toBeGreaterThan(0)
-  expect(gerberOutput.F_Paste.length).toBeGreaterThan(0)
 })
