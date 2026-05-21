@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
+import {
+  convertSoupToExcellonDrillCommands,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
@@ -37,24 +41,32 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test("repro: rotated pill copper vs paste overlay snapshot", async () => {
+test("repro: rotated pill copper vs paste stack snapshot", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
+  )
+  const platedDrillOutput = stringifyExcellonDrill(
+    convertSoupToExcellonDrillCommands({
+      circuitJson,
+      is_plated: true,
+    }),
+  )
+  const unplatedDrillOutput = stringifyExcellonDrill(
+    convertSoupToExcellonDrillCommands({
+      circuitJson,
+      is_plated: false,
+    }),
   )
 
   expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
   expect(gerberOutput.F_Paste.length).toBeGreaterThan(0)
 
-  await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
+  await expect({
+    ...gerberOutput,
+    "drill.drl": platedDrillOutput,
+    "drill_npth.drl": unplatedDrillOutput,
+  }).toMatchGerberSnapshot(
     import.meta.path,
     "rotated-pill-copper-vs-paste-repro",
-    ["F_Cu", "F_Paste"],
-    {
-      colors: {
-        F_Cu: "#c83434",
-        F_Paste: "#ffffff",
-      },
-      backgroundColor: "#111111",
-    },
   )
 })

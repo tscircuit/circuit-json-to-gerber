@@ -34,13 +34,9 @@ test.failing(
       convertSoupToGerberCommands(circuitJson),
     )
 
-    await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
+    await expect(gerberOutput).toMatchGerberSnapshot(
       import.meta.path,
       "smtpad-corner-radius-repro",
-      ["F_Cu", "F_Mask"],
-      {
-        backgroundColor: "#111111",
-      },
     )
 
     expect(gerberOutput.F_Cu).not.toMatch(/%ADD\d+R,2\.400000X1\.200000\*%/)

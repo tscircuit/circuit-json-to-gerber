@@ -43,9 +43,8 @@ test("repro: polygon smtpads emit copper and soldermask regions", async () => {
   expect(gerberOutput.F_Mask).toContain("X-01500000Y-01000000D02*")
   expect(gerberOutput.F_Mask).toContain("X002000000Y000750000D01*")
 
-  await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
+  await expect(gerberOutput).toMatchGerberSnapshot(
     import.meta.path,
     "polygon-smtpad-support-repro",
-    ["F_Cu", "F_Mask"],
   )
 })

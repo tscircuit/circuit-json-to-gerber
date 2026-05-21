@@ -48,16 +48,9 @@ test.failing(
       convertSoupToGerberCommands(circuitJson),
     )
 
-    await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
+    await expect(gerberOutput).toMatchGerberSnapshot(
       import.meta.path,
       "silkscreen-knockout-repro",
-      ["F_SilkScreen"],
-      {
-        colors: {
-          F_SilkScreen: "#f3f3f3",
-        },
-        backgroundColor: "#111111",
-      },
     )
 
     expect(gerberOutput.F_SilkScreen).toContain("%LPC*%")
