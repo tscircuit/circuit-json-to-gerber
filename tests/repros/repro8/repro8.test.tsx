@@ -36,5 +36,5 @@ test("repro8 blinkByddy", async () => {
     ...gerberOutput,
     "drill_plated.drl": excellonDrillOutputPlated,
     "drill_unplated.drl": excellonDrillOutputUnplated,
-  }).toMatchGerberSnapshot(import.meta.path, "repro8-blinkByddy")
+  }).toMatchGerberSnapshot(import.meta.path, "blinkByddy")
 })

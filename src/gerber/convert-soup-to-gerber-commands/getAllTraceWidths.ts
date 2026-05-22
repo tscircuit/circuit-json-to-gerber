@@ -14,6 +14,14 @@ export function getAllTraceWidths(
       if (segment.route_type === "wire") {
         widths[segment.layer] = widths[segment.layer] || new Set<number>()
         widths[segment.layer].add(segment.width)
+      } else if (segment.route_type === "through_pad") {
+        for (const layer of [segment.start_layer, segment.end_layer]) {
+          if (typeof layer === "string" && typeof segment.width === "number") {
+            widths[layer as LayerRef] =
+              widths[layer as LayerRef] || new Set<number>()
+            widths[layer as LayerRef].add(segment.width)
+          }
+        }
       }
     }
   }

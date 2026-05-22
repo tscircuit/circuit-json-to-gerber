@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
+import {
+  convertSoupToExcellonDrillCommandLayers,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
@@ -34,49 +38,62 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing(
-  "repro: plated holes with polygon pads render copper regions",
-  async () => {
-    const getGerberOutput = () =>
-      stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
+test("repro: plated holes with polygon pads render copper regions", async () => {
+  const getGerberOutput = () =>
+    stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
 
-    let gerberOutput: Record<string, string> | undefined
-    let gerberError: string | undefined
+  let gerberOutput: Record<string, string> | undefined
+  let gerberError: string | undefined
 
-    try {
-      gerberOutput = getGerberOutput()
-    } catch (error) {
-      gerberError = error instanceof Error ? error.message : String(error)
-    }
+  try {
+    gerberOutput = getGerberOutput()
+  } catch (error) {
+    gerberError = error instanceof Error ? error.message : String(error)
+  }
 
-    if (gerberError) {
-      await expect(circuitJson).toMatchCircuitJsonPcbAndMessageSnapshot(
-        import.meta.path,
-        "polygon-plated-hole-support-repro",
-        ["Gerber generation currently throws:", gerberError],
-        {
-          messageLabel: "Current failure",
-        },
-      )
-    }
-
-    expect(getGerberOutput).not.toThrow()
-
-    gerberOutput ??= getGerberOutput()
-
-    expect(gerberOutput.F_Cu).toContain("G36*")
-    expect(gerberOutput.F_Cu).toContain("G37*")
-    expect(gerberOutput.B_Cu).toContain("G36*")
-    expect(gerberOutput.B_Cu).toContain("G37*")
-
-    expect(gerberOutput.F_Cu).toContain("X-01800000Y-01200000D02*")
-    expect(gerberOutput.F_Cu).toContain("X002200000Y000300000D01*")
-
-    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+  if (gerberError) {
+    await expect(circuitJson).toMatchCircuitJsonPcbAndMessageSnapshot(
       import.meta.path,
       "polygon-plated-hole-support-repro",
-      circuitJson,
-      ["F_Cu", "B_Cu"],
+      ["Gerber generation currently throws:", gerberError],
+      {
+        messageLabel: "Current failure",
+      },
     )
-  },
-)
+  }
+
+  expect(getGerberOutput).not.toThrow()
+
+  gerberOutput ??= getGerberOutput()
+  const drillLayers = Object.fromEntries(
+    Object.entries(
+      convertSoupToExcellonDrillCommandLayers({
+        circuitJson,
+      }),
+    ).map(([layerName, commands]) => [
+      layerName,
+      stringifyExcellonDrill(commands),
+    ]),
+  )
+
+  expect(gerberOutput.F_Cu).toContain("G36*")
+  expect(gerberOutput.F_Cu).toContain("G37*")
+  expect(gerberOutput.B_Cu).toContain("G36*")
+  expect(gerberOutput.B_Cu).toContain("G37*")
+  expect(drillLayers["drill-L1-L2.drl"]).toContain("X0.0000Y0.0000")
+
+  expect(gerberOutput.F_Cu).toContain("%ADD10C,0.001000*%")
+  expect(gerberOutput.F_Cu).toContain("D10*")
+  expect(gerberOutput.F_Cu).toContain("X-01800000Y-01200000D02*")
+  expect(gerberOutput.F_Cu).toContain("X002200000Y000300000D01*")
+
+  await expect({
+    ...gerberOutput,
+    ...drillLayers,
+  }).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "polygon-plated-hole-support-repro",
+    circuitJson,
+    ["F_Cu", "B_Cu"],
+  )
+})
