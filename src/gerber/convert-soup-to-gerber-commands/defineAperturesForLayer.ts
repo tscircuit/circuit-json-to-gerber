@@ -591,7 +591,10 @@ function getAllApertureTemplateConfigsForLayer({
       return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
     }
 
-    if (elm.type === "pcb_plated_hole" && elm.shape === "hole_with_polygon_pad") {
+    if (
+      elm.type === "pcb_plated_hole" &&
+      elm.shape === "hole_with_polygon_pad"
+    ) {
       if (!elm.layers.includes(layer)) return false
       if (isCopperLayer) return true
       return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
