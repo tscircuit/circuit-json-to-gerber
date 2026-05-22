@@ -98,6 +98,11 @@ export function defineAperturesForLayer({
   )
 }
 
+export const REGION_APERTURE_CONFIG = {
+  standard_template_code: "C" as const,
+  diameter: 0.001,
+}
+
 export const getApertureConfigFromPcbSmtpad = (
   elm: PCBSMTPad,
 ): ApertureTemplateConfig => {
@@ -487,6 +492,7 @@ function getAllApertureTemplateConfigsForLayer({
   const configs: ApertureTemplateConfig[] = []
   const configHashMap = new Set<string>()
   const isSoldermaskLayer = glayer_name.endsWith("_Mask")
+  const isCopperLayer = glayer_name.endsWith("_Cu")
 
   const addConfigIfNew = (config: ApertureTemplateConfig) => {
     const hash = stableStringify(config)
@@ -520,6 +526,9 @@ function getAllApertureTemplateConfigsForLayer({
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (elm.layers.includes(layer)) {
+        if (elm.shape === "hole_with_polygon_pad") {
+          continue
+        }
         if (
           glayer_name.endsWith("_Mask") &&
           elm.is_covered_with_solder_mask === true
@@ -567,6 +576,32 @@ function getAllApertureTemplateConfigsForLayer({
       if (elm.layer === layer)
         addConfigIfNew(getApertureConfigFromPcbCopperText(elm))
     }
+  }
+
+  const needsRegionAperture = circuitJson.some((elm) => {
+    if (elm.type === "pcb_copper_pour") {
+      if (elm.layer !== layer) return false
+      if (isCopperLayer) return true
+      return isSoldermaskLayer && elm.covered_with_solder_mask === false
+    }
+
+    if (elm.type === "pcb_smtpad" && elm.shape === "polygon") {
+      if (elm.layer !== layer) return false
+      if (isCopperLayer) return true
+      return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
+    }
+
+    if (elm.type === "pcb_plated_hole" && elm.shape === "hole_with_polygon_pad") {
+      if (!elm.layers.includes(layer)) return false
+      if (isCopperLayer) return true
+      return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
+    }
+
+    return false
+  })
+
+  if (needsRegionAperture) {
+    addConfigIfNew(REGION_APERTURE_CONFIG)
   }
 
   return configs

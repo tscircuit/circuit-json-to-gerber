@@ -5,6 +5,7 @@ import type { LayerToGerberCommandsMap } from "./GerberLayerName"
 import { defineCommonMacros } from "./define-common-macros"
 import {
   defineAperturesForLayer,
+  REGION_APERTURE_CONFIG,
   getApertureConfigFromCirclePcbHole,
   getApertureConfigFromPcbPlatedHole,
   getApertureConfigFromPcbPlatedHoleSoldermask,
@@ -150,6 +151,48 @@ export const convertSoupToGerberCommands = (
    * "maybe flip y axis" to handle y axis negating
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
+
+  const getRegionApertureNumber = (glayer: AnyGerberCommand[]) =>
+    findApertureNumber(glayer, REGION_APERTURE_CONFIG)
+
+  const addClosedRegionFromPoints = ({
+    target,
+    apertureSource,
+    points,
+  }: {
+    target: AnyGerberCommand[]
+    apertureSource: AnyGerberCommand[]
+    points: Array<{ x: number; y: number }>
+  }) => {
+    if (points.length === 0) return
+
+    const regionApertureNumber = getRegionApertureNumber(apertureSource)
+    const regionBuilder = gerberBuilder()
+      .add("select_aperture", {
+        aperture_number: regionApertureNumber,
+      })
+      .add("start_region_statement", {})
+
+    regionBuilder.add("move_operation", {
+      x: points[0].x,
+      y: mfy(points[0].y),
+    })
+
+    for (let i = 1; i < points.length; i++) {
+      regionBuilder.add("plot_operation", {
+        x: points[i].x,
+        y: mfy(points[i].y),
+      })
+    }
+
+    regionBuilder.add("plot_operation", {
+      x: points[0].x,
+      y: mfy(points[0].y),
+    })
+
+    regionBuilder.add("end_region_statement", {})
+    target.push(...regionBuilder.build())
+  }
 
   const renderVectorText = (
     element: any,
@@ -488,10 +531,11 @@ export const convertSoupToGerberCommands = (
           const { brep_shape } = element
           if (!brep_shape) continue
           const { outer_ring, inner_rings } = brep_shape
+          const regionApertureNumber = getRegionApertureNumber(copper_glayer)
 
           // Draw outer ring as a filled region (dark polarity - default)
           const outer_builder = gerberBuilder()
-            .add("select_aperture", { aperture_number: 10 })
+            .add("select_aperture", { aperture_number: regionApertureNumber })
             .add("start_region_statement", {})
 
           drawRingToBuilder(outer_builder, reverseRing(outer_ring))
@@ -511,7 +555,9 @@ export const convertSoupToGerberCommands = (
 
             for (const inner_ring of inner_rings) {
               const inner_builder = gerberBuilder()
-                .add("select_aperture", { aperture_number: 10 })
+                .add("select_aperture", {
+                  aperture_number: regionApertureNumber,
+                })
                 .add("start_region_statement", {})
 
               // For clear polarity, we don't need to reverse - draw as-is
@@ -555,8 +601,9 @@ export const convertSoupToGerberCommands = (
             applyToPoint(transformMatrix, p),
           )
 
+          const regionApertureNumber = getRegionApertureNumber(copper_glayer)
           const rect_builder = gerberBuilder()
-            .add("select_aperture", { aperture_number: 10 })
+            .add("select_aperture", { aperture_number: regionApertureNumber })
             .add("start_region_statement", {})
 
           rect_builder.add("move_operation", {
@@ -578,29 +625,11 @@ export const convertSoupToGerberCommands = (
           all_pour_commands.push(...rect_builder.build())
         } else if (element.shape === "polygon") {
           const { points } = element
-          if (points.length > 0) {
-            const poly_builder = gerberBuilder()
-              .add("select_aperture", { aperture_number: 10 })
-              .add("start_region_statement", {})
-
-            poly_builder.add("move_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
-            for (let i = 1; i < points.length; i++) {
-              poly_builder.add("plot_operation", {
-                x: points[i].x,
-                y: mfy(points[i].y),
-              })
-            }
-            poly_builder.add("plot_operation", {
-              x: points[0].x,
-              y: mfy(points[0].y),
-            })
-
-            poly_builder.add("end_region_statement", {})
-            all_pour_commands.push(...poly_builder.build())
-          }
+          addClosedRegionFromPoints({
+            target: all_pour_commands,
+            apertureSource: copper_glayer,
+            points,
+          })
         }
 
         copper_glayer.push(...all_pour_commands)
@@ -766,31 +795,13 @@ export const convertSoupToGerberCommands = (
           }
 
           for (const glayer of layers_to_add_to) {
-            const pad_builder = gerberBuilder()
-              .add("select_aperture", { aperture_number: 10 })
-              .add("start_region_statement", {})
-
             const { points } = element
-            if (points && points.length > 0) {
-              pad_builder.add("move_operation", {
-                x: points[0].x,
-                y: mfy(points[0].y),
-              })
-              for (let i = 1; i < points.length; i++) {
-                pad_builder.add("plot_operation", {
-                  x: points[i].x,
-                  y: mfy(points[i].y),
-                })
-              }
-              pad_builder.add("plot_operation", {
-                x: points[0].x,
-                y: mfy(points[0].y),
-              })
-            }
-
-            pad_builder.add("end_region_statement", {})
-
-            glayer.push(...pad_builder.build())
+            if (!points) continue
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points,
+            })
           }
         }
       } else if (element.type === "pcb_solder_paste") {
@@ -860,6 +871,17 @@ export const convertSoupToGerberCommands = (
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
           }
           for (const glayer of layersToAddTo) {
+            if (element.shape === "hole_with_polygon_pad") {
+              const { pad_outline } = element
+              if (!pad_outline?.length) continue
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                points: pad_outline,
+              })
+              continue
+            }
+
             // --- Compute effective copper pad dimensions ---
             const holeW =
               "hole_width" in element && typeof element.hole_width === "number"
