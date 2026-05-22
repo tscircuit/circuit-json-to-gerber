@@ -27,24 +27,21 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test(
-  "repro: smtpad corner radius does not collapse to a plain rectangular aperture",
-  async () => {
-    const gerberOutput = stringifyGerberCommandLayers(
-      convertSoupToGerberCommands(circuitJson),
-    )
+test("repro: smtpad corner radius does not collapse to a plain rectangular aperture", async () => {
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(circuitJson),
+  )
 
-    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
-      import.meta.path,
-      "smtpad-corner-radius-repro",
-      circuitJson,
-      ["F_Cu"],
-      {
-        backgroundColor: "#111111",
-      },
-    )
+  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "smtpad-corner-radius-repro",
+    circuitJson,
+    ["F_Cu"],
+    {
+      backgroundColor: "#111111",
+    },
+  )
 
-    expect(gerberOutput.F_Cu).not.toMatch(/%ADD\d+R,2\.400000X1\.200000\*%/)
-    expect(/ROUNDRECT|RoundRect|G36\*/.test(gerberOutput.F_Cu)).toBe(true)
-  },
-)
+  expect(gerberOutput.F_Cu).not.toMatch(/%ADD\d+R,2\.400000X1\.200000\*%/)
+  expect(/ROUNDRECT|RoundRect|G36\*/.test(gerberOutput.F_Cu)).toBe(true)
+})
