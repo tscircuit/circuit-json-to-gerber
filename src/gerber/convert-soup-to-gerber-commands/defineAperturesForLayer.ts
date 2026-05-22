@@ -29,6 +29,37 @@ const getLayerRefFromGerberLayerName = (
   throw new Error(`Could not infer layer ref from ${glayer_name}`)
 }
 
+const getClampedRoundedRectCornerRadius = (
+  width: number,
+  height: number,
+  cornerRadius?: number,
+) => {
+  if (typeof cornerRadius !== "number") return 0
+  return Math.max(0, Math.min(cornerRadius, width / 2, height / 2))
+}
+
+const getRoundedRectApertureConfig = (
+  width: number,
+  height: number,
+  cornerRadius: number,
+): ApertureTemplateConfig => {
+  const halfWidth = width / 2
+  const halfHeight = height / 2
+
+  return {
+    macro_name: "ROUNDRECT",
+    corner_radius: cornerRadius,
+    corner_1_x: -halfWidth + cornerRadius,
+    corner_1_y: halfHeight - cornerRadius,
+    corner_2_x: halfWidth - cornerRadius,
+    corner_2_y: halfHeight - cornerRadius,
+    corner_3_x: halfWidth - cornerRadius,
+    corner_3_y: -halfHeight + cornerRadius,
+    corner_4_x: -halfWidth + cornerRadius,
+    corner_4_y: -halfHeight + cornerRadius,
+  }
+}
+
 export function defineAperturesForLayer({
   glayer,
   circuitJson,
@@ -106,6 +137,18 @@ export const REGION_APERTURE_CONFIG = {
 export const getApertureConfigFromPcbSmtpad = (
   elm: PCBSMTPad,
 ): ApertureTemplateConfig => {
+  if (elm.shape === "rect" || elm.shape === "rotated_rect") {
+    const cornerRadius = getClampedRoundedRectCornerRadius(
+      elm.width,
+      elm.height,
+      "corner_radius" in elm ? elm.corner_radius : undefined,
+    )
+
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(elm.width, elm.height, cornerRadius)
+    }
+  }
+
   if (elm.shape === "rect") {
     return {
       standard_template_code: "R",
@@ -163,6 +206,22 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
   let soldermaskMargin = 0
   if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
     soldermaskMargin = elm.soldermask_margin
+  }
+
+  if (elm.shape === "rect" || elm.shape === "rotated_rect") {
+    const width = elm.width + soldermaskMargin * 2
+    const height = elm.height + soldermaskMargin * 2
+    const cornerRadius = getClampedRoundedRectCornerRadius(
+      width,
+      height,
+      "corner_radius" in elm && typeof elm.corner_radius === "number"
+        ? elm.corner_radius + soldermaskMargin
+        : undefined,
+    )
+
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(width, height, cornerRadius)
+    }
   }
 
   if (elm.shape === "rect") {

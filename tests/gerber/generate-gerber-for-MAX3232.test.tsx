@@ -15,7 +15,7 @@ test("Generate gerber of macrokeypad", async () => {
   ).toBeGreaterThan(0)
   expect(
     Object.values(gerber_cmds)[0].filter((x: any) =>
-      x?.macro_name?.includes?.("RoundRect"),
+      /ROUNDRECT|RoundRect/.test(x?.macro_name ?? ""),
     ).length,
   ).toBeGreaterThan(0)
 })
