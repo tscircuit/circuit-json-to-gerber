@@ -91,8 +91,19 @@ export const define_aperture_template = defineGerberCommand({
       if (macro_name === "HORZPILL" || macro_name === "VERTPILL") {
         commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}X${props.circle_diameter.toFixed(6)}X${props.circle_center_offset.toFixed(6)}`
       } else if (macro_name === "ROUNDRECT") {
-        // Handle ROUNDRECT if needed
-        throw new Error("ROUNDRECT macro not implemented yet")
+        commandString += [
+          props.corner_radius,
+          props.corner_1_x,
+          props.corner_1_y,
+          props.corner_2_x,
+          props.corner_2_y,
+          props.corner_3_x,
+          props.corner_3_y,
+          props.corner_4_x,
+          props.corner_4_y,
+        ]
+          .map((value) => value.toFixed(6))
+          .join("X")
       }
 
       commandString += "*%"

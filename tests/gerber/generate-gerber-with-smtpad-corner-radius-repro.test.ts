@@ -27,7 +27,7 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing(
+test(
   "repro: smtpad corner radius does not collapse to a plain rectangular aperture",
   async () => {
     const gerberOutput = stringifyGerberCommandLayers(

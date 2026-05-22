@@ -37,7 +37,7 @@ export const defineCommonMacros = (glayer: Array<AnyGerberCommand>) => {
 `.trim(),
       })
       .add("define_macro_aperture_template", {
-        macro_name: "RoundRect",
+        macro_name: "ROUNDRECT",
         template_code: `
 0 Rectangle with rounded corners*
 0 $1 Corner radius*
