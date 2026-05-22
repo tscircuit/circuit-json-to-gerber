@@ -39,50 +39,29 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing(
-  "repro: pill and rotated pill smtpads render copper without throwing",
-  async () => {
-    const getGerberOutput = () =>
-      stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
+test("repro: pill and rotated pill smtpads render copper without throwing", async () => {
+  const getGerberOutput = () =>
+    stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
 
-    let gerberOutput: Record<string, string> | undefined
-    let gerberError: string | undefined
+  expect(getGerberOutput).not.toThrow()
 
-    try {
-      gerberOutput = getGerberOutput()
-    } catch (error) {
-      gerberError = error instanceof Error ? error.message : String(error)
-    }
+  const gerberOutput = getGerberOutput()
 
-    if (gerberError) {
-      await expect(circuitJson).toMatchCircuitJsonPcbAndMessageSnapshot(
-        import.meta.path,
-        "rotated-pill-smtpad-repro",
-        ["Gerber generation currently throws:", gerberError],
-        {
-          messageLabel: "Current failure",
-        },
-      )
-    }
+  expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
+  expect(gerberOutput.F_Cu).toMatch(/D03\*|G36\*/)
+  expect(gerberOutput.F_Cu).toContain("X002000000Y-00650000D02*")
+  expect(gerberOutput.F_Cu).toContain("X002000000Y000650000D01*")
 
-    expect(getGerberOutput).not.toThrow()
-
-    gerberOutput ??= getGerberOutput()
-
-    expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
-    expect(gerberOutput.F_Cu).toMatch(/D03\*|G36\*/)
-
-    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
-      import.meta.path,
-      "rotated-pill-smtpad-repro",
-      circuitJson,
-      ["F_Cu"],
-      {
-        colors: {
-          F_Cu: "#c83434",
-        },
-        backgroundColor: "#111111",
+  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "rotated-pill-smtpad-repro",
+    circuitJson,
+    ["F_Cu"],
+    {
+      colors: {
+        F_Cu: "#c83434",
       },
-    )
-  },
-)
+      backgroundColor: "#111111",
+    },
+  )
+})

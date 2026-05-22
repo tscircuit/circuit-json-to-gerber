@@ -152,6 +152,74 @@ export const convertSoupToGerberCommands = (
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
 
+  const renderPillFlash = ({
+    glayer,
+    x,
+    y,
+    width,
+    height,
+    rotationDegrees = 0,
+  }: {
+    glayer: AnyGerberCommand[]
+    x: number
+    y: number
+    width: number
+    height: number
+    rotationDegrees?: number
+  }) => {
+    const circleApertureConfig = {
+      standard_template_code: "C" as const,
+      diameter: Math.min(width, height),
+    }
+    const apertureNumber = findApertureNumber(glayer, circleApertureConfig)
+    const gb = gerberBuilder().add("select_aperture", {
+      aperture_number: apertureNumber,
+    })
+
+    const offset = Math.abs(width - height) / 2
+    const rotationRadians = (rotationDegrees * Math.PI) / 180
+    const cosTheta = Math.cos(rotationRadians)
+    const sinTheta = Math.sin(rotationRadians)
+
+    const rotateAndTranslate = (dx: number, dy: number) => ({
+      x: x + dx * cosTheta - dy * sinTheta,
+      y: y + dx * sinTheta + dy * cosTheta,
+    })
+
+    if (offset <= 1e-9) {
+      gb.add("flash_operation", { x, y: mfy(y) })
+      glayer.push(...gb.build())
+      return
+    }
+
+    const isHorizontal = width >= height
+    const startRelative = isHorizontal
+      ? { x: -offset, y: 0 }
+      : { x: 0, y: -offset }
+    const endRelative = isHorizontal ? { x: offset, y: 0 } : { x: 0, y: offset }
+    const startPoint = rotateAndTranslate(startRelative.x, startRelative.y)
+    const endPoint = rotateAndTranslate(endRelative.x, endRelative.y)
+
+    gb.add("flash_operation", {
+      x: startPoint.x,
+      y: mfy(startPoint.y),
+    })
+      .add("move_operation", {
+        x: startPoint.x,
+        y: mfy(startPoint.y),
+      })
+      .add("plot_operation", {
+        x: endPoint.x,
+        y: mfy(endPoint.y),
+      })
+      .add("flash_operation", {
+        x: endPoint.x,
+        y: mfy(endPoint.y),
+      })
+
+    glayer.push(...gb.build())
+  }
+
   const getRegionApertureNumber = (glayer: AnyGerberCommand[]) =>
     findApertureNumber(glayer, REGION_APERTURE_CONFIG)
 
@@ -790,6 +858,44 @@ export const convertSoupToGerberCommands = (
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
+          if (element.shape === "pill" || element.shape === "rotated_pill") {
+            const soldermaskMargin =
+              typeof element.soldermask_margin === "number"
+                ? element.soldermask_margin
+                : 0
+            const rotation =
+              element.shape === "rotated_pill" &&
+              typeof element.ccw_rotation === "number"
+                ? element.ccw_rotation
+                : 0
+
+            renderPillFlash({
+              glayer: glayers[getGerberLayerName(layer, "copper")],
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              rotationDegrees: rotation,
+            })
+
+            renderPillFlash({
+              glayer: glayers[getGerberLayerName(layer, "soldermask")],
+              x: element.x,
+              y: element.y,
+              width: element.width + soldermaskMargin * 2,
+              height: element.height + soldermaskMargin * 2,
+              rotationDegrees: rotation,
+            })
+
+            continue
+          }
+
+          const rotation =
+            element.shape === "rotated_rect" &&
+            typeof element.ccw_rotation === "number"
+              ? element.ccw_rotation
+              : 0
+
           for (const { glayer, apertureConfig } of [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
@@ -805,15 +911,15 @@ export const convertSoupToGerberCommands = (
               aperture_number: apertureNumber,
             })
 
-            if (element.shape === "rotated_rect" && element.ccw_rotation) {
+            if (rotation) {
               gb.add("load_rotation", {
-                rotation_degrees: element.ccw_rotation,
+                rotation_degrees: rotation,
               })
             }
 
             gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
 
-            if (element.shape === "rotated_rect" && element.ccw_rotation) {
+            if (rotation) {
               // Reset rotation
               gb.add("load_rotation", { rotation_degrees: 0 })
             }
