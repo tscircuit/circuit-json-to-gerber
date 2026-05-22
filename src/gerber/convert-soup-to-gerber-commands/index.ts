@@ -617,7 +617,8 @@ export const convertSoupToGerberCommands = (
   for (const layer of [...copperLayerRefs, "edgecut"] as const) {
     for (const element of circuitJson) {
       if (element.type === "pcb_trace") {
-        const { route } = element
+        if (layer === "edgecut") continue
+        const route = element.route
         for (const [a, b] of pairs(route)) {
           // TODO b kind of matters here, this doesn't handle a bunch of cases
           // but the definition of a route is also kind of broken, a "wire" is
@@ -625,6 +626,18 @@ export const convertSoupToGerberCommands = (
           // point
           if (a.route_type === "wire") {
             if (a.layer === layer) {
+              let bPoint: { x: number; y: number } | null = null
+              if (b.route_type === "wire" || b.route_type === "via") {
+                bPoint = b
+              } else if (b.route_type === "through_pad") {
+                if (b.start_layer === layer) {
+                  bPoint = b.start
+                } else if (b.end_layer === layer) {
+                  bPoint = b.end
+                }
+              }
+              if (!bPoint) continue
+
               const glayer = glayers[getGerberLayerName(layer, "copper")]
               glayer.push(
                 ...gerberBuilder()
@@ -634,7 +647,7 @@ export const convertSoupToGerberCommands = (
                     }),
                   })
                   .add("move_operation", { x: a.x, y: mfy(a.y) })
-                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
+                  .add("plot_operation", { x: bPoint.x, y: mfy(bPoint.y) })
                   .build(),
               )
             }
@@ -649,6 +662,32 @@ export const convertSoupToGerberCommands = (
                     }),
                   })
                   .add("move_operation", { x: a.x, y: mfy(a.y) })
+                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
+                  .build(),
+              )
+            }
+          } else if (
+            a.route_type === "through_pad" &&
+            b.route_type === "wire"
+          ) {
+            if (b.layer === layer) {
+              const aPoint =
+                a.end_layer === layer
+                  ? a.end
+                  : a.start_layer === layer
+                    ? a.start
+                    : null
+              if (!aPoint) continue
+
+              const glayer = glayers[getGerberLayerName(layer, "copper")]
+              glayer.push(
+                ...gerberBuilder()
+                  .add("select_aperture", {
+                    aperture_number: findApertureNumber(glayer, {
+                      trace_width: b.width,
+                    }),
+                  })
+                  .add("move_operation", { x: aPoint.x, y: mfy(aPoint.y) })
                   .add("plot_operation", { x: b.x, y: mfy(b.y) })
                   .build(),
               )
