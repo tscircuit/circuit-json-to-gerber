@@ -1,7 +1,19 @@
 import { expect, test } from "bun:test"
 import { Circuit } from "@tscircuit/core"
+import gerberToSvg from "gerber-to-svg"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
+
+const renderGerberLayer = (gerber: string, id: string) =>
+  new Promise<string>((resolve, reject) => {
+    gerberToSvg(gerber, { id }, (error, svg) => {
+      if (error) {
+        reject(error)
+      } else {
+        resolve(svg)
+      }
+    })
+  })
 
 test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
   const circuit = new Circuit()
@@ -35,9 +47,21 @@ test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
     convertSoupToGerberCommands(circuitJson as any),
   )
 
+  const pasteSvg = await renderGerberLayer(
+    gerberOutput.F_Paste,
+    "rotated-pill-plated-hole-copper-vs-paste-F_Paste",
+  )
+
+  expect(pasteSvg).toContain(
+    '<rect x="-449.999" y="-549.999" width="899.998" height="1099.998"/>',
+  )
+  expect(pasteSvg).not.toContain(
+    '<rect x="-999.998" y="-549.999" width="1999.996" height="1099.998"/>',
+  )
+
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
-    "rotated-pill-plated-hole-copper-vs-paste",
+    "",
     ["F_Cu", "F_Paste"],
     {
       colors: {
