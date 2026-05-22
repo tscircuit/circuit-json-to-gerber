@@ -122,27 +122,18 @@ export const getApertureConfigFromPcbSmtpad = (
       y_size: elm.height,
     }
   }
-  if (elm.shape === "pill") {
+  if (elm.shape === "pill" || elm.shape === "rotated_pill") {
     if (!("width" in elm && "height" in elm)) {
       throw new Error(
         "Invalid pill shape in getApertureConfigFromPcbSmtpad: missing dimensions",
       )
     }
-    if (elm.width >= elm.height) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: elm.width,
-        y_size: elm.height,
-        circle_diameter: Math.min(elm.width, elm.height),
-        circle_center_offset: elm.width / 2,
-      }
-    }
+
+    // SMT pill pads are rendered as a stroked segment with circular endcaps,
+    // so the layer only needs the circular endcap aperture.
     return {
-      macro_name: "VERTPILL",
-      x_size: elm.width,
-      y_size: elm.height,
-      circle_diameter: Math.min(elm.width, elm.height),
-      circle_center_offset: elm.height / 2,
+      standard_template_code: "C",
+      diameter: Math.min(elm.width, elm.height),
     }
   }
   if (elm.shape === "polygon") {
@@ -180,7 +171,7 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
       y_size: elm.height + soldermaskMargin * 2,
     }
   }
-  if (elm.shape === "pill") {
+  if (elm.shape === "pill" || elm.shape === "rotated_pill") {
     if (!("width" in elm && "height" in elm)) {
       throw new Error(
         "Invalid pill shape in getApertureConfigFromPcbSmtpadSoldermask: missing dimensions",
@@ -189,21 +180,11 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
     const width = elm.width + soldermaskMargin * 2
     const height = elm.height + soldermaskMargin * 2
 
-    if (width >= height) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: width,
-        y_size: height,
-        circle_diameter: Math.min(width, height),
-        circle_center_offset: width / 2,
-      }
-    }
+    // SMT pill pads are rendered as a stroked segment with circular endcaps,
+    // so the layer only needs the circular endcap aperture.
     return {
-      macro_name: "VERTPILL",
-      x_size: width,
-      y_size: height,
-      circle_diameter: Math.min(width, height),
-      circle_center_offset: height / 2,
+      standard_template_code: "C",
+      diameter: Math.min(width, height),
     }
   }
   if (elm.shape === "polygon") {
@@ -284,7 +265,7 @@ export const getApertureConfigFromPcbSolderPaste = (
         x_size: elm.width,
         y_size: elm.height,
         circle_diameter: Math.min(elm.width, elm.height),
-        circle_center_offset: elm.width / 2,
+        circle_center_offset: (elm.width - elm.height) / 2,
       }
     }
     return {
@@ -292,7 +273,7 @@ export const getApertureConfigFromPcbSolderPaste = (
       x_size: elm.width,
       y_size: elm.height,
       circle_diameter: Math.min(elm.width, elm.height),
-      circle_center_offset: elm.height / 2,
+      circle_center_offset: (elm.height - elm.width) / 2,
     }
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
@@ -325,7 +306,7 @@ export const getApertureConfigFromPcbPlatedHole = (
         x_size: elm.outer_width,
         y_size: elm.outer_height,
         circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-        circle_center_offset: elm.outer_width / 2,
+        circle_center_offset: (elm.outer_width - elm.outer_height) / 2,
       }
     }
     return {
@@ -333,7 +314,7 @@ export const getApertureConfigFromPcbPlatedHole = (
       x_size: elm.outer_width,
       y_size: elm.outer_height,
       circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-      circle_center_offset: elm.outer_height / 2,
+      circle_center_offset: (elm.outer_height - elm.outer_width) / 2,
     }
   }
   const shape = elm.shape
@@ -394,7 +375,7 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
         x_size: outerWidth,
         y_size: outerHeight,
         circle_diameter: Math.min(outerWidth, outerHeight),
-        circle_center_offset: outerWidth / 2,
+        circle_center_offset: (outerWidth - outerHeight) / 2,
       }
     }
     return {
@@ -402,7 +383,7 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
       x_size: outerWidth,
       y_size: outerHeight,
       circle_diameter: Math.min(outerWidth, outerHeight),
-      circle_center_offset: outerHeight / 2,
+      circle_center_offset: (outerHeight - outerWidth) / 2,
     }
   }
 
