@@ -1,5 +1,9 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
+import {
+  convertSoupToExcellonDrillCommands,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
@@ -22,26 +26,31 @@ const circuitJson = [
     hole_height: 1.5,
     outer_width: 1.1,
     outer_height: 2,
-    ccw_rotation: 90,
+    ccw_rotation: 45,
     layers: ["top", "bottom"],
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test("repro: rotated pill copper layers snapshot", async () => {
+test("repro: rotated pill plated hole drills as a horizontal slot", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
+  const excellonDrillOutput = stringifyExcellonDrill(
+    convertSoupToExcellonDrillCommands({
+      circuitJson,
+      is_plated: true,
+    }),
+  )
 
-  expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
-  expect(gerberOutput.B_Cu.length).toBeGreaterThan(0)
+  const gerberAndDrillOutput = {
+    ...gerberOutput,
+    "drill.drl": excellonDrillOutput,
+  }
 
-  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+  await expect(gerberAndDrillOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
-    "rotated-pill-copper-repro",
+    "rotated-pill-drill-repro-comparison",
     circuitJson,
-    ["F_Cu"],
-    {
-      backgroundColor: "#111111",
-    },
+    ["F_Cu", "B_Cu"],
   )
 })
