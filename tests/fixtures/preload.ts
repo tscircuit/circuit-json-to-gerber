@@ -289,6 +289,28 @@ const injectSoldermaskBackdrop = (svg: string) => {
   return svg.replace(fr4Rect, `${fr4Rect}${soldermaskRect}`)
 }
 
+const injectRequestedSilkscreen = (svg: string, layerNames: string[]) => {
+  const svgId = svg.match(/\bid="([^"]+)"/)?.[1]
+  if (!svgId) return svg
+
+  const sideMatch = svgId.match(/_(top|bottom)$/)
+  if (!sideMatch) return svg
+
+  const requestedSilkscreenLayer =
+    sideMatch[1] === "top" ? "F_SilkScreen" : "B_SilkScreen"
+
+  if (!layerNames.includes(requestedSilkscreenLayer)) return svg
+
+  const silkscreenGroupId = `${svgId}_silkscreen`
+  if (!svg.includes(`id="${silkscreenGroupId}"`)) return svg
+  if (svg.includes(`xlink:href="#${silkscreenGroupId}"`)) return svg
+
+  const stackupPrefix = svgId.replace(/_(top|bottom)$/, "")
+  const silkscreenUse = `<use xlink:href="#${silkscreenGroupId}" fill="currentColor" stroke="currentColor" class="${stackupPrefix}_ss"/>`
+
+  return svg.replace(/<\/g><\/g><\/svg>$/, `${silkscreenUse}</g></g></svg>`)
+}
+
 const renderGerberLayerSvg = (
   gerber: string,
   id: string,
@@ -585,6 +607,7 @@ const getGerberStackupSvg = async (
   if (shouldShowSoldermaskContext) {
     enhancedSvg = injectSoldermaskBackdrop(enhancedSvg)
   }
+  enhancedSvg = injectRequestedSilkscreen(enhancedSvg, layerNames)
 
   return enhancedSvg
 }
