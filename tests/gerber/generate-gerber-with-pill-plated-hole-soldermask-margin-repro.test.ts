@@ -38,7 +38,7 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: pill plated hole soldermask margin aperture is defined but not used", async () => {
+test("pill plated hole soldermask margin aperture is used", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -49,7 +49,7 @@ test("repro: pill plated hole soldermask margin aperture is defined but not used
   expect(gerberOutput.F_Mask).toContain(
     "%ADD10HORZPILL,2.400000X1.400000X1.400000X0.500000*%",
   )
-  expect(gerberOutput.F_Mask).toMatch(/%ADD\d+C,1\.000000\*%/)
+  expect(gerberOutput.F_Mask).not.toMatch(/%ADD\d+C,1\.000000\*%/)
   expect(gerberOutput.F_Mask).toContain("X-00500000Y000000000D03*")
   expect(gerberOutput.F_Mask).toContain("X000500000Y000000000D01*")
   expect(gerberOutput.F_Mask).toMatch(/%ADD\d+C,1\.400000\*%/)

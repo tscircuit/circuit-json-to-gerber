@@ -1067,12 +1067,24 @@ export const convertSoupToGerberCommands = (
               padHeightCandidates.push(element.rect_pad_height)
             }
             const padH = Math.max(...padHeightCandidates)
+            const soldermaskGlayer =
+              glayers[getGerberLayerName(layer, "soldermask")]
+            let soldermaskMargin = 0
+            if (
+              glayer === soldermaskGlayer &&
+              "soldermask_margin" in element &&
+              typeof element.soldermask_margin === "number"
+            ) {
+              soldermaskMargin = element.soldermask_margin
+            }
+            const aperturePadW = padW + soldermaskMargin * 2
+            const aperturePadH = padH + soldermaskMargin * 2
 
             if (element.shape === "pill") {
               // Use min dimension as slot width (aperture circle)
               const circleApertureConfig = {
                 standard_template_code: "C" as const,
-                diameter: Math.min(padW, padH),
+                diameter: Math.min(aperturePadW, aperturePadH),
               }
 
               let aperture_number: number
@@ -1118,10 +1130,10 @@ export const convertSoupToGerberCommands = (
                 }
               }
 
-              const isHorizontal = padW >= padH
+              const isHorizontal = aperturePadW >= aperturePadH
               const offset = isHorizontal
-                ? (padW - padH) / 2
-                : (padH - padW) / 2
+                ? (aperturePadW - aperturePadH) / 2
+                : (aperturePadH - aperturePadW) / 2
 
               if (offset <= 0) {
                 const center = rotateAndTranslate(0, 0)
@@ -1164,8 +1176,6 @@ export const convertSoupToGerberCommands = (
               glayer.push(...gb.build())
             } else {
               // Non-pill shapes (rect, circle)
-              const soldermaskGlayer =
-                glayers[getGerberLayerName(layer, "soldermask")]
               let apertureConfig = getApertureConfigFromPcbPlatedHole({
                 ...element,
                 ...(element.shape !== "circle"
