@@ -388,7 +388,11 @@ export const convertSoupToGerberCommands = (
     const applyTransform = (point: { x: number; y: number }) =>
       transformMatrix ? applyToPoint(transformMatrix, point) : point
 
-    if (layerType === "copper" && element.is_knockout) {
+    const shouldRenderKnockout =
+      element.is_knockout &&
+      (layerType === "copper" || layerType === "silkscreen")
+
+    if (shouldRenderKnockout) {
       const padding = element.knockout_padding ?? {
         left: 0.2,
         right: 0.2,
@@ -447,7 +451,7 @@ export const convertSoupToGerberCommands = (
       )
     }
 
-    for (const char of element.text.toUpperCase()) {
+    for (const char of element.text) {
       if (char === " ") {
         anchoredX += spaceWidth + letterSpacing
         continue
@@ -472,7 +476,7 @@ export const convertSoupToGerberCommands = (
 
     glayer.push(...gerber.build())
 
-    if (layerType === "copper" && element.is_knockout) {
+    if (shouldRenderKnockout) {
       glayer.push(
         ...gerberBuilder().add("set_layer_polarity", { polarity: "D" }).build(),
       )
