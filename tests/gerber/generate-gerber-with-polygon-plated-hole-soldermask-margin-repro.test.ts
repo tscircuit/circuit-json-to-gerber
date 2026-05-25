@@ -19,10 +19,11 @@ const circuitJson = [
     hole_shape: "circle",
     hole_diameter: 0.5,
     pad_outline: [
-      { x: -1, y: -1 },
-      { x: 1, y: -1 },
-      { x: 1, y: 1 },
-      { x: -1, y: 1 },
+      { x: -1.2, y: -0.8 },
+      { x: 0.8, y: -1.1 },
+      { x: 1.35, y: 0.15 },
+      { x: 0.15, y: 1.15 },
+      { x: -1.1, y: 0.65 },
     ],
     hole_offset_x: 0,
     hole_offset_y: 0,
@@ -45,20 +46,20 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: polygon plated hole soldermask margin is not applied", async () => {
+test("polygon plated hole soldermask margin is applied", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
 
   expect(gerberOutput.F_Cu).toContain("G36*")
-  expect(gerberOutput.F_Cu).toContain("X-01000000Y-01000000D02*")
-  expect(gerberOutput.F_Cu).toContain("X001000000Y001000000D01*")
+  expect(gerberOutput.F_Cu).toContain("X-01200000Y-00800000D02*")
+  expect(gerberOutput.F_Cu).toContain("X001350000Y000150000D01*")
 
   expect(gerberOutput.F_Mask).toContain("G36*")
-  expect(gerberOutput.F_Mask).toContain("X-01000000Y-01000000D02*")
-  expect(gerberOutput.F_Mask).toContain("X001000000Y001000000D01*")
-  expect(gerberOutput.F_Mask).not.toContain("X-01200000Y-01200000D02*")
-  expect(gerberOutput.F_Mask).not.toContain("X001200000Y001200000D01*")
+  expect(gerberOutput.F_Mask).not.toContain("X-01200000Y-00800000D02*")
+  expect(gerberOutput.F_Mask).not.toContain("X001350000Y000150000D01*")
+  expect(gerberOutput.F_Mask).toContain("X-01412227Y-00970403D02*")
+  expect(gerberOutput.F_Mask).toContain("X001593698Y000207260D01*")
 
   expect(gerberOutput.F_Mask).toMatch(/%ADD\d+C,1\.400000\*%/)
   expect(gerberOutput.F_Mask).toContain("X002500000Y000000000D03*")

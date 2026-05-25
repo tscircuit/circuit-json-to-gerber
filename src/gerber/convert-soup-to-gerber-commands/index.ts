@@ -22,6 +22,7 @@ import type { PcbCutout } from "circuit-json"
 import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
+import { offsetPolygonOutline } from "./offsetPolygonOutline"
 import { lineAlphabet } from "@tscircuit/alphabet"
 import {
   applyToPoint,
@@ -1019,10 +1020,23 @@ export const convertSoupToGerberCommands = (
             if (element.shape === "hole_with_polygon_pad") {
               const { pad_outline } = element
               if (!pad_outline?.length) continue
+              const soldermaskGlayer =
+                glayers[getGerberLayerName(layer, "soldermask")]
+              let points = pad_outline
+              if (
+                glayer === soldermaskGlayer &&
+                "soldermask_margin" in element &&
+                typeof element.soldermask_margin === "number"
+              ) {
+                points = offsetPolygonOutline(
+                  pad_outline,
+                  element.soldermask_margin,
+                )
+              }
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
-                points: pad_outline,
+                points,
               })
               continue
             }
