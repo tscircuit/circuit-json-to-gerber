@@ -1033,10 +1033,14 @@ export const convertSoupToGerberCommands = (
                   element.soldermask_margin,
                 )
               }
+              const translatedPoints = points.map((point) => ({
+                x: point.x + element.x,
+                y: point.y + element.y,
+              }))
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
-                points,
+                points: translatedPoints,
               })
               continue
             }
