@@ -31,7 +31,7 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing(
+test(
   "repro: silkscreen knockout emits clear polarity around text",
   async () => {
     const gerberOutput = stringifyGerberCommandLayers(

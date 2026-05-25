@@ -389,7 +389,7 @@ export const convertSoupToGerberCommands = (
     const applyTransform = (point: { x: number; y: number }) =>
       transformMatrix ? applyToPoint(transformMatrix, point) : point
 
-    if (layerType === "copper" && element.is_knockout) {
+    if (element.is_knockout) {
       const padding = element.knockout_padding ?? {
         left: 0.2,
         right: 0.2,
@@ -473,7 +473,7 @@ export const convertSoupToGerberCommands = (
 
     glayer.push(...gerber.build())
 
-    if (layerType === "copper" && element.is_knockout) {
+    if (element.is_knockout) {
       glayer.push(
         ...gerberBuilder().add("set_layer_polarity", { polarity: "D" }).build(),
       )
