@@ -1019,10 +1019,14 @@ export const convertSoupToGerberCommands = (
             if (element.shape === "hole_with_polygon_pad") {
               const { pad_outline } = element
               if (!pad_outline?.length) continue
+              const translatedPadOutline = pad_outline.map((point) => ({
+                x: point.x + element.x,
+                y: point.y + element.y,
+              }))
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
-                points: pad_outline,
+                points: translatedPadOutline,
               })
               continue
             }

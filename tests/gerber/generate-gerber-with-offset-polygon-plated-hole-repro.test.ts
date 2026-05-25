@@ -38,7 +38,7 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test("repro: polygon plated hole pad outline is not translated by x/y", async () => {
+test("polygon plated hole pad outline is translated by x/y", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -55,10 +55,10 @@ test("repro: polygon plated hole pad outline is not translated by x/y", async ()
 
   expect(drillLayers["drill-L1-L2.drl"]).toContain("X2.0000Y0.0000")
 
-  expect(gerberOutput.F_Cu).toContain("X-01200000Y-00700000D02*")
-  expect(gerberOutput.F_Cu).toContain("X001200000Y000300000D01*")
-  expect(gerberOutput.F_Cu).not.toContain("X000800000Y-00700000D02*")
-  expect(gerberOutput.F_Cu).not.toContain("X003200000Y000300000D01*")
+  expect(gerberOutput.F_Cu).not.toContain("X-01200000Y-00700000D02*")
+  expect(gerberOutput.F_Cu).not.toContain("X001200000Y000300000D01*")
+  expect(gerberOutput.F_Cu).toContain("X000800000Y-00700000D02*")
+  expect(gerberOutput.F_Cu).toContain("X003200000Y000300000D01*")
 
   await expect({
     ...gerberOutput,
