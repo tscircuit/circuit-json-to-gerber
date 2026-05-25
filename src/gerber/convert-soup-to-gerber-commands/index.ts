@@ -448,7 +448,7 @@ export const convertSoupToGerberCommands = (
       )
     }
 
-    for (const char of element.text.toUpperCase()) {
+    for (const char of element.text) {
       if (char === " ") {
         anchoredX += spaceWidth + letterSpacing
         continue

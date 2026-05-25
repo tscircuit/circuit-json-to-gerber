@@ -308,10 +308,7 @@ const injectRequestedSilkscreen = (svg: string, layerNames: string[]) => {
   const stackupPrefix = svgId.replace(/_(top|bottom)$/, "")
   const silkscreenUse = `<use xlink:href="#${silkscreenGroupId}" fill="currentColor" stroke="currentColor" class="${stackupPrefix}_ss"/>`
 
-  return svg.replace(
-    /<\/g><\/g><\/svg>$/,
-    `${silkscreenUse}</g></g></svg>`,
-  )
+  return svg.replace(/<\/g><\/g><\/svg>$/, `${silkscreenUse}</g></g></svg>`)
 }
 
 const renderGerberLayerSvg = (
