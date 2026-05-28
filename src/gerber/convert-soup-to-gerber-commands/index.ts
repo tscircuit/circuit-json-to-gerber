@@ -23,7 +23,10 @@ import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
 import { offsetPolygonOutline } from "./offsetPolygonOutline"
-import { lineAlphabet } from "@tscircuit/alphabet"
+import {
+  lineAlphabet as defaultLineAlphabet,
+  getFont,
+} from "@tscircuit/alphabet"
 import {
   applyToPoint,
   compose,
@@ -281,6 +284,14 @@ export const convertSoupToGerberCommands = (
 
     let initialX = element.anchor_position.x
     let initialY = element.anchor_position.y
+
+    /** W15.P4 (EnergyCitizen fork): dispatch glyph stroke geometry per
+     *  element.font via getFont(). Default "tscircuit2024" matches
+     *  pre-fork behavior. */
+    const fontName = (element as { font?: string }).font ?? "tscircuit2024"
+    const fontModule = getFont(fontName)
+    const lineAlphabet = fontModule.lineAlphabet ?? defaultLineAlphabet
+
     const fontSize = element.font_size * CAP_HEIGHT_SCALE
     const letterSpacing = fontSize * 0.4
     const spaceWidth = fontSize * 0.5
