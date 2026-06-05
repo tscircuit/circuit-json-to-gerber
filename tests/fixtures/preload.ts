@@ -36,7 +36,7 @@ type CircuitJsonPcbMessageSnapshotOptions = {
   messageColor?: string
 }
 
-const defaultGerberLayerColors: Record<string, string> = {
+const kicadCopperLayerColors: Record<string, string> = {
   F_Cu: "#c83434",
   In1_Cu: "#7fc97f",
   In2_Cu: "#ce7d2c",
@@ -45,6 +45,9 @@ const defaultGerberLayerColors: Record<string, string> = {
   In5_Cu: "#7fc9c9",
   In6_Cu: "#c9c97f",
   B_Cu: "#4d7fc4",
+}
+
+const nonCopperSnapshotColors: Record<string, string> = {
   F_SilkScreen: "#f3f3f3",
   B_SilkScreen: "#f3f3f3",
   F_Mask: "#004200",
@@ -501,7 +504,7 @@ const renderGerberLayerOverlaySvg = async (
   const viewBox =
     parseSvgViewBox(edgeCutsSvg ?? "") ??
     getUnionViewBox(renderedLayers.map((layer) => layer.viewBox))
-  const colors = { ...defaultGerberLayerColors, ...opts.colors }
+  const colors = { ...kicadCopperLayerColors, ...opts.colors }
 
   const defs = renderedLayers.map((layer) => layer.defs).join("")
   const layerGroups = renderedLayers
@@ -553,7 +556,13 @@ const getGerberStackupSvg = async (
       gerberOutput,
       `${svgName}-overlay`,
       [...new Set([...contextualLayerNames, ...layerNames])],
-      opts,
+      {
+        ...opts,
+        colors: {
+          ...nonCopperSnapshotColors,
+          ...opts.colors,
+        },
+      },
     )
   }
 
