@@ -36,7 +36,7 @@ type CircuitJsonPcbMessageSnapshotOptions = {
   messageColor?: string
 }
 
-const kicadCopperLayerColors: Record<string, string> = {
+const defaultGerberLayerColors: Record<string, string> = {
   F_Cu: "#c83434",
   In1_Cu: "#7fc97f",
   In2_Cu: "#ce7d2c",
@@ -45,9 +45,17 @@ const kicadCopperLayerColors: Record<string, string> = {
   In5_Cu: "#7fc9c9",
   In6_Cu: "#c9c97f",
   B_Cu: "#4d7fc4",
+  F_SilkScreen: "#f3f3f3",
+  B_SilkScreen: "#f3f3f3",
+  F_Mask: "#004200",
+  B_Mask: "#004200",
+  F_Paste: "#999999",
+  B_Paste: "#999999",
 }
 
 const isDrillLayerName = (layerName: string) => layerName.endsWith(".drl")
+const isCopperLayerName = (layerName: string) =>
+  /(^F_Cu$|^B_Cu$|^In\d+_Cu$)/.test(layerName)
 
 const toMicrons = (valueMm: number) => valueMm * 1000
 
@@ -493,7 +501,7 @@ const renderGerberLayerOverlaySvg = async (
   const viewBox =
     parseSvgViewBox(edgeCutsSvg ?? "") ??
     getUnionViewBox(renderedLayers.map((layer) => layer.viewBox))
-  const colors = { ...kicadCopperLayerColors, ...opts.colors }
+  const colors = { ...defaultGerberLayerColors, ...opts.colors }
 
   const defs = renderedLayers.map((layer) => layer.defs).join("")
   const layerGroups = renderedLayers
@@ -519,6 +527,8 @@ const renderGerberLayerOverlaySvg = async (
 const getGerberStackupSvg = async (
   gerberOutput: Record<string, string>,
   layerNames: string[],
+  svgName: string,
+  opts: GerberLayerOverlaySnapshotOptions = {},
 ) => {
   for (const layerName of layerNames) {
     if (!gerberOutput[layerName]) {
@@ -536,6 +546,16 @@ const getGerberStackupSvg = async (
     ...(hasTopLayers && gerberOutput.F_Mask ? ["F_Mask"] : []),
     ...(hasBottomLayers && gerberOutput.B_Mask ? ["B_Mask"] : []),
   ]
+
+  const hasCopperLayers = layerNames.some(isCopperLayerName)
+  if (!hasCopperLayers) {
+    return renderGerberLayerOverlaySvg(
+      gerberOutput,
+      `${svgName}-overlay`,
+      [...new Set([...contextualLayerNames, ...layerNames])],
+      opts,
+    )
+  }
 
   const stackupLayerNames = [
     ...new Set([
@@ -608,7 +628,15 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
   })
-  const gerberSvg = await getGerberStackupSvg(gerberOutput, layerNames)
+  const gerberSvg = await getGerberStackupSvg(
+    gerberOutput,
+    layerNames,
+    svgName,
+    {
+      colors: opts.colors,
+      backgroundColor: opts.backgroundColor,
+    },
+  )
 
   const padding = 28
   const gutter = 28

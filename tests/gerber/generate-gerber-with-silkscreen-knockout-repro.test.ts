@@ -31,29 +31,24 @@ const circuitJson = [
   } as AnyCircuitElement,
 ] as AnyCircuitElement[]
 
-test.failing(
-  "repro: silkscreen knockout emits clear polarity around text",
-  async () => {
-    const gerberOutput = stringifyGerberCommandLayers(
-      convertSoupToGerberCommands(circuitJson),
-    )
+test("silkscreen knockout emits clear polarity around text", async () => {
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(circuitJson),
+  )
 
-    await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
-      import.meta.path,
-      "silkscreen-knockout-repro",
-      circuitJson,
-      ["F_SilkScreen"],
-      {
-        colors: {
-          F_SilkScreen: "#f3f3f3",
-        },
-        backgroundColor: "#111111",
+  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "silkscreen-knockout-repro",
+    circuitJson,
+    ["F_SilkScreen"],
+    {
+      colors: {
+        F_SilkScreen: "#f3f3f3",
       },
-    )
+      backgroundColor: "#111111",
+    },
+  )
 
-    expect(gerberOutput.F_SilkScreen).toContain("%LPC*%")
-    expect(
-      (gerberOutput.F_SilkScreen.match(/%LPD\*%/g) ?? []).length,
-    ).toBeGreaterThan(1)
-  },
-)
+  expect(gerberOutput.F_SilkScreen).toContain("%LPC*%")
+  expect((gerberOutput.F_SilkScreen.match(/%LPD\*%/g) ?? []).length).toBe(2)
+})
