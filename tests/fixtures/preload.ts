@@ -47,7 +47,18 @@ const kicadCopperLayerColors: Record<string, string> = {
   B_Cu: "#4d7fc4",
 }
 
+const nonCopperSnapshotColors: Record<string, string> = {
+  F_SilkScreen: "#f3f3f3",
+  B_SilkScreen: "#f3f3f3",
+  F_Mask: "#004200",
+  B_Mask: "#004200",
+  F_Paste: "#999999",
+  B_Paste: "#999999",
+}
+
 const isDrillLayerName = (layerName: string) => layerName.endsWith(".drl")
+const isCopperLayerName = (layerName: string) =>
+  /(^F_Cu$|^B_Cu$|^In\d+_Cu$)/.test(layerName)
 
 const toMicrons = (valueMm: number) => valueMm * 1000
 
@@ -519,6 +530,8 @@ const renderGerberLayerOverlaySvg = async (
 const getGerberStackupSvg = async (
   gerberOutput: Record<string, string>,
   layerNames: string[],
+  svgName: string,
+  opts: GerberLayerOverlaySnapshotOptions = {},
 ) => {
   for (const layerName of layerNames) {
     if (!gerberOutput[layerName]) {
@@ -536,6 +549,22 @@ const getGerberStackupSvg = async (
     ...(hasTopLayers && gerberOutput.F_Mask ? ["F_Mask"] : []),
     ...(hasBottomLayers && gerberOutput.B_Mask ? ["B_Mask"] : []),
   ]
+
+  const hasCopperLayers = layerNames.some(isCopperLayerName)
+  if (!hasCopperLayers) {
+    return renderGerberLayerOverlaySvg(
+      gerberOutput,
+      `${svgName}-overlay`,
+      [...new Set([...contextualLayerNames, ...layerNames])],
+      {
+        ...opts,
+        colors: {
+          ...nonCopperSnapshotColors,
+          ...opts.colors,
+        },
+      },
+    )
+  }
 
   const stackupLayerNames = [
     ...new Set([
@@ -608,7 +637,15 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
   })
-  const gerberSvg = await getGerberStackupSvg(gerberOutput, layerNames)
+  const gerberSvg = await getGerberStackupSvg(
+    gerberOutput,
+    layerNames,
+    svgName,
+    {
+      colors: opts.colors,
+      backgroundColor: opts.backgroundColor,
+    },
+  )
 
   const padding = 28
   const gutter = 28
