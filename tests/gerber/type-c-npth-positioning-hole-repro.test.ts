@@ -10,7 +10,15 @@ import {
   stringifyGerberCommands,
 } from "src/gerber/stringify-gerber"
 
-const circuitJson = [
+const COPIED_TYPE_C_ORIGIN_Y = 31.4249991
+const normalizeCopiedTypeCToOrigin = (element: any): AnyCircuitElement =>
+  JSON.parse(JSON.stringify(element), (key, value) =>
+    key === "y" && typeof value === "number"
+      ? value - COPIED_TYPE_C_ORIGIN_Y
+      : value,
+  )
+
+const copiedCircuitJson = [
   {
     type: "pcb_board",
     pcb_board_id: "board_usb_c_repro",
@@ -18,7 +26,7 @@ const circuitJson = [
     height: 14,
     thickness: 1.6,
     num_layers: 2,
-    center: { x: 0, y: 31 },
+    center: { x: 0, y: COPIED_TYPE_C_ORIGIN_Y },
   },
   {
     type: "pcb_component",
@@ -445,7 +453,9 @@ const circuitJson = [
     anchor_alignment: "center",
     layer: "top",
   },
-] as AnyCircuitElement[]
+]
+
+const circuitJson = copiedCircuitJson.map(normalizeCopiedTypeCToOrigin)
 
 test("USB-C positioning holes copied from abse-pico stay NPTH while connector pad routes to resistor", async () => {
   const gerberCommands = convertSoupToGerberCommands(circuitJson)
@@ -465,21 +475,33 @@ test("USB-C positioning holes copied from abse-pico stay NPTH while connector pa
   const topCopperOutput = stringifyGerberCommands(gerberCommands.F_Cu)
 
   expect(topCopperOutput).not.toContain("C,0.700024")
-  expect(topCopperOutput).not.toContain("X002889885Y029945074D03")
-  expect(topCopperOutput).not.toContain("X-002890139Y029945074D03")
+  expect(topCopperOutput).not.toContain("X002889885Y-001479925D03")
+  expect(topCopperOutput).not.toContain("X-002890139Y-001479925D03")
   expect(platedDrillOutput).not.toContain("T10C0.700024")
-  expect(platedDrillOutput).not.toContain("X2.8899Y29.9451")
-  expect(platedDrillOutput).not.toContain("X-2.8901Y29.9451")
+  expect(platedDrillOutput).not.toContain("X2.8899Y-1.4799")
+  expect(platedDrillOutput).not.toContain("X-2.8901Y-1.4799")
   expect(unplatedDrillOutput).toContain(
     "; #@! TF.FileFunction,NonPlated,1,2,NPTH",
   )
   expect(unplatedDrillOutput).toContain("T10C0.700024")
-  expect(unplatedDrillOutput).toContain("X2.8899Y29.9451")
-  expect(unplatedDrillOutput).toContain("X-2.8901Y29.9451")
+  expect(unplatedDrillOutput).toContain("X2.8899Y-1.4799")
+  expect(unplatedDrillOutput).toContain("X-2.8901Y-1.4799")
 
-  expect({
-    ...gerberOutput,
-    "drill.drl": platedDrillOutput,
-    "drill_npth.drl": unplatedDrillOutput,
-  }).toMatchGerberSnapshot(import.meta.path, "type-c-npth-positioning-hole")
+  expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "type-c-npth-positioning-hole",
+    circuitJson,
+    ["F_Cu", "F_Mask"],
+    {
+      colors: {
+        F_Cu: "#c83434",
+        F_Mask: "#20a35b",
+      },
+      backgroundColor: "#111111",
+      circuitJsonLabel: "Copied Type-C + resistor",
+      gerberLabel: "Top copper + top mask",
+      panelWidth: 1040,
+      panelHeight: 760,
+    },
+  )
 })
