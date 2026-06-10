@@ -43,7 +43,7 @@ test("Generate simple gerber with basic elements", async () => {
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
   const unplatedDrillOutput = stringifyExcellonDrill(
     convertSoupToExcellonDrillCommands({
-      circuitJson: soup as any,
+      circuitJson: soup,
       is_plated: false,
     }),
   )
