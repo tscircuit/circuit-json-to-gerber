@@ -27,6 +27,8 @@ type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
   circuitJsonPcbSvgOptions?: PcbSvgOptions
   circuitJsonLabel?: string
   gerberLabel?: string
+  panelWidth?: number
+  panelHeight?: number
 }
 
 type CircuitJsonPcbMessageSnapshotOptions = {
@@ -651,8 +653,8 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
   const gutter = 28
   const headerHeight = 32
   const cardPadding = 20
-  const panelWidth = 720
-  const panelHeight = 520
+  const panelWidth = opts.panelWidth ?? 720
+  const panelHeight = opts.panelHeight ?? 520
   const cardWidth = panelWidth + cardPadding * 2
   const cardHeight = panelHeight + cardPadding * 2 + headerHeight
   const totalWidth = padding * 2 + cardWidth * 2 + gutter

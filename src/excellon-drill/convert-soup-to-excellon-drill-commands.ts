@@ -177,10 +177,15 @@ const getTraceRouteViaElements = (
       if (
         point.route_type !== "via" ||
         typeof point.hole_diameter !== "number" ||
-        typeof point.outer_diameter !== "number"
+        typeof point.outer_diameter !== "number" ||
+        typeof point.from_layer !== "string" ||
+        typeof point.to_layer !== "string"
       ) {
         continue
       }
+
+      const fromLayer = point.from_layer as LayerRef
+      const toLayer = point.to_layer as LayerRef
 
       routeVias.push({
         type: "pcb_via",
@@ -189,9 +194,9 @@ const getTraceRouteViaElements = (
         y: point.y,
         hole_diameter: point.hole_diameter,
         outer_diameter: point.outer_diameter,
-        from_layer: point.from_layer,
-        to_layer: point.to_layer,
-        layers: [point.from_layer, point.to_layer],
+        from_layer: fromLayer,
+        to_layer: toLayer,
+        layers: [fromLayer, toLayer],
       })
     }
   }
@@ -266,6 +271,9 @@ export const convertSoupToExcellonDrillCommands = ({
     ) {
       continue
     }
+    if (is_plated && element.type === "pcb_hole") {
+      continue
+    }
 
     const holeDiameter =
       "hole_diameter" in element && typeof element.hole_diameter === "number"
@@ -315,6 +323,9 @@ export const convertSoupToExcellonDrillCommands = ({
             layerCount,
           })
         ) {
+          continue
+        }
+        if (is_plated && element.type === "pcb_hole") {
           continue
         }
 

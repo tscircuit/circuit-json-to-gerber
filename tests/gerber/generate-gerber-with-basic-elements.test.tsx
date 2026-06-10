@@ -41,9 +41,24 @@ test("Generate simple gerber with basic elements", async () => {
   // TODO parse gerber to check for correctness
 
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
+  const unplatedDrillOutput = stringifyExcellonDrill(
+    convertSoupToExcellonDrillCommands({
+      circuitJson: soup,
+      is_plated: false,
+    }),
+  )
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
+  const topCopperOutput = stringifyGerberCommands(gerber_cmds.F_Cu)
+  const topMaskOutput = stringifyGerberCommands(gerber_cmds.F_Mask)
 
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
+
+  expect(topCopperOutput).not.toContain("C,1.000000")
+  expect(topCopperOutput).not.toContain("X000000000Y004000000D03")
+  expect(topMaskOutput).toContain("C,1.000000")
+  expect(topMaskOutput).toContain("X000000000Y004000000D03")
+  expect(excellonDrillOutput).not.toContain("X0.0000Y4.0000")
+  expect(unplatedDrillOutput).toContain("X0.0000Y4.0000")
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "simple2")
 })

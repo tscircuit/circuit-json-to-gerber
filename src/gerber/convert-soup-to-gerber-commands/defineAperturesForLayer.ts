@@ -582,6 +582,7 @@ function getAllApertureTemplateConfigsForLayer({
         }
       }
     } else if (elm.type === "pcb_hole") {
+      if (!isSoldermaskLayer) continue
       if (
         glayer_name.endsWith("_Mask") &&
         elm.is_covered_with_solder_mask === true
