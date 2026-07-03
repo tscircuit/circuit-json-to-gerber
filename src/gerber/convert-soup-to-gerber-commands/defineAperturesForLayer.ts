@@ -285,7 +285,7 @@ export const getApertureConfigFromPcbSilkscreenText = (
       diameter: elm.font_size / 8, // font size and diamater have different units of measurement
     }
   }
-  throw new Error(`Provide font_size for: ${elm as any}`)
+  throw new Error("Provide font_size for silkscreen text")
 }
 
 export const getApertureConfigFromPcbCopperText = (
@@ -297,11 +297,15 @@ export const getApertureConfigFromPcbCopperText = (
       diameter: elm.font_size / 8, // font size and diamater have different units of measurement
     }
   }
-  throw new Error(`Provide font_size for: ${elm as any}`)
+  throw new Error("Provide font_size for copper text")
 }
 
+type FabricationTextApertureElement =
+  | PcbFabricationNoteText
+  | Pick<PcbFabricationNoteDimension, "font_size">
+
 export const getApertureConfigFromPcbFabricationNoteText = (
-  elm: PcbFabricationNoteText,
+  elm: FabricationTextApertureElement,
 ): ApertureTemplateConfig => {
   if ("font_size" in elm) {
     return {
@@ -679,7 +683,7 @@ function getAllApertureTemplateConfigsForLayer({
     } else if (elm.type === "pcb_fabrication_note_dimension") {
       if (isFabricationLayer && elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteDimension(elm))
-        addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm as any))
+        addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
       }
     } else if (elm.type === "pcb_copper_text") {
       if (elm.layer === layer)

@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { Circuit } from "@tscircuit/core"
+import { lineAlphabet } from "@tscircuit/alphabet"
 import type {
   AnyCircuitElement,
   PcbBoard,
@@ -209,6 +210,62 @@ const isFabricationText = (
 const isSmtPad = (element: AnyCircuitElement): element is PcbSmtPadRect =>
   element.type === "pcb_smtpad"
 
+const getAlphabetLineCount = (text: string) =>
+  text
+    .toUpperCase()
+    .split("")
+    .reduce((sum, char) => sum + (lineAlphabet[char]?.length ?? 0), 0)
+
+const renderGerberLineSvg = (gerber: string) => {
+  const paths: string[] = []
+  const points: Array<{ x: number; y: number }> = []
+  let currentPoint: { x: number; y: number } | undefined
+
+  for (const rawLine of gerber.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    const drawMatch = line.match(/^X(-?\d+)Y(-?\d+)D0?([12])\*$/)
+    if (!drawMatch) continue
+
+    const point = {
+      x: Number(drawMatch[1]) / 1000,
+      y: Number(drawMatch[2]) / 1000,
+    }
+    points.push(point)
+
+    if (drawMatch[3] === "2" || !currentPoint) {
+      currentPoint = point
+      continue
+    }
+
+    paths.push(
+      `<path d="M ${currentPoint.x} ${currentPoint.y} L ${point.x} ${point.y}"/>`,
+    )
+    currentPoint = point
+  }
+
+  const minX = Math.min(...points.map((point) => point.x))
+  const maxX = Math.max(...points.map((point) => point.x))
+  const minY = Math.min(...points.map((point) => point.y))
+  const maxY = Math.max(...points.map((point) => point.y))
+  const padding = 125
+  const viewBox = {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  }
+
+  return [
+    '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
+    `width="${viewBox.width}um" height="${viewBox.height}um" `,
+    `viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}">`,
+    '<g fill="none" stroke="#111111" stroke-width="100" stroke-linecap="round" stroke-linejoin="round">',
+    ...paths,
+    "</g>",
+    "</svg>",
+  ].join("")
+}
+
 test("exports fabrication elements from a KiCad footprint", async () => {
   const circuitOptions = {
     platform: {
@@ -272,5 +329,16 @@ test("exports fabrication elements from a KiCad footprint", async () => {
   expect(gerberOutput.F_Fab).toContain("D01*")
   expect(gerberOutput.F_Fab).toContain("X000250000Y000000000D02*")
   expect(gerberOutput.F_Fab).toContain("X000750000Y000000000D01*")
-  expect(gerberOutput.F_Fab.match(/D01\*/g)?.length ?? 0).toBeGreaterThan(100)
+  expect(gerberOutput.F_Fab.match(/D01\*/g)?.length ?? 0).toBe(
+    fabricationPaths.length +
+      fabricationTexts.reduce(
+        (sum, element) => sum + getAlphabetLineCount(element.text),
+        0,
+      ),
+  )
+
+  await expect(renderGerberLineSvg(gerberOutput.F_Fab)).toMatchSvgSnapshot(
+    import.meta.path,
+    "fabrication-text-from-kicad-footprint-F_Fab",
+  )
 })
