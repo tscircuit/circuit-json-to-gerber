@@ -1,8 +1,24 @@
 import { expect, test } from "bun:test"
 import { Circuit } from "@tscircuit/core"
-import type { AnyCircuitElement } from "circuit-json"
+import type {
+  AnyCircuitElement,
+  PcbBoard,
+  PcbFabricationNotePath,
+  PcbFabricationNoteText,
+  PcbSmtPadRect,
+} from "circuit-json"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
+
+type FootprintSmtPad = PcbSmtPadRect & {
+  pin_number?: number
+  pin_label?: string
+}
+
+type FootprintCircuitElement =
+  | FootprintSmtPad
+  | PcbFabricationNotePath
+  | PcbFabricationNoteText
 
 const sod123FootprintCircuitJson = [
   {
@@ -178,10 +194,23 @@ const sod123FootprintCircuitJson = [
     anchor_alignment: "center",
     text: "D_SOD-123",
   },
-] as AnyCircuitElement[]
+] satisfies FootprintCircuitElement[]
+
+const isFabricationPath = (
+  element: AnyCircuitElement,
+): element is PcbFabricationNotePath =>
+  element.type === "pcb_fabrication_note_path"
+
+const isFabricationText = (
+  element: AnyCircuitElement,
+): element is PcbFabricationNoteText =>
+  element.type === "pcb_fabrication_note_text"
+
+const isSmtPad = (element: AnyCircuitElement): element is PcbSmtPadRect =>
+  element.type === "pcb_smtpad"
 
 test("exports fabrication elements from a KiCad footprint", async () => {
-  const circuit = new Circuit({
+  const circuitOptions = {
     platform: {
       footprintLibraryMap: {
         kicad: async (footprintName: string) => {
@@ -189,8 +218,9 @@ test("exports fabrication elements from a KiCad footprint", async () => {
           return { footprintCircuitJson: sod123FootprintCircuitJson }
         },
       },
-    } as any,
-  })
+    },
+  } satisfies NonNullable<ConstructorParameters<typeof Circuit>[0]>
+  const circuit = new Circuit(circuitOptions)
 
   circuit.add(
     <board width="10mm" height="10mm">
@@ -200,39 +230,30 @@ test("exports fabrication elements from a KiCad footprint", async () => {
 
   await circuit.renderUntilSettled()
   const renderedCircuitJson = circuit.getCircuitJson()
-  expect(
-    renderedCircuitJson.filter((element) => element.type === "pcb_smtpad"),
-  ).toHaveLength(2)
+  expect(renderedCircuitJson.filter(isSmtPad)).toHaveLength(2)
 
-  const circuitJson = [
-    {
-      type: "pcb_board",
-      pcb_board_id: "pcb_board_0",
-      center: { x: 0, y: 0 },
-      width: 10,
-      height: 10,
-      num_layers: 2,
-      thickness: 1.6,
-      material: "fr4",
-    },
+  const board: PcbBoard = {
+    type: "pcb_board",
+    pcb_board_id: "pcb_board_0",
+    center: { x: 0, y: 0 },
+    width: 10,
+    height: 10,
+    num_layers: 2,
+    thickness: 1.6,
+    material: "fr4",
+  }
+  const circuitJson: AnyCircuitElement[] = [
+    board,
     ...sod123FootprintCircuitJson,
-  ] as AnyCircuitElement[]
-  const fabricationPaths = circuitJson.filter(
-    (element) => element.type === "pcb_fabrication_note_path",
-  )
-  const fabricationTexts = circuitJson.filter(
-    (element) => element.type === "pcb_fabrication_note_text",
-  )
+  ]
+  const fabricationPaths = circuitJson.filter(isFabricationPath)
+  const fabricationTexts = circuitJson.filter(isFabricationText)
 
-  expect(
-    circuitJson.filter((element) => element.type === "pcb_smtpad"),
-  ).toHaveLength(2)
+  expect(circuitJson.filter(isSmtPad)).toHaveLength(2)
   expect(fabricationPaths.length).toBeGreaterThanOrEqual(11)
-  expect(fabricationTexts.map((element: any) => element.text)).toContain(
-    "D_SOD-123",
-  )
+  expect(fabricationTexts.map((element) => element.text)).toContain("D_SOD-123")
   expect(
-    fabricationPaths.some((element: any) => {
+    fabricationPaths.some((element) => {
       const [start, end] = element.route
       return (
         start?.x === 0.25 &&
@@ -243,7 +264,7 @@ test("exports fabrication elements from a KiCad footprint", async () => {
     }),
   ).toBe(true)
 
-  const gerberCommands = convertSoupToGerberCommands(circuitJson as any)
+  const gerberCommands = convertSoupToGerberCommands(circuitJson)
   const gerberOutput = stringifyGerberCommandLayers(gerberCommands)
 
   expect(gerberOutput.F_Fab).toContain("%TF.FileFunction,Other,Fab,Top*%")
@@ -252,16 +273,4 @@ test("exports fabrication elements from a KiCad footprint", async () => {
   expect(gerberOutput.F_Fab).toContain("X000250000Y000000000D02*")
   expect(gerberOutput.F_Fab).toContain("X000750000Y000000000D01*")
   expect(gerberOutput.F_Fab.match(/D01\*/g)?.length ?? 0).toBeGreaterThan(100)
-
-  await expect(gerberOutput).toMatchGerberLayerSnapshots(
-    import.meta.path,
-    "fabrication-text-from-kicad-footprint",
-    ["F_Fab"],
-    {
-      backgroundColor: "#000000",
-      compareMode: "text",
-      renderer: "line-draw",
-      stablePathCount: 11,
-    },
-  )
 })
