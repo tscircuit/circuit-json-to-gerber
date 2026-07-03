@@ -264,16 +264,13 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
 export const getApertureConfigFromPcbSilkscreenPath = (
   elm: PcbSilkscreenPath,
 ): ApertureTemplateConfig => {
-  if (!("stroke_width" in elm) || typeof elm.stroke_width !== "number") {
+  if ("stroke_width" in elm) {
     return {
       standard_template_code: "C",
-      diameter: 0.1,
+      diameter: elm.stroke_width,
     }
   }
-  return {
-    standard_template_code: "C",
-    diameter: elm.stroke_width,
-  }
+  throw new Error(`Provide stroke_width for: ${elm as any}`)
 }
 
 export const getApertureConfigFromPcbSilkscreenText = (
@@ -285,7 +282,7 @@ export const getApertureConfigFromPcbSilkscreenText = (
       diameter: elm.font_size / 8, // font size and diamater have different units of measurement
     }
   }
-  throw new Error("Provide font_size for silkscreen text")
+  throw new Error(`Provide font_size for: ${elm as any}`)
 }
 
 export const getApertureConfigFromPcbCopperText = (
@@ -297,7 +294,7 @@ export const getApertureConfigFromPcbCopperText = (
       diameter: elm.font_size / 8, // font size and diamater have different units of measurement
     }
   }
-  throw new Error("Provide font_size for copper text")
+  throw new Error(`Provide font_size for: ${elm as any}`)
 }
 
 type FabricationTextApertureElement =
