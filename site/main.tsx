@@ -8,7 +8,11 @@ import {
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
 import { parseGerberFile, renderGerberToSvg } from "gerberts"
-import { getGerberDownloadFilename } from "./gerber-download-filenames"
+import {
+  ensureFabricationGerberLayers,
+  getGerberDownloadFilename,
+  getGerberPreviewLayerNames,
+} from "./gerber-download-filenames"
 
 type GerberOutput = Record<string, string>
 type SvgOutput = Record<string, string>
@@ -45,11 +49,11 @@ function App() {
         is_plated: false,
       })
 
-      const fullOutput: GerberOutput = {
+      const fullOutput: GerberOutput = ensureFabricationGerberLayers({
         ...gerberStrings,
         "drill.drl": stringifyExcellonDrill(drillCmds),
         "drill_npth.drl": stringifyExcellonDrill(drillCmdsNpth),
-      }
+      })
 
       // Convert gerbers to SVGs using gerberts
       const svgs: SvgOutput = {}
@@ -67,6 +71,7 @@ function App() {
           // Replace fixed width/height with 100% to fill container
           svg = svg.replace(/width="[^"]*"/, 'width="100%"')
           svg = svg.replace(/height="[^"]*"/, 'height="100%"')
+          if (svg.includes("Infinity")) continue
           svgs[name] = svg
         } catch (e) {
           console.warn(`Failed to render ${name} to SVG:`, e)
@@ -75,7 +80,7 @@ function App() {
 
       setSvgOutput(svgs)
       // Select first layer by default
-      const firstLayer = Object.keys(svgs)[0]
+      const firstLayer = getGerberPreviewLayerNames(fullOutput)[0]
       if (firstLayer) {
         setSelectedLayer(firstLayer)
       }
@@ -148,6 +153,10 @@ function App() {
     a.click()
     URL.revokeObjectURL(url)
   }, [gerberOutput, fileName])
+
+  const previewLayerNames = gerberOutput
+    ? getGerberPreviewLayerNames(gerberOutput)
+    : []
 
   return (
     <div className="min-h-screen bg-gray-900 text-white">
@@ -223,14 +232,14 @@ function App() {
               <h2 className="text-xl font-semibold mb-4">Preview</h2>
 
               {/* Layer Selector */}
-              {svgOutput && Object.keys(svgOutput).length > 0 && (
+              {previewLayerNames.length > 0 && (
                 <div className="mb-4">
                   <select
                     value={selectedLayer}
                     onChange={(e) => setSelectedLayer(e.target.value)}
                     className="w-full px-3 py-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:outline-none focus:border-blue-500"
                   >
-                    {Object.keys(svgOutput).map((layer) => (
+                    {previewLayerNames.map((layer) => (
                       <option key={layer} value={layer}>
                         {layer}
                       </option>
