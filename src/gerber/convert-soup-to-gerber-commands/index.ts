@@ -70,7 +70,7 @@ export const convertSoupToGerberCommands = (
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
   const outerLayerRefs = ["top", "bottom"] as const
   const isOuterLayerRef = (
-    layerRef: LayerRef,
+    layerRef: LayerRef | "edgecut",
   ): layerRef is (typeof outerLayerRefs)[number] =>
     layerRef === "top" || layerRef === "bottom"
   const fabricationLayerRefs = outerLayerRefs.filter((layerRef) =>
