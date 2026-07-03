@@ -1,4 +1,8 @@
-import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
+import type {
+  AnyCircuitElement,
+  PcbFabricationNoteDimension,
+  PcbPlatedHole,
+} from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -37,6 +41,13 @@ import {
 } from "transformation-matrix"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { LayerRef } from "circuit-json"
+import {
+  getFabricationLayerRefs,
+  isOuterLayerRef,
+  outerLayerRefs,
+} from "./fabricationLayerRefs"
+import { getFabRectPoints } from "./getFabRectPoints"
+import { renderOpenPath } from "./renderOpenPath"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -68,21 +79,7 @@ export const convertSoupToGerberCommands = (
   const layerCount = getLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
-  const outerLayerRefs = ["top", "bottom"] as const
-  const isOuterLayerRef = (
-    layerRef: LayerRef | "edgecut",
-  ): layerRef is (typeof outerLayerRefs)[number] =>
-    layerRef === "top" || layerRef === "bottom"
-  const fabricationLayerRefs = outerLayerRefs.filter((layerRef) =>
-    circuitJson.some(
-      (element) =>
-        (element.type === "pcb_fabrication_note_text" ||
-          element.type === "pcb_fabrication_note_path" ||
-          element.type === "pcb_fabrication_note_rect" ||
-          element.type === "pcb_fabrication_note_dimension") &&
-        element.layer === layerRef,
-    ),
-  )
+  const fabricationLayerRefs = getFabricationLayerRefs(circuitJson)
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -508,88 +505,10 @@ export const convertSoupToGerberCommands = (
     }
   }
 
-  const renderOpenPath = ({
-    element,
-    glayer,
-    apertureConfig,
-    route,
-  }: {
-    element: any
-    glayer: AnyGerberCommand[]
-    apertureConfig: any
-    route: Array<{ x: number; y: number }>
-  }) => {
-    if (route.length === 0) return
-    const gerber = gerberBuilder().add("select_aperture", {
-      aperture_number: findApertureNumber(glayer, apertureConfig),
-    })
-
-    gerber.add("move_operation", {
-      x: route[0].x,
-      y: mfy(route[0].y),
-    })
-
-    const isDashed = element.is_stroke_dashed === true
-    if (!isDashed) {
-      for (let i = 1; i < route.length; i++) {
-        gerber.add("plot_operation", {
-          x: route[i].x,
-          y: mfy(route[i].y),
-        })
-      }
-      glayer.push(...gerber.build())
-      return
-    }
-
-    const dashLength = Math.max(0.2, (element.stroke_width ?? 0.1) * 4)
-    const gapLength = dashLength
-    for (const [start, end] of pairs(route)) {
-      const dx = end.x - start.x
-      const dy = end.y - start.y
-      const length = Math.hypot(dx, dy)
-      if (length <= 1e-9) continue
-
-      const ux = dx / length
-      const uy = dy / length
-      let distance = 0
-      while (distance < length) {
-        const dashEndDistance = Math.min(distance + dashLength, length)
-        const dashStart = {
-          x: start.x + ux * distance,
-          y: start.y + uy * distance,
-        }
-        const dashEnd = {
-          x: start.x + ux * dashEndDistance,
-          y: start.y + uy * dashEndDistance,
-        }
-        gerber.add("move_operation", {
-          x: dashStart.x,
-          y: mfy(dashStart.y),
-        })
-        gerber.add("plot_operation", {
-          x: dashEnd.x,
-          y: mfy(dashEnd.y),
-        })
-        distance += dashLength + gapLength
-      }
-    }
-
-    glayer.push(...gerber.build())
-  }
-
-  const getFabRectPoints = (element: any) => {
-    const halfWidth = element.width / 2
-    const halfHeight = element.height / 2
-    const { x, y } = element.center
-    return [
-      { x: x - halfWidth, y: y - halfHeight },
-      { x: x + halfWidth, y: y - halfHeight },
-      { x: x + halfWidth, y: y + halfHeight },
-      { x: x - halfWidth, y: y + halfHeight },
-    ]
-  }
-
-  const renderFabricationDimension = (element: any, layer: LayerRef) => {
+  const renderFabricationDimension = (
+    element: PcbFabricationNoteDimension,
+    layer: LayerRef,
+  ) => {
     const glayer = glayers[getGerberLayerName(layer, "fabrication")]
     const from = element.from
     const to = element.to
@@ -622,6 +541,7 @@ export const convertSoupToGerberCommands = (
       glayer,
       apertureConfig: lineConfig,
       route: [from, dimStart, dimEnd, to],
+      mapY: mfy,
     })
 
     renderOpenPath({
@@ -639,6 +559,7 @@ export const convertSoupToGerberCommands = (
           y: dimStart.y + uy * arrowSize - py * arrowHalfWidth,
         },
       ],
+      mapY: mfy,
     })
 
     renderOpenPath({
@@ -656,6 +577,7 @@ export const convertSoupToGerberCommands = (
           y: dimEnd.y - uy * arrowSize - py * arrowHalfWidth,
         },
       ],
+      mapY: mfy,
     })
 
     if (element.text) {
@@ -1059,6 +981,7 @@ export const convertSoupToGerberCommands = (
             apertureConfig:
               getApertureConfigFromPcbFabricationNotePath(element),
             route: element.route,
+            mapY: mfy,
           })
         }
       } else if (
@@ -1085,6 +1008,7 @@ export const convertSoupToGerberCommands = (
               apertureConfig:
                 getApertureConfigFromPcbFabricationNotePath(element),
               route: [...points, points[0]],
+              mapY: mfy,
             })
           }
         }
