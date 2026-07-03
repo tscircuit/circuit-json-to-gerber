@@ -11,6 +11,8 @@ import {
   getApertureConfigFromPcbPlatedHoleSoldermask,
   getApertureConfigFromCirclePcbHoleSoldermask,
   getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbFabricationNotePath,
+  getApertureConfigFromPcbFabricationNoteText,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
@@ -34,6 +36,14 @@ import {
 } from "transformation-matrix"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { LayerRef } from "circuit-json"
+import {
+  getFabricationLayerRefs,
+  isOuterLayerRef,
+  outerLayerRefs,
+} from "./fabricationLayerRefs"
+import { getFabRectPoints } from "./getFabRectPoints"
+import { renderFabricationDimension } from "./renderFabricationDimension"
+import { renderOpenPath } from "./renderOpenPath"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -65,7 +75,7 @@ export const convertSoupToGerberCommands = (
   const layerCount = getLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
-  const outerLayerRefs = ["top", "bottom"] as const
+  const fabricationLayerRefs = getFabricationLayerRefs(circuitJson)
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -114,8 +124,18 @@ export const convertSoupToGerberCommands = (
     })
   }
 
+  for (const layerRef of fabricationLayerRefs) {
+    glayers[getGerberLayerName(layerRef, "fabrication")] = getCommandHeaders({
+      layer: layerRef,
+      layer_type: "fabrication",
+    })
+  }
+
   const copperGerberLayerNames = copperLayerRefs.map((layerRef) =>
     getGerberLayerName(layerRef, "copper"),
+  )
+  const fabricationGerberLayerNames = fabricationLayerRefs.map((layerRef) =>
+    getGerberLayerName(layerRef, "fabrication"),
   )
   const outerGerberLayerNames = outerLayerRefs.flatMap((layerRef) => [
     getGerberLayerName(layerRef, "soldermask"),
@@ -126,6 +146,7 @@ export const convertSoupToGerberCommands = (
   for (const glayer_name of [
     "F_Cu",
     ...copperGerberLayerNames.filter((name) => name !== "F_Cu"),
+    ...fabricationGerberLayerNames,
     ...outerGerberLayerNames,
   ] as const) {
     const glayer = glayers[glayer_name]
@@ -266,7 +287,7 @@ export const convertSoupToGerberCommands = (
   const renderVectorText = (
     element: any,
     layer: LayerRef,
-    layerType: "copper" | "silkscreen",
+    layerType: "copper" | "silkscreen" | "fabrication",
     getApertureConfig: (elm: any) => any,
   ) => {
     if (element.layer !== layer) return
@@ -814,7 +835,7 @@ export const convertSoupToGerberCommands = (
         }
       } else if (
         element.type === "pcb_silkscreen_path" &&
-        outerLayerRefs.includes(layer as any)
+        isOuterLayerRef(layer)
       ) {
         if (element.layer === layer) {
           const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
@@ -842,13 +863,85 @@ export const convertSoupToGerberCommands = (
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&
-        outerLayerRefs.includes(layer as any)
+        isOuterLayerRef(layer)
       ) {
         renderVectorText(
           element,
           layer as LayerRef,
           "silkscreen",
           getApertureConfigFromPcbSilkscreenText,
+        )
+      } else if (
+        element.type === "pcb_fabrication_note_path" &&
+        isOuterLayerRef(layer)
+      ) {
+        if (element.layer === layer) {
+          renderOpenPath({
+            element,
+            glayer:
+              glayers[getGerberLayerName(layer as LayerRef, "fabrication")],
+            apertureConfig:
+              getApertureConfigFromPcbFabricationNotePath(element),
+            route: element.route,
+            mapY: mfy,
+          })
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_rect" &&
+        isOuterLayerRef(layer)
+      ) {
+        if (element.layer === layer) {
+          const glayer =
+            glayers[getGerberLayerName(layer as LayerRef, "fabrication")]
+          const points = getFabRectPoints(element)
+
+          if (element.is_filled === true) {
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points,
+            })
+          }
+
+          if (element.has_stroke !== false) {
+            renderOpenPath({
+              element,
+              glayer,
+              apertureConfig:
+                getApertureConfigFromPcbFabricationNotePath(element),
+              route: [...points, points[0]],
+              mapY: mfy,
+            })
+          }
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_dimension" &&
+        isOuterLayerRef(layer)
+      ) {
+        if (element.layer === layer) {
+          renderFabricationDimension({
+            element,
+            glayer:
+              glayers[getGerberLayerName(layer as LayerRef, "fabrication")],
+            mapY: mfy,
+            renderText: (textElement) =>
+              renderVectorText(
+                textElement,
+                layer as LayerRef,
+                "fabrication",
+                getApertureConfigFromPcbFabricationNoteText,
+              ),
+          })
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_text" &&
+        isOuterLayerRef(layer)
+      ) {
+        renderVectorText(
+          element,
+          layer as LayerRef,
+          "fabrication",
+          getApertureConfigFromPcbFabricationNoteText,
         )
       } else if (element.type === "pcb_copper_text" && layer !== "edgecut") {
         renderVectorText(
@@ -858,7 +951,7 @@ export const convertSoupToGerberCommands = (
           getApertureConfigFromPcbCopperText,
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
-        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
+        if (element.layer === layer && isOuterLayerRef(layer)) {
           if (element.shape === "pill" || element.shape === "rotated_pill") {
             const soldermaskMargin =
               typeof element.soldermask_margin === "number"
@@ -929,7 +1022,7 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
-        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
+        if (element.layer === layer && isOuterLayerRef(layer)) {
           const layers_to_add_to = [
             glayers[getGerberLayerName(layer, "copper")],
           ]
@@ -951,7 +1044,7 @@ export const convertSoupToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_solder_paste") {
-        if (element.layer === layer && outerLayerRefs.includes(layer as any)) {
+        if (element.layer === layer && isOuterLayerRef(layer)) {
           const glayer = glayers[getGerberLayerName(layer, "paste")]
           let rotation = 0
           if (
@@ -1011,7 +1104,7 @@ export const convertSoupToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
           if (
-            outerLayerRefs.includes(layer as any) &&
+            isOuterLayerRef(layer) &&
             element.is_covered_with_solder_mask !== true
           ) {
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
@@ -1232,7 +1325,7 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_hole") {
         if (
-          outerLayerRefs.includes(layer as any) &&
+          isOuterLayerRef(layer) &&
           element.is_covered_with_solder_mask !== true
         ) {
           for (const glayer of [
@@ -1262,10 +1355,7 @@ export const convertSoupToGerberCommands = (
           const layersToAddTo = [
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
-          if (
-            element.is_tented === false &&
-            outerLayerRefs.includes(layer as any)
-          ) {
+          if (element.is_tented === false && isOuterLayerRef(layer)) {
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
           }
           for (const glayer of layersToAddTo) {
