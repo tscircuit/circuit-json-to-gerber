@@ -4,6 +4,10 @@ import type {
   PCBPlatedHole,
   PCBSMTPad,
   PcbCopperText,
+  PcbFabricationNoteDimension,
+  PcbFabricationNotePath,
+  PcbFabricationNoteRect,
+  PcbFabricationNoteText,
   PcbHole,
   PcbSolderPaste,
   PcbSilkscreenPath,
@@ -260,13 +264,16 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
 export const getApertureConfigFromPcbSilkscreenPath = (
   elm: PcbSilkscreenPath,
 ): ApertureTemplateConfig => {
-  if ("stroke_width" in elm) {
+  if (!("stroke_width" in elm) || typeof elm.stroke_width !== "number") {
     return {
       standard_template_code: "C",
-      diameter: elm.stroke_width,
+      diameter: 0.1,
     }
   }
-  throw new Error(`Provide stroke_width for: ${elm as any}`)
+  return {
+    standard_template_code: "C",
+    diameter: elm.stroke_width,
+  }
 }
 
 export const getApertureConfigFromPcbSilkscreenText = (
@@ -291,6 +298,42 @@ export const getApertureConfigFromPcbCopperText = (
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
+}
+
+export const getApertureConfigFromPcbFabricationNoteText = (
+  elm: PcbFabricationNoteText,
+): ApertureTemplateConfig => {
+  if ("font_size" in elm) {
+    return {
+      standard_template_code: "C",
+      diameter: elm.font_size / 8,
+    }
+  }
+  throw new Error(`Provide font_size for: ${elm as any}`)
+}
+
+export const getApertureConfigFromPcbFabricationNotePath = (
+  elm: PcbFabricationNotePath | PcbFabricationNoteRect,
+): ApertureTemplateConfig => {
+  if (!("stroke_width" in elm) || typeof elm.stroke_width !== "number") {
+    return {
+      standard_template_code: "C",
+      diameter: 0.1,
+    }
+  }
+  return {
+    standard_template_code: "C",
+    diameter: elm.stroke_width,
+  }
+}
+
+export const getApertureConfigFromPcbFabricationNoteDimension = (
+  elm: PcbFabricationNoteDimension,
+): ApertureTemplateConfig => {
+  return {
+    standard_template_code: "C",
+    diameter: Math.max(0.05, elm.font_size / 10),
+  }
 }
 
 export const getApertureConfigFromPcbSolderPaste = (
@@ -533,6 +576,7 @@ function getAllApertureTemplateConfigsForLayer({
   const configHashMap = new Set<string>()
   const isSoldermaskLayer = glayer_name.endsWith("_Mask")
   const isCopperLayer = glayer_name.endsWith("_Cu")
+  const isFabricationLayer = glayer_name.endsWith("_Fab")
 
   const addConfigIfNew = (config: ApertureTemplateConfig) => {
     const hash = stableStringify(config)
@@ -544,6 +588,7 @@ function getAllApertureTemplateConfigsForLayer({
 
   for (const elm of circuitJson) {
     if (elm.type === "pcb_smtpad") {
+      if (isFabricationLayer) continue
       if (elm.layer === layer && elm.shape !== "polygon") {
         if (isSoldermaskLayer) {
           addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
@@ -552,6 +597,7 @@ function getAllApertureTemplateConfigsForLayer({
         }
       }
     } else if (elm.type === "pcb_solder_paste") {
+      if (isFabricationLayer) continue
       if (elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
         if (elm.shape === "pill") {
@@ -565,6 +611,7 @@ function getAllApertureTemplateConfigsForLayer({
         }
       }
     } else if (elm.type === "pcb_plated_hole") {
+      if (isFabricationLayer) continue
       if (elm.layers.includes(layer)) {
         if (elm.shape === "hole_with_polygon_pad") {
           continue
@@ -598,8 +645,10 @@ function getAllApertureTemplateConfigsForLayer({
       } else
         console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
+      if (isFabricationLayer) continue
       addConfigIfNew(getApertureConfigFromOuterDiameter(elm))
     } else if (elm.type === "pcb_trace") {
+      if (isFabricationLayer) continue
       for (const point of elm.route) {
         if (
           point.route_type === "via" &&
@@ -609,11 +658,30 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(getApertureConfigFromOuterDiameter(point))
         }
       }
-    } else if (elm.type === "pcb_silkscreen_path")
-      addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
-    else if (elm.type === "pcb_silkscreen_text")
-      addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
-    else if (elm.type === "pcb_copper_text") {
+    } else if (elm.type === "pcb_silkscreen_path") {
+      if (!isFabricationLayer)
+        addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
+    } else if (elm.type === "pcb_silkscreen_text") {
+      if (!isFabricationLayer)
+        addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
+    } else if (elm.type === "pcb_fabrication_note_text") {
+      if (isFabricationLayer && elm.layer === layer)
+        addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
+    } else if (elm.type === "pcb_fabrication_note_path") {
+      if (isFabricationLayer && elm.layer === layer)
+        addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
+    } else if (elm.type === "pcb_fabrication_note_rect") {
+      if (isFabricationLayer && elm.layer === layer) {
+        if (elm.has_stroke !== false)
+          addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
+        if (elm.is_filled === true) addConfigIfNew(REGION_APERTURE_CONFIG)
+      }
+    } else if (elm.type === "pcb_fabrication_note_dimension") {
+      if (isFabricationLayer && elm.layer === layer) {
+        addConfigIfNew(getApertureConfigFromPcbFabricationNoteDimension(elm))
+        addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm as any))
+      }
+    } else if (elm.type === "pcb_copper_text") {
       if (elm.layer === layer)
         addConfigIfNew(getApertureConfigFromPcbCopperText(elm))
     }

@@ -11,6 +11,9 @@ import {
   getApertureConfigFromPcbPlatedHoleSoldermask,
   getApertureConfigFromCirclePcbHoleSoldermask,
   getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbFabricationNoteDimension,
+  getApertureConfigFromPcbFabricationNotePath,
+  getApertureConfigFromPcbFabricationNoteText,
   getApertureConfigFromPcbSilkscreenPath,
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
@@ -66,6 +69,16 @@ export const convertSoupToGerberCommands = (
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
   const outerLayerRefs = ["top", "bottom"] as const
+  const fabricationLayerRefs = outerLayerRefs.filter((layerRef) =>
+    circuitJson.some(
+      (element) =>
+        (element.type === "pcb_fabrication_note_text" ||
+          element.type === "pcb_fabrication_note_path" ||
+          element.type === "pcb_fabrication_note_rect" ||
+          element.type === "pcb_fabrication_note_dimension") &&
+        element.layer === layerRef,
+    ),
+  )
   const glayers: LayerToGerberCommandsMap = {
     F_Cu: getCommandHeaders({
       layer: "top",
@@ -114,8 +127,18 @@ export const convertSoupToGerberCommands = (
     })
   }
 
+  for (const layerRef of fabricationLayerRefs) {
+    glayers[getGerberLayerName(layerRef, "fabrication")] = getCommandHeaders({
+      layer: layerRef,
+      layer_type: "fabrication",
+    })
+  }
+
   const copperGerberLayerNames = copperLayerRefs.map((layerRef) =>
     getGerberLayerName(layerRef, "copper"),
+  )
+  const fabricationGerberLayerNames = fabricationLayerRefs.map((layerRef) =>
+    getGerberLayerName(layerRef, "fabrication"),
   )
   const outerGerberLayerNames = outerLayerRefs.flatMap((layerRef) => [
     getGerberLayerName(layerRef, "soldermask"),
@@ -126,6 +149,7 @@ export const convertSoupToGerberCommands = (
   for (const glayer_name of [
     "F_Cu",
     ...copperGerberLayerNames.filter((name) => name !== "F_Cu"),
+    ...fabricationGerberLayerNames,
     ...outerGerberLayerNames,
   ] as const) {
     const glayer = glayers[glayer_name]
@@ -266,7 +290,7 @@ export const convertSoupToGerberCommands = (
   const renderVectorText = (
     element: any,
     layer: LayerRef,
-    layerType: "copper" | "silkscreen",
+    layerType: "copper" | "silkscreen" | "fabrication",
     getApertureConfig: (elm: any) => any,
   ) => {
     if (element.layer !== layer) return
@@ -476,6 +500,175 @@ export const convertSoupToGerberCommands = (
     if (element.is_knockout) {
       glayer.push(
         ...gerberBuilder().add("set_layer_polarity", { polarity: "D" }).build(),
+      )
+    }
+  }
+
+  const renderOpenPath = ({
+    element,
+    glayer,
+    apertureConfig,
+    route,
+  }: {
+    element: any
+    glayer: AnyGerberCommand[]
+    apertureConfig: any
+    route: Array<{ x: number; y: number }>
+  }) => {
+    if (route.length === 0) return
+    const gerber = gerberBuilder().add("select_aperture", {
+      aperture_number: findApertureNumber(glayer, apertureConfig),
+    })
+
+    gerber.add("move_operation", {
+      x: route[0].x,
+      y: mfy(route[0].y),
+    })
+
+    const isDashed = element.is_stroke_dashed === true
+    if (!isDashed) {
+      for (let i = 1; i < route.length; i++) {
+        gerber.add("plot_operation", {
+          x: route[i].x,
+          y: mfy(route[i].y),
+        })
+      }
+      glayer.push(...gerber.build())
+      return
+    }
+
+    const dashLength = Math.max(0.2, (element.stroke_width ?? 0.1) * 4)
+    const gapLength = dashLength
+    for (const [start, end] of pairs(route)) {
+      const dx = end.x - start.x
+      const dy = end.y - start.y
+      const length = Math.hypot(dx, dy)
+      if (length <= 1e-9) continue
+
+      const ux = dx / length
+      const uy = dy / length
+      let distance = 0
+      while (distance < length) {
+        const dashEndDistance = Math.min(distance + dashLength, length)
+        const dashStart = {
+          x: start.x + ux * distance,
+          y: start.y + uy * distance,
+        }
+        const dashEnd = {
+          x: start.x + ux * dashEndDistance,
+          y: start.y + uy * dashEndDistance,
+        }
+        gerber.add("move_operation", {
+          x: dashStart.x,
+          y: mfy(dashStart.y),
+        })
+        gerber.add("plot_operation", {
+          x: dashEnd.x,
+          y: mfy(dashEnd.y),
+        })
+        distance += dashLength + gapLength
+      }
+    }
+
+    glayer.push(...gerber.build())
+  }
+
+  const getFabRectPoints = (element: any) => {
+    const halfWidth = element.width / 2
+    const halfHeight = element.height / 2
+    const { x, y } = element.center
+    return [
+      { x: x - halfWidth, y: y - halfHeight },
+      { x: x + halfWidth, y: y - halfHeight },
+      { x: x + halfWidth, y: y + halfHeight },
+      { x: x - halfWidth, y: y + halfHeight },
+    ]
+  }
+
+  const renderFabricationDimension = (element: any, layer: LayerRef) => {
+    const glayer = glayers[getGerberLayerName(layer, "fabrication")]
+    const from = element.from
+    const to = element.to
+    const dx = to.x - from.x
+    const dy = to.y - from.y
+    const length = Math.hypot(dx, dy)
+    if (length <= 1e-9) return
+
+    const offsetDistance = element.offset_distance ?? element.offset ?? 0
+    const defaultOffsetDirection = { x: -dy / length, y: dx / length }
+    const offsetDirection = element.offset_direction ?? defaultOffsetDirection
+    const offsetMagnitude =
+      Math.hypot(offsetDirection.x, offsetDirection.y) || 1
+    const offsetVector = {
+      x: (offsetDirection.x / offsetMagnitude) * offsetDistance,
+      y: (offsetDirection.y / offsetMagnitude) * offsetDistance,
+    }
+    const dimStart = { x: from.x + offsetVector.x, y: from.y + offsetVector.y }
+    const dimEnd = { x: to.x + offsetVector.x, y: to.y + offsetVector.y }
+    const arrowSize = element.arrow_size ?? 1
+    const ux = dx / length
+    const uy = dy / length
+    const px = -uy
+    const py = ux
+    const arrowHalfWidth = arrowSize * 0.35
+
+    const lineConfig = getApertureConfigFromPcbFabricationNoteDimension(element)
+    renderOpenPath({
+      element,
+      glayer,
+      apertureConfig: lineConfig,
+      route: [from, dimStart, dimEnd, to],
+    })
+
+    renderOpenPath({
+      element,
+      glayer,
+      apertureConfig: lineConfig,
+      route: [
+        {
+          x: dimStart.x + ux * arrowSize + px * arrowHalfWidth,
+          y: dimStart.y + uy * arrowSize + py * arrowHalfWidth,
+        },
+        dimStart,
+        {
+          x: dimStart.x + ux * arrowSize - px * arrowHalfWidth,
+          y: dimStart.y + uy * arrowSize - py * arrowHalfWidth,
+        },
+      ],
+    })
+
+    renderOpenPath({
+      element,
+      glayer,
+      apertureConfig: lineConfig,
+      route: [
+        {
+          x: dimEnd.x - ux * arrowSize + px * arrowHalfWidth,
+          y: dimEnd.y - uy * arrowSize + py * arrowHalfWidth,
+        },
+        dimEnd,
+        {
+          x: dimEnd.x - ux * arrowSize - px * arrowHalfWidth,
+          y: dimEnd.y - uy * arrowSize - py * arrowHalfWidth,
+        },
+      ],
+    })
+
+    if (element.text) {
+      renderVectorText(
+        {
+          ...element,
+          anchor_position: {
+            x: (dimStart.x + dimEnd.x) / 2,
+            y: (dimStart.y + dimEnd.y) / 2,
+          },
+          anchor_alignment: "center",
+          ccw_rotation:
+            element.text_ccw_rotation ?? (Math.atan2(dy, dx) * 180) / Math.PI,
+        },
+        layer,
+        "fabrication",
+        getApertureConfigFromPcbFabricationNoteText,
       )
     }
   }
@@ -849,6 +1042,64 @@ export const convertSoupToGerberCommands = (
           layer as LayerRef,
           "silkscreen",
           getApertureConfigFromPcbSilkscreenText,
+        )
+      } else if (
+        element.type === "pcb_fabrication_note_path" &&
+        outerLayerRefs.includes(layer as any)
+      ) {
+        if (element.layer === layer) {
+          renderOpenPath({
+            element,
+            glayer:
+              glayers[getGerberLayerName(layer as LayerRef, "fabrication")],
+            apertureConfig:
+              getApertureConfigFromPcbFabricationNotePath(element),
+            route: element.route,
+          })
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_rect" &&
+        outerLayerRefs.includes(layer as any)
+      ) {
+        if (element.layer === layer) {
+          const glayer =
+            glayers[getGerberLayerName(layer as LayerRef, "fabrication")]
+          const points = getFabRectPoints(element)
+
+          if (element.is_filled === true) {
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points,
+            })
+          }
+
+          if (element.has_stroke !== false) {
+            renderOpenPath({
+              element,
+              glayer,
+              apertureConfig:
+                getApertureConfigFromPcbFabricationNotePath(element),
+              route: [...points, points[0]],
+            })
+          }
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_dimension" &&
+        outerLayerRefs.includes(layer as any)
+      ) {
+        if (element.layer === layer) {
+          renderFabricationDimension(element, layer as LayerRef)
+        }
+      } else if (
+        element.type === "pcb_fabrication_note_text" &&
+        outerLayerRefs.includes(layer as any)
+      ) {
+        renderVectorText(
+          element,
+          layer as LayerRef,
+          "fabrication",
+          getApertureConfigFromPcbFabricationNoteText,
         )
       } else if (element.type === "pcb_copper_text" && layer !== "edgecut") {
         renderVectorText(

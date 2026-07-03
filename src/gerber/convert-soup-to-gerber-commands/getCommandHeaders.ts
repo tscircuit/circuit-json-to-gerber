@@ -9,6 +9,8 @@ const layerAndTypeToFileFunction = {
   "bottom-soldermask": "Soldermask,Bot",
   "top-silkscreen": "Legend,Top",
   "bottom-silkscreen": "Legend,Bot",
+  "top-fabrication": "Other,Fab,Top",
+  "bottom-fabrication": "Other,Fab,Bot",
   "top-paste": "Paste,Top",
   "bottom-paste": "Paste,Bot",
   edgecut: "Profile,NP",
@@ -37,7 +39,7 @@ const getCopperLayerNumber = (layer: LayerRef, total_layer_count: number) => {
  */
 export const getCommandHeaders = (opts: {
   layer: "edgecut" | LayerRef
-  layer_type?: "copper" | "soldermask" | "silkscreen" | "paste"
+  layer_type?: "copper" | "soldermask" | "silkscreen" | "fabrication" | "paste"
   total_layer_count?: number
 }): AnyGerberCommand[] => {
   const total_layer_count = opts.total_layer_count ?? 2
