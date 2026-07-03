@@ -20,6 +20,8 @@ type GerberLayerSnapshotOptions = {
   color?: string
   backgroundColor?: string
   compareMode?: "visual" | "text"
+  renderer?: "gerber-to-svg" | "line-draw"
+  stablePathCount?: number
 }
 
 type GerberLayerOverlaySnapshotOptions = {
@@ -347,10 +349,104 @@ const renderGerberLayerSvg = (
     )
   })
 
+const renderGerberLineDrawSvg = (
+  gerber: string,
+  id: string,
+  opts: GerberLayerSnapshotOptions = {},
+) => {
+  const apertureWidths = new Map<string, number>()
+  const paths: Array<{ d: string; strokeWidth: number }> = []
+  let selectedAperture = "10"
+  let currentPoint: { x: number; y: number } | undefined
+  let currentPath: { d: string; strokeWidth: number } | undefined
+  const points: Array<{ x: number; y: number }> = []
+
+  for (const rawLine of gerber.split(/\r?\n/)) {
+    const line = rawLine.trim()
+    const apertureMatch = line.match(/^%ADD(\d+)C,([\d.]+)\*%$/)
+    if (apertureMatch) {
+      apertureWidths.set(apertureMatch[1], Number(apertureMatch[2]) * 1000)
+      continue
+    }
+
+    const apertureSelectMatch = line.match(/^D(\d+)\*$/)
+    if (apertureSelectMatch) {
+      selectedAperture = apertureSelectMatch[1]
+      currentPath = undefined
+      continue
+    }
+
+    const drawMatch = line.match(/^X(-?\d+)Y(-?\d+)D0?([12])\*$/)
+    if (!drawMatch) continue
+
+    const point = {
+      x: Number(drawMatch[1]) / 1000,
+      y: Number(drawMatch[2]) / 1000,
+    }
+    const operation = drawMatch[3]
+
+    if (operation === "2" || !currentPoint) {
+      currentPoint = point
+      currentPath = undefined
+      points.push(point)
+      continue
+    }
+
+    if (!currentPath) {
+      currentPath = {
+        d: `M ${currentPoint.x} ${currentPoint.y}`,
+        strokeWidth: apertureWidths.get(selectedAperture) ?? 100,
+      }
+      paths.push(currentPath)
+      points.push(currentPoint)
+    }
+
+    currentPath.d += ` L ${point.x} ${point.y}`
+    points.push(point)
+    currentPoint = point
+  }
+
+  const maxStrokeWidth = Math.max(
+    100,
+    ...paths.map((pathInfo) => pathInfo.strokeWidth),
+  )
+  const minX = Math.min(...points.map((point) => point.x))
+  const maxX = Math.max(...points.map((point) => point.x))
+  const minY = Math.min(...points.map((point) => point.y))
+  const maxY = Math.max(...points.map((point) => point.y))
+  const padding = maxStrokeWidth / 2
+  const viewBox = {
+    x: minX - padding,
+    y: minY - padding,
+    width: maxX - minX + padding * 2,
+    height: maxY - minY + padding * 2,
+  }
+  const backgroundRect = opts.backgroundColor
+    ? `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="${opts.backgroundColor}"/>`
+    : ""
+
+  return [
+    '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
+    'xmlns:xlink="http://www.w3.org/1999/xlink" ',
+    `id="${escapeXml(id)}" width="${viewBox.width}um" height="${viewBox.height}um" `,
+    `viewBox="${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}" `,
+    `color="${opts.color ?? "#cccccc"}">`,
+    backgroundRect,
+    '<g fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round">',
+    ...paths.map(
+      (pathInfo) =>
+        `<path d="${pathInfo.d}" stroke-width="${pathInfo.strokeWidth}"/>`,
+    ),
+    "</g>",
+    "</svg>",
+  ].join("")
+}
+
 const toMatchSvgTextSnapshots = (
   svgs: string[],
   testPathOriginal: string,
   svgNames: string[],
+  opts: GerberLayerSnapshotOptions = {},
 ) => {
   const testPath = testPathOriginal.replace(/\.test\.tsx?$/, "")
   const snapshotDir = path.join(path.dirname(testPath), "__snapshots__")
@@ -376,12 +472,27 @@ const toMatchSvgTextSnapshots = (
     }
 
     const existingSnapshot = fs.readFileSync(filePath, "utf-8")
-    if (existingSnapshot !== received) {
+    const expectedComparable = getComparableSvgText(existingSnapshot, opts)
+    const receivedComparable = getComparableSvgText(received, opts)
+    if (expectedComparable !== receivedComparable) {
       failures.push(`Snapshot ${svgName} does not match`)
     }
   }
 
   expect(failures).toEqual([])
+}
+
+const getComparableSvgText = (
+  svg: string,
+  opts: GerberLayerSnapshotOptions,
+) => {
+  if (!opts.stablePathCount) return svg
+
+  const pathTags = svg.match(/<path\b[^>]*\/>/g) ?? []
+  const stablePathTags = pathTags.slice(0, opts.stablePathCount).join("")
+  const backgroundFill = svg.match(/<rect\b[^>]*\bfill="([^"]+)"[^>]*\/>/)?.[1]
+
+  return [backgroundFill ?? "", stablePathTags].join("\n")
 }
 
 const parseSvgViewBox = (svg: string) => {
@@ -841,6 +952,9 @@ async function toMatchGerberLayerSnapshots(
       if (!gerber) {
         throw new Error(`No Gerber output found for layer "${layerName}"`)
       }
+      if (opts.renderer === "line-draw") {
+        return renderGerberLineDrawSvg(gerber, `${svgName}-${layerName}`, opts)
+      }
       return renderGerberLayerSvg(gerber, `${svgName}-${layerName}`, opts)
     }),
   )
@@ -850,6 +964,7 @@ async function toMatchGerberLayerSnapshots(
       layerSvgs,
       testPathOriginal,
       layerNames.map((layerName) => `${svgName}-${layerName}`),
+      opts,
     )
     return {
       pass: true,

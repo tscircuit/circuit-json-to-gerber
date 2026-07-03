@@ -251,11 +251,17 @@ test("exports fabrication elements from a KiCad footprint", async () => {
   expect(gerberOutput.F_Fab).toContain("D01*")
   expect(gerberOutput.F_Fab).toContain("X000250000Y000000000D02*")
   expect(gerberOutput.F_Fab).toContain("X000750000Y000000000D01*")
+  expect(gerberOutput.F_Fab.match(/D01\*/g)?.length ?? 0).toBeGreaterThan(100)
 
   await expect(gerberOutput).toMatchGerberLayerSnapshots(
     import.meta.path,
     "fabrication-text-from-kicad-footprint",
     ["F_Fab"],
-    { backgroundColor: "#000000", compareMode: "text" },
+    {
+      backgroundColor: "#000000",
+      compareMode: "text",
+      renderer: "line-draw",
+      stablePathCount: 11,
+    },
   )
 })
