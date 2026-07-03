@@ -8,6 +8,7 @@ import {
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
 import { parseGerberFile, renderGerberToSvg } from "gerberts"
+import { getGerberDownloadFilename } from "./gerber-download-filenames"
 
 type GerberOutput = Record<string, string>
 type SvgOutput = Record<string, string>
@@ -135,26 +136,8 @@ function App() {
     const JSZip = (await import("jszip")).default
     const zip = new JSZip()
 
-    // Map layer names to proper Gerber extensions
-    const extensionMap: Record<string, string> = {
-      F_Cu: "GTL",
-      B_Cu: "GBL",
-      F_Mask: "GTS",
-      B_Mask: "GBS",
-      F_SilkScreen: "GTO",
-      B_SilkScreen: "GBO",
-      F_Paste: "GTP",
-      B_Paste: "GBP",
-      Edge_Cuts: "GKO",
-    }
-
     for (const [name, content] of Object.entries(gerberOutput)) {
-      if (name.endsWith(".drl")) {
-        zip.file(name, content)
-      } else {
-        const ext = extensionMap[name] || "gbr"
-        zip.file(`${name}.${ext}`, content)
-      }
+      zip.file(getGerberDownloadFilename(name), content)
     }
 
     const blob = await zip.generateAsync({ type: "blob" })
@@ -338,7 +321,9 @@ function App() {
                           d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                         />
                       </svg>
-                      <span className="text-sm font-mono">{name}</span>
+                      <span className="text-sm font-mono">
+                        {getGerberDownloadFilename(name)}
+                      </span>
                     </div>
                     <span className="text-xs text-gray-400">
                       {(content.length / 1024).toFixed(1)} KB
