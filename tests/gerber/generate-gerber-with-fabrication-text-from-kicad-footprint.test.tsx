@@ -3,59 +3,190 @@ import { Circuit } from "@tscircuit/core"
 import type { AnyCircuitElement } from "circuit-json"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
-import { parseKicadModToCircuitJson } from "kicad-component-converter"
 
-const SOD_123_KICAD_MOD = `(module D_SOD-123 (layer F.Cu) (tedit 58645DC7)
-  (descr SOD-123)
-  (tags SOD-123)
-  (attr smd)
-  (fp_text reference REF** (at 0 -2) (layer F.SilkS)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_text user %R (at 0 -2) (layer F.Fab)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_text value D_SOD-123 (at 0 2.1) (layer F.Fab)
-    (effects (font (size 1 1) (thickness 0.15)))
-  )
-  (fp_line (start -2.25 -1) (end -2.25 1) (layer F.SilkS) (width 0.12))
-  (fp_line (start 0.25 0) (end 0.75 0) (layer F.Fab) (width 0.1))
-  (fp_line (start 0.25 0.4) (end -0.35 0) (layer F.Fab) (width 0.1))
-  (fp_line (start 0.25 -0.4) (end 0.25 0.4) (layer F.Fab) (width 0.1))
-  (fp_line (start -0.35 0) (end 0.25 -0.4) (layer F.Fab) (width 0.1))
-  (fp_line (start -0.35 0) (end -0.35 0.55) (layer F.Fab) (width 0.1))
-  (fp_line (start -0.35 0) (end -0.35 -0.55) (layer F.Fab) (width 0.1))
-  (fp_line (start -0.75 0) (end -0.35 0) (layer F.Fab) (width 0.1))
-  (fp_line (start -1.4 0.9) (end -1.4 -0.9) (layer F.Fab) (width 0.1))
-  (fp_line (start 1.4 0.9) (end -1.4 0.9) (layer F.Fab) (width 0.1))
-  (fp_line (start 1.4 -0.9) (end 1.4 0.9) (layer F.Fab) (width 0.1))
-  (fp_line (start -1.4 -0.9) (end 1.4 -0.9) (layer F.Fab) (width 0.1))
-  (fp_line (start -2.35 -1.15) (end 2.35 -1.15) (layer F.CrtYd) (width 0.05))
-  (fp_line (start 2.35 -1.15) (end 2.35 1.15) (layer F.CrtYd) (width 0.05))
-  (fp_line (start 2.35 1.15) (end -2.35 1.15) (layer F.CrtYd) (width 0.05))
-  (fp_line (start -2.35 -1.15) (end -2.35 1.15) (layer F.CrtYd) (width 0.05))
-  (fp_line (start -2.25 1) (end 1.65 1) (layer F.SilkS) (width 0.12))
-  (fp_line (start -2.25 -1) (end 1.65 -1) (layer F.SilkS) (width 0.12))
-  (pad 1 smd rect (at -1.65 0) (size 0.9 1.2) (layers F.Cu F.Paste F.Mask))
-  (pad 2 smd rect (at 1.65 0) (size 0.9 1.2) (layers F.Cu F.Paste F.Mask))
-  (model \${KISYS3DMOD}/Diode_SMD.3dshapes/D_SOD-123.wrl
-    (at (xyz 0 0 0))
-    (scale (xyz 1 1 1))
-    (rotate (xyz 0 0 0))
-  )
-)`
+const sod123FootprintCircuitJson = [
+  {
+    type: "pcb_smtpad",
+    pcb_smtpad_id: "pcb_smtpad_0",
+    shape: "rect",
+    x: -1.65,
+    y: 0,
+    width: 0.9,
+    height: 1.2,
+    layer: "top",
+    pcb_component_id: "pcb_component_0",
+    port_hints: ["pin1"],
+    pcb_port_id: "pcb_port_0",
+    pin_number: 1,
+    pin_label: "pin1",
+  },
+  {
+    type: "pcb_smtpad",
+    pcb_smtpad_id: "pcb_smtpad_1",
+    shape: "rect",
+    x: 1.65,
+    y: 0,
+    width: 0.9,
+    height: 1.2,
+    layer: "top",
+    pcb_component_id: "pcb_component_0",
+    port_hints: ["pin2"],
+    pcb_port_id: "pcb_port_1",
+    pin_number: 2,
+    pin_label: "pin2",
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_0",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: 0.25, y: 0 },
+      { x: 0.75, y: 0 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_1",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: 0.25, y: -0.4 },
+      { x: -0.35, y: 0 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_2",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: 0.25, y: 0.4 },
+      { x: 0.25, y: -0.4 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_3",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -0.35, y: 0 },
+      { x: 0.25, y: 0.4 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_4",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -0.35, y: 0 },
+      { x: -0.35, y: -0.55 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_5",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -0.35, y: 0 },
+      { x: -0.35, y: 0.55 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_6",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -0.75, y: 0 },
+      { x: -0.35, y: 0 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_7",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -1.4, y: -0.9 },
+      { x: -1.4, y: 0.9 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_8",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: 1.4, y: -0.9 },
+      { x: -1.4, y: -0.9 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_9",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: 1.4, y: 0.9 },
+      { x: 1.4, y: -0.9 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_path",
+    pcb_fabrication_note_path_id: "pcb_fabrication_note_path_10",
+    pcb_component_id: "pcb_component_0",
+    layer: "top",
+    route: [
+      { x: -1.4, y: 0.9 },
+      { x: 1.4, y: 0.9 },
+    ],
+    stroke_width: 0.1,
+  },
+  {
+    type: "pcb_fabrication_note_text",
+    pcb_fabrication_note_text_id: "pcb_fabrication_note_text_0",
+    layer: "top",
+    font: "tscircuit2024",
+    font_size: 1,
+    pcb_component_id: "pcb_component_0",
+    anchor_position: { x: 0, y: 2 },
+    anchor_alignment: "center",
+    text: "%R",
+  },
+  {
+    type: "pcb_fabrication_note_text",
+    pcb_fabrication_note_text_id: "pcb_fabrication_note_text_1",
+    layer: "top",
+    font: "tscircuit2024",
+    font_size: 1,
+    pcb_component_id: "pcb_component_0",
+    anchor_position: { x: 0, y: -2.1 },
+    anchor_alignment: "center",
+    text: "D_SOD-123",
+  },
+] as AnyCircuitElement[]
 
 test("exports fabrication elements from a KiCad footprint", async () => {
-  const sod123FootprintCircuitJson =
-    await parseKicadModToCircuitJson(SOD_123_KICAD_MOD)
   const circuit = new Circuit({
     platform: {
       footprintLibraryMap: {
         kicad: async (footprintName: string) => {
           expect(footprintName).toBe("Diode_SMD/D_SOD-123")
-          return {
-            footprintCircuitJson: sod123FootprintCircuitJson,
-          }
+          return { footprintCircuitJson: sod123FootprintCircuitJson }
         },
       },
     } as any,

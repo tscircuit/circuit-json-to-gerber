@@ -1,7 +1,7 @@
 import "bun-match-svg"
 import { expect } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
-import { convertCircuitJsonToPcbSvg, type PcbSvgOptions } from "circuit-to-svg"
+import { convertCircuitJsonToPcbSvg } from "circuit-to-svg"
 import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
 import { Readable } from "stream"
@@ -23,6 +23,8 @@ type GerberLayerOverlaySnapshotOptions = {
   colors?: Record<string, string>
   backgroundColor?: string
 }
+
+type PcbSvgOptions = Record<string, unknown>
 
 type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
   circuitJsonPcbSvgOptions?: PcbSvgOptions
@@ -654,7 +656,7 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     backgroundColor: "#111111",
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
-  })
+  } as any)
   const gerberSvg = await getGerberStackupSvg(
     gerberOutput,
     layerNames,
@@ -730,7 +732,7 @@ const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
     backgroundColor: "#111111",
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
-  })
+  } as any)
 
   const padding = 28
   const gutter = 28
