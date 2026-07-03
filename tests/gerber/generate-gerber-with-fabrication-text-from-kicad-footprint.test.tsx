@@ -4,10 +4,6 @@ import type { AnyCircuitElement } from "circuit-json"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { parseKicadModToCircuitJson } from "kicad-component-converter"
-import gerberToSvg from "gerber-to-svg"
-import sharp from "sharp"
-import { mkdir, readFile, writeFile } from "node:fs/promises"
-import { dirname, join } from "node:path"
 
 const SOD_123_KICAD_MOD = `(module D_SOD-123 (layer F.Cu) (tedit 58645DC7)
   (descr SOD-123)
@@ -48,48 +44,6 @@ const SOD_123_KICAD_MOD = `(module D_SOD-123 (layer F.Cu) (tedit 58645DC7)
     (rotate (xyz 0 0 0))
   )
 )`
-
-const renderGerberToPng = (gerber: string, id: string) =>
-  new Promise<Buffer>((resolve, reject) => {
-    gerberToSvg(
-      gerber,
-      {
-        id,
-        attributes: {
-          color: "#cccccc",
-        },
-      },
-      async (error, svg) => {
-        if (error) {
-          reject(error)
-          return
-        }
-
-        try {
-          resolve(
-            await sharp(Buffer.from(svg), { density: 1200 }).png().toBuffer(),
-          )
-        } catch (renderError) {
-          reject(renderError)
-        }
-      },
-    )
-  })
-
-const expectPngSnapshot = async (png: Buffer, snapshotName: string) => {
-  const snapshotPath = join(
-    dirname(import.meta.path),
-    "__snapshots__",
-    snapshotName,
-  )
-
-  if (process.env.UPDATE_PNG_SNAPSHOTS === "1") {
-    await mkdir(dirname(snapshotPath), { recursive: true })
-    await writeFile(snapshotPath, png)
-  }
-
-  expect(png).toEqual(await readFile(snapshotPath))
-}
 
 test("exports fabrication elements from a KiCad footprint", async () => {
   const sod123FootprintCircuitJson =
@@ -167,11 +121,9 @@ test("exports fabrication elements from a KiCad footprint", async () => {
   expect(gerberOutput.F_Fab).toContain("X000250000Y000000000D02*")
   expect(gerberOutput.F_Fab).toContain("X000750000Y000000000D01*")
 
-  await expectPngSnapshot(
-    await renderGerberToPng(
-      gerberOutput.F_Fab,
-      "fabrication-text-from-kicad-footprint-F_Fab",
-    ),
-    "fabrication-text-from-kicad-footprint-F_Fab.snap.png",
+  await expect(gerberOutput).toMatchGerberLayerSnapshots(
+    import.meta.path,
+    "fabrication-text-from-kicad-footprint",
+    ["F_Fab"],
   )
 })
