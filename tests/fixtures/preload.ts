@@ -3,6 +3,8 @@ import { expect } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
 import { convertCircuitJsonToPcbSvg } from "circuit-to-svg"
 import gerberToSvg from "gerber-to-svg"
+import * as fs from "node:fs"
+import * as path from "node:path"
 import pcbStackup, { type Stackup } from "pcb-stackup"
 import { Readable } from "stream"
 
@@ -17,6 +19,7 @@ type PasteRotationQueues = Map<string, number[]>
 type GerberLayerSnapshotOptions = {
   color?: string
   backgroundColor?: string
+  compareMode?: "visual" | "text"
 }
 
 type GerberLayerOverlaySnapshotOptions = {
@@ -343,6 +346,43 @@ const renderGerberLayerSvg = (
       },
     )
   })
+
+const toMatchSvgTextSnapshots = (
+  svgs: string[],
+  testPathOriginal: string,
+  svgNames: string[],
+) => {
+  const testPath = testPathOriginal.replace(/\.test\.tsx?$/, "")
+  const snapshotDir = path.join(path.dirname(testPath), "__snapshots__")
+  if (!fs.existsSync(snapshotDir)) {
+    fs.mkdirSync(snapshotDir, { recursive: true })
+  }
+
+  const updateSnapshot =
+    process.argv.includes("--update-snapshots") ||
+    process.argv.includes("-u") ||
+    Boolean(process.env["BUN_UPDATE_SNAPSHOTS"])
+
+  const failures: string[] = []
+
+  for (let index = 0; index < svgNames.length; index++) {
+    const svgName = svgNames[index]
+    const filePath = path.join(snapshotDir, `${svgName}.snap.svg`)
+    const received = svgs[index]
+
+    if (!fs.existsSync(filePath) || updateSnapshot) {
+      fs.writeFileSync(filePath, received)
+      continue
+    }
+
+    const existingSnapshot = fs.readFileSync(filePath, "utf-8")
+    if (existingSnapshot !== received) {
+      failures.push(`Snapshot ${svgName} does not match`)
+    }
+  }
+
+  expect(failures).toEqual([])
+}
 
 const parseSvgViewBox = (svg: string) => {
   const viewBoxMatch = svg.match(/\bviewBox="([^"]+)"/)
@@ -804,6 +844,18 @@ async function toMatchGerberLayerSnapshots(
       return renderGerberLayerSvg(gerber, `${svgName}-${layerName}`, opts)
     }),
   )
+
+  if (opts.compareMode === "text") {
+    toMatchSvgTextSnapshots(
+      layerSvgs,
+      testPathOriginal,
+      layerNames.map((layerName) => `${svgName}-${layerName}`),
+    )
+    return {
+      pass: true,
+      message: () => "SVG text snapshots match",
+    }
+  }
 
   return expect(layerSvgs).toMatchMultipleSvgSnapshots(
     testPathOriginal,
