@@ -228,7 +228,7 @@ const renderGerberLineSvg = (gerber: string) => {
 
     const point = {
       x: Number(drawMatch[1]) / 1000,
-      y: Number(drawMatch[2]) / 1000,
+      y: -Number(drawMatch[2]) / 1000,
     }
     points.push(point)
 
