@@ -125,5 +125,6 @@ test("exports fabrication elements from a KiCad footprint", async () => {
     import.meta.path,
     "fabrication-text-from-kicad-footprint",
     ["F_Fab"],
+    { backgroundColor: "#000000" },
   )
 })

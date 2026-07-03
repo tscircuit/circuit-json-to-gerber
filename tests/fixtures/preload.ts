@@ -16,6 +16,7 @@ type PasteRotationQueues = Map<string, number[]>
 
 type GerberLayerSnapshotOptions = {
   color?: string
+  backgroundColor?: string
 }
 
 type GerberLayerOverlaySnapshotOptions = {
@@ -320,7 +321,22 @@ const renderGerberLayerSvg = (
         if (error) {
           reject(error)
         } else {
-          resolve(svg)
+          if (!opts.backgroundColor) {
+            resolve(svg)
+            return
+          }
+
+          const viewBox = parseSvgViewBox(svg)
+          if (!viewBox) {
+            resolve(svg)
+            return
+          }
+
+          const rootCloseIndex = svg.indexOf(">")
+          const backgroundRect = `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="${opts.backgroundColor}"/>`
+          resolve(
+            `${svg.slice(0, rootCloseIndex + 1)}${backgroundRect}${svg.slice(rootCloseIndex + 1)}`,
+          )
         }
       },
     )
