@@ -673,6 +673,12 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(REGION_APERTURE_CONFIG)
         }
       }
+    } else if ((elm as { type: string }).type === "pcb_silkscreen_graphic") {
+      // A silkscreen graphic is a filled brep, drawn as a Gerber region.
+      // (Newer than the pinned circuit-json, so matched structurally.)
+      if (glayer_name.endsWith("_SilkScreen")) {
+        addConfigIfNew(REGION_APERTURE_CONFIG)
+      }
     } else if (elm.type === "pcb_silkscreen_text") {
       if (!isFabricationLayer)
         addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
