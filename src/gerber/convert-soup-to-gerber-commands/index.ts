@@ -44,6 +44,10 @@ import {
 import { getFabRectPoints } from "./getFabRectPoints"
 import { renderFabricationDimension } from "./renderFabricationDimension"
 import { renderOpenPath } from "./renderOpenPath"
+import {
+  getSilkscreenShapeStroke,
+  isSilkscreenShape,
+} from "./getSilkscreenShapeStroke"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -860,6 +864,41 @@ export const convertSoupToGerberCommands = (
           }
 
           glayer.push(...gerber.build())
+        }
+      } else if (isSilkscreenShape(element) && isOuterLayerRef(layer)) {
+        if (element.layer === layer) {
+          const stroke = getSilkscreenShapeStroke(element)
+          if (stroke) {
+            const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
+            // Mirror the fabrication rect handling: fill when is_filled, and
+            // stroke unless has_stroke is explicitly false.
+            const isFilled = (element as any).is_filled === true
+            const isStroked = (element as any).has_stroke !== false
+
+            if (isFilled) {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                points: stroke.route,
+              })
+            }
+            if (isStroked) {
+              renderOpenPath({
+                element: {
+                  type: element.type,
+                  stroke_width: stroke.strokeWidth,
+                  is_stroke_dashed: (element as any).is_stroke_dashed,
+                },
+                glayer,
+                apertureConfig: {
+                  standard_template_code: "C",
+                  diameter: stroke.strokeWidth,
+                },
+                route: stroke.route,
+                mapY: mfy,
+              })
+            }
+          }
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&

@@ -13,6 +13,7 @@ import type {
   PcbSilkscreenPath,
   PcbSilkscreenText,
 } from "circuit-json"
+import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
@@ -662,6 +663,16 @@ function getAllApertureTemplateConfigsForLayer({
     } else if (elm.type === "pcb_silkscreen_path") {
       if (!isFabricationLayer)
         addConfigIfNew(getApertureConfigFromPcbSilkscreenPath(elm))
+    } else if (isSilkscreenShape(elm)) {
+      if (!isFabricationLayer) {
+        addConfigIfNew({
+          standard_template_code: "C",
+          diameter: (elm as any).stroke_width ?? 0.1,
+        })
+        if ((elm as any).is_filled === true) {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
+        }
+      }
     } else if (elm.type === "pcb_silkscreen_text") {
       if (!isFabricationLayer)
         addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
