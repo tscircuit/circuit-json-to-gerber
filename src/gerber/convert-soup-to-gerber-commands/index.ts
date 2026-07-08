@@ -44,6 +44,10 @@ import {
 import { getFabRectPoints } from "./getFabRectPoints"
 import { renderFabricationDimension } from "./renderFabricationDimension"
 import { renderOpenPath } from "./renderOpenPath"
+import {
+  getSilkscreenShapeStroke,
+  isSilkscreenShape,
+} from "./getSilkscreenShapeStroke"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -860,6 +864,91 @@ export const convertSoupToGerberCommands = (
           }
 
           glayer.push(...gerber.build())
+        }
+      } else if (isSilkscreenShape(element) && isOuterLayerRef(layer)) {
+        if (element.layer === layer) {
+          const stroke = getSilkscreenShapeStroke(element)
+          if (stroke) {
+            const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
+            // Mirror the fabrication rect handling: fill when is_filled, and
+            // stroke unless has_stroke is explicitly false.
+            const isFilled = (element as any).is_filled === true
+            const isStroked = (element as any).has_stroke !== false
+
+            if (isFilled) {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                points: stroke.route,
+              })
+            }
+            if (isStroked) {
+              renderOpenPath({
+                element: {
+                  type: element.type,
+                  stroke_width: stroke.strokeWidth,
+                  is_stroke_dashed: (element as any).is_stroke_dashed,
+                },
+                glayer,
+                apertureConfig: {
+                  standard_template_code: "C",
+                  diameter: stroke.strokeWidth,
+                },
+                route: stroke.route,
+                mapY: mfy,
+              })
+            }
+          }
+        }
+      } else if (
+        // pcb_silkscreen_graphic is newer than this repo's pinned circuit-json,
+        // so it isn't in the AnyCircuitElement union yet — match it structurally.
+        (element as { type: string }).type === "pcb_silkscreen_graphic" &&
+        isOuterLayerRef(layer)
+      ) {
+        type Ring = {
+          vertices: Array<{ x: number; y: number; bulge?: number }>
+        }
+        const graphic = element as unknown as {
+          layer: LayerRef
+          brep_shape?: { outer_ring: Ring; inner_rings?: Ring[] }
+        }
+        if (graphic.layer === layer && graphic.brep_shape) {
+          const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
+          const { outer_ring, inner_rings } = graphic.brep_shape
+          const regionApertureNumber = getRegionApertureNumber(glayer)
+
+          // Outer ring: a filled region (dark polarity).
+          const outerBuilder = gerberBuilder()
+            .add("select_aperture", { aperture_number: regionApertureNumber })
+            .add("start_region_statement", {})
+          drawRingToBuilder(outerBuilder, reverseRing(outer_ring))
+          outerBuilder.add("end_region_statement", {})
+          glayer.push(...outerBuilder.build())
+
+          // Inner rings: holes, cut out with clear polarity, then restore dark.
+          if (inner_rings && inner_rings.length > 0) {
+            glayer.push(
+              ...gerberBuilder()
+                .add("set_layer_polarity", { polarity: "C" })
+                .build(),
+            )
+            for (const inner_ring of inner_rings) {
+              const innerBuilder = gerberBuilder()
+                .add("select_aperture", {
+                  aperture_number: regionApertureNumber,
+                })
+                .add("start_region_statement", {})
+              drawRingToBuilder(innerBuilder, inner_ring)
+              innerBuilder.add("end_region_statement", {})
+              glayer.push(...innerBuilder.build())
+            }
+            glayer.push(
+              ...gerberBuilder()
+                .add("set_layer_polarity", { polarity: "D" })
+                .build(),
+            )
+          }
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&
