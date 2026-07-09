@@ -48,6 +48,117 @@ import {
   getSilkscreenShapeStroke,
   isSilkscreenShape,
 } from "./getSilkscreenShapeStroke"
+import polygonClipping, {
+  type MultiPolygon,
+  type Polygon,
+  type Ring,
+} from "polygon-clipping"
+
+type Point = { x: number; y: number }
+
+const closeRing = (ring: Ring): Ring => {
+  const first = ring[0]
+  const last = ring[ring.length - 1]
+  if (!first || !last) return ring
+  if (first[0] === last[0] && first[1] === last[1]) return ring
+  return [...ring, first]
+}
+
+const emitEdgeCutRing = (
+  gerberBuild: ReturnType<typeof gerberBuilder>,
+  ring: Ring,
+  mfy: (y: number) => number,
+) => {
+  const closedRing = closeRing(ring)
+  const firstPoint = closedRing[0]
+  if (!firstPoint || closedRing.length < 4) return
+
+  gerberBuild.add("move_operation", {
+    x: firstPoint[0],
+    y: mfy(firstPoint[1]),
+  })
+
+  for (let i = 1; i < closedRing.length; i++) {
+    const point = closedRing[i]
+    gerberBuild.add("plot_operation", {
+      x: point[0],
+      y: mfy(point[1]),
+    })
+  }
+}
+
+const getRectCutoutPolygonPoints = (
+  cutout: Extract<PcbCutout, { shape: "rect" }>,
+): Point[] => {
+  const { center, width, height, rotation, corner_radius } = cutout
+  const w = width / 2
+  const h = height / 2
+  const r = Math.max(0, Math.min(corner_radius ?? 0, Math.abs(w), Math.abs(h)))
+  const transformMatrix = compose(
+    translate(center.x, center.y),
+    rotation ? rotate((rotation * Math.PI) / 180) : identity(),
+  )
+
+  if (r === 0) {
+    return [
+      { x: -w, y: h },
+      { x: w, y: h },
+      { x: w, y: -h },
+      { x: -w, y: -h },
+    ].map((point) => applyToPoint(transformMatrix, point))
+  }
+
+  const points: Point[] = []
+  const cornerSteps = 8
+  const corners = [
+    { center: { x: w - r, y: h - r }, start: Math.PI / 2, end: 0 },
+    { center: { x: w - r, y: -h + r }, start: 0, end: -Math.PI / 2 },
+    { center: { x: -w + r, y: -h + r }, start: -Math.PI / 2, end: -Math.PI },
+    { center: { x: -w + r, y: h - r }, start: Math.PI, end: Math.PI / 2 },
+  ]
+
+  for (const corner of corners) {
+    for (let i = 0; i <= cornerSteps; i++) {
+      const t = i / cornerSteps
+      const angle = corner.start + (corner.end - corner.start) * t
+      points.push({
+        x: corner.center.x + r * Math.cos(angle),
+        y: corner.center.y + r * Math.sin(angle),
+      })
+    }
+  }
+
+  return points.map((point) => applyToPoint(transformMatrix, point))
+}
+
+const getCutoutPolygon = (cutout: PcbCutout): Polygon | null => {
+  if (cutout.shape === "rect") {
+    return [
+      getRectCutoutPolygonPoints(cutout).map((point) => [point.x, point.y]),
+    ]
+  }
+  if (cutout.shape === "circle") {
+    const points: Ring = []
+    const steps = 64
+    for (let i = 0; i < steps; i++) {
+      const angle = (i / steps) * Math.PI * 2
+      points.push([
+        cutout.center.x + cutout.radius * Math.cos(angle),
+        cutout.center.y + cutout.radius * Math.sin(angle),
+      ])
+    }
+    return [points]
+  }
+  if (cutout.shape === "polygon") {
+    return [cutout.points.map((point) => [point.x, point.y])]
+  }
+  return null
+}
+
+const isSolidCutout = (cutout: PcbCutout) =>
+  cutout.shape === "rect" ||
+  cutout.shape === "circle" ||
+  cutout.shape === "polygon"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -76,6 +187,7 @@ export const convertSoupToGerberCommands = (
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
   const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
+  const hasBoard = circuitJson.some((e) => e.type === "pcb_board")
   const layerCount = getLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
@@ -177,6 +289,10 @@ export const convertSoupToGerberCommands = (
    * "maybe flip y axis" to handle y axis negating
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
+  const solidCutoutPolygons = circuitJson
+    .filter((element): element is PcbCutout => element.type === "pcb_cutout")
+    .map(getCutoutPolygon)
+    .filter((polygon): polygon is Polygon => polygon !== null)
 
   const renderPillFlash = ({
     glayer,
@@ -1470,56 +1586,40 @@ export const convertSoupToGerberCommands = (
         const gerberBuild = gerberBuilder().add("select_aperture", {
           aperture_number: 10,
         })
+
         if (outline && outline.length > 2) {
-          const outlinePoints = outline.map((point) => ({
-            x: point.x,
-            y: mfy(point.y),
-          }))
+          const boardPolygon: Polygon = [
+            outline.map((point) => [point.x, point.y]),
+          ]
+          const boardGeometry: MultiPolygon =
+            solidCutoutPolygons.length > 0
+              ? polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+              : [boardPolygon]
 
-          const firstPoint = outlinePoints[0]
-          gerberBuild.add("move_operation", firstPoint)
-          for (let i = 1; i < outlinePoints.length; i++) {
-            gerberBuild.add("plot_operation", outlinePoints[i])
-          }
-
-          const lastPoint = outlinePoints[outlinePoints.length - 1]
-          if (lastPoint.x !== firstPoint.x || lastPoint.y !== firstPoint.y) {
-            gerberBuild.add("plot_operation", firstPoint)
+          for (const polygon of boardGeometry) {
+            for (const ring of polygon) {
+              emitEdgeCutRing(gerberBuild, ring, mfy)
+            }
           }
         } else {
-          gerberBuild
-            .add("move_operation", {
-              x: center!.x - width! / 2,
-              y: mfy(center!.y - height! / 2),
-            })
-            .add("plot_operation", {
-              x: center!.x + width! / 2,
-              y: mfy(center!.y - height! / 2),
-            })
-            // .add("move_operation", {
-            //   x: center.x + width / 2,
-            //   y: center.y - height / 2,
-            // })
-            .add("plot_operation", {
-              x: center!.x + width! / 2,
-              y: mfy(center!.y + height! / 2),
-            })
-            // .add("move_operation", {
-            //   x: center.x + width / 2,
-            //   y: center.y + height / 2,
-            // })
-            .add("plot_operation", {
-              x: center!.x - width! / 2,
-              y: mfy(center!.y + height! / 2),
-            })
-            // .add("move_operation", {
-            //   x: center.x - width / 2,
-            //   y: center.y + height / 2,
-            // })
-            .add("plot_operation", {
-              x: center!.x - width! / 2,
-              y: mfy(center!.y - height! / 2),
-            })
+          const boardPolygon: Polygon = [
+            [
+              [center!.x - width! / 2, center!.y - height! / 2],
+              [center!.x + width! / 2, center!.y - height! / 2],
+              [center!.x + width! / 2, center!.y + height! / 2],
+              [center!.x - width! / 2, center!.y + height! / 2],
+            ],
+          ]
+          const boardGeometry: MultiPolygon =
+            solidCutoutPolygons.length > 0
+              ? polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+              : [boardPolygon]
+
+          for (const polygon of boardGeometry) {
+            for (const ring of polygon) {
+              emitEdgeCutRing(gerberBuild, ring, mfy)
+            }
+          }
         }
 
         glayer.push(...gerberBuild.build())
@@ -1555,6 +1655,9 @@ export const convertSoupToGerberCommands = (
         glayer.push(...gerberBuild.build())
       } else if (element.type === "pcb_cutout") {
         if (layer === "edgecut") {
+          if (hasBoard && !hasPanel && isSolidCutout(element as PcbCutout)) {
+            continue
+          }
           const ec_layer = glayers.Edge_Cuts
           const cutout_builder = gerberBuilder().add("select_aperture", {
             aperture_number: 10,
