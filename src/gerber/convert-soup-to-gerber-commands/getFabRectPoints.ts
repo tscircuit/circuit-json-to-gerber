@@ -1,14 +1,17 @@
 import type { PcbFabricationNoteRect } from "circuit-json"
+import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 
 export const getFabRectPoints = (element: PcbFabricationNoteRect) => {
-  const halfWidth = element.width / 2
-  const halfHeight = element.height / 2
-  const { x, y } = element.center
+  const bounds = getBoundFromCenteredRect({
+    center: element.center,
+    width: element.width,
+    height: element.height,
+  })
 
   return [
-    { x: x - halfWidth, y: y - halfHeight },
-    { x: x + halfWidth, y: y - halfHeight },
-    { x: x + halfWidth, y: y + halfHeight },
-    { x: x - halfWidth, y: y + halfHeight },
+    { x: bounds.minX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.minY },
+    { x: bounds.maxX, y: bounds.maxY },
+    { x: bounds.minX, y: bounds.maxY },
   ]
 }

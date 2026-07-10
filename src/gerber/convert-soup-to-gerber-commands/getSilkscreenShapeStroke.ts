@@ -7,6 +7,7 @@ import {
   rotate,
   translate,
 } from "transformation-matrix"
+import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 
 type Point = { x: number; y: number }
 
@@ -77,11 +78,12 @@ const rectangleRoute = (
   const route: Point[] = []
 
   if (cornerRadius <= 0) {
+    const bounds = getBoundFromCenteredRect({ center, width, height })
     route.push(
-      { x: center.x - halfW, y: center.y - halfH },
-      { x: center.x + halfW, y: center.y - halfH },
-      { x: center.x + halfW, y: center.y + halfH },
-      { x: center.x - halfW, y: center.y + halfH },
+      { x: bounds.minX, y: bounds.minY },
+      { x: bounds.maxX, y: bounds.minY },
+      { x: bounds.maxX, y: bounds.maxY },
+      { x: bounds.minX, y: bounds.maxY },
     )
   } else {
     const insetW = halfW - cornerRadius

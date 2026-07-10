@@ -1,11 +1,22 @@
 import type { AnyCircuitElement, LayerRef } from "circuit-json"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
+import polygonClipping, { type Polygon, type Ring } from "polygon-clipping"
+import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 
 export type DrillLayerSpan = {
   from_layer: LayerRef
   to_layer: LayerRef
 }
+
+type InternalCircularCutoutDrillElement = Extract<
+  AnyCircuitElement,
+  { type: "pcb_cutout"; shape: "circle" }
+>
+
+type DrillElement =
+  | Exclude<AnyCircuitElement, { type: "pcb_cutout" }>
+  | InternalCircularCutoutDrillElement
 
 const getLayerCount = (circuitJson: Array<AnyCircuitElement>) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -209,6 +220,215 @@ const getDrillableElements = (circuitJson: Array<AnyCircuitElement>) => [
   ...getTraceRouteViaElements(circuitJson),
 ]
 
+const circleCutoutPolygonSegmentCount = 64
+
+const getBoardOutlinePolygons = (
+  circuitJson: Array<AnyCircuitElement>,
+): Array<Polygon> => {
+  return circuitJson.flatMap((element) => {
+    if (element.type !== "pcb_board") {
+      return []
+    }
+
+    if (element.outline && element.outline.length > 2) {
+      return [[element.outline.map((point) => [point.x, point.y])]]
+    }
+
+    const bounds = getBoundFromCenteredRect({
+      center: element.center!,
+      width: element.width!,
+      height: element.height!,
+    })
+
+    return [
+      [
+        [
+          [bounds.minX, bounds.minY],
+          [bounds.maxX, bounds.minY],
+          [bounds.maxX, bounds.maxY],
+          [bounds.minX, bounds.maxY],
+        ],
+      ],
+    ]
+  })
+}
+
+const getCircleCutoutPolygon = (
+  cutout: InternalCircularCutoutDrillElement,
+): Polygon => {
+  const points: Ring = []
+
+  for (let i = 0; i < circleCutoutPolygonSegmentCount; i++) {
+    const angle = (i / circleCutoutPolygonSegmentCount) * Math.PI * 2
+    points.push([
+      cutout.center.x + cutout.radius * Math.cos(angle),
+      cutout.center.y + cutout.radius * Math.sin(angle),
+    ])
+  }
+
+  return [points]
+}
+
+const isInternalCircularCutout = ({
+  cutout,
+  boardOutlinePolygons,
+}: {
+  cutout: InternalCircularCutoutDrillElement
+  boardOutlinePolygons: Array<Polygon>
+}) => {
+  const cutoutPolygon = getCircleCutoutPolygon(cutout)
+
+  return boardOutlinePolygons.some((boardOutlinePolygon) => {
+    const overlapsBoard =
+      polygonClipping.intersection(boardOutlinePolygon, cutoutPolygon).length >
+      0
+    const extendsOutsideBoard =
+      polygonClipping.difference(cutoutPolygon, boardOutlinePolygon).length > 0
+
+    return overlapsBoard && !extendsOutsideBoard
+  })
+}
+
+const getInternalCircularCutoutDrills = (
+  circuitJson: Array<AnyCircuitElement>,
+): Array<InternalCircularCutoutDrillElement> => {
+  const boardOutlinePolygons = getBoardOutlinePolygons(circuitJson)
+
+  return circuitJson.filter(
+    (element): element is InternalCircularCutoutDrillElement => {
+      if (element.type !== "pcb_cutout") {
+        return false
+      }
+
+      if (element.shape !== "circle") {
+        return false
+      }
+
+      return isInternalCircularCutout({
+        cutout: element,
+        boardOutlinePolygons,
+      })
+    },
+  )
+}
+
+const getDrillElements = ({
+  circuitJson,
+  is_plated,
+}: {
+  circuitJson: Array<AnyCircuitElement>
+  is_plated: boolean
+}): Array<DrillElement> => {
+  const drillableElements = getDrillableElements(circuitJson).filter(
+    (element) => element.type !== "pcb_cutout",
+  )
+
+  if (is_plated) {
+    return drillableElements
+  }
+
+  const internalCircularCutoutDrills =
+    getInternalCircularCutoutDrills(circuitJson)
+
+  return [...drillableElements, ...internalCircularCutoutDrills]
+}
+
+const getHoleDiameter = (element: DrillElement) => {
+  if ("hole_diameter" in element && typeof element.hole_diameter === "number") {
+    return element.hole_diameter
+  }
+
+  if (element.type === "pcb_cutout") {
+    return element.radius * 2
+  }
+
+  if (
+    "hole_width" in element &&
+    typeof element.hole_width === "number" &&
+    "hole_height" in element &&
+    typeof element.hole_height === "number"
+  ) {
+    return Math.min(element.hole_width, element.hole_height)
+  }
+
+  return undefined
+}
+
+const getDrillCenter = (element: DrillElement) => {
+  if (element.type === "pcb_cutout") {
+    return element.center
+  }
+
+  let x = 0
+  let y = 0
+  let holeOffsetX = 0
+  let holeOffsetY = 0
+
+  if ("x" in element && typeof element.x === "number") {
+    x = element.x
+  }
+
+  if ("y" in element && typeof element.y === "number") {
+    y = element.y
+  }
+
+  if ("hole_offset_x" in element && typeof element.hole_offset_x === "number") {
+    holeOffsetX = element.hole_offset_x
+  }
+
+  if ("hole_offset_y" in element && typeof element.hole_offset_y === "number") {
+    holeOffsetY = element.hole_offset_y
+  }
+
+  return {
+    x: x + holeOffsetX,
+    y: y + holeOffsetY,
+  }
+}
+
+const getYMultiplier = (flip_y_axis: boolean) => {
+  if (flip_y_axis) {
+    return -1
+  }
+
+  return 1
+}
+
+const getSlotEndpoints = ({
+  holeWidth,
+  holeHeight,
+  slotHalfLength,
+}: {
+  holeWidth: number
+  holeHeight: number
+  slotHalfLength: number
+}) => {
+  let startRelative = { x: 0, y: -slotHalfLength }
+  let endRelative = { x: 0, y: slotHalfLength }
+
+  if (holeWidth >= holeHeight) {
+    startRelative = { x: -slotHalfLength, y: 0 }
+    endRelative = { x: slotHalfLength, y: 0 }
+  }
+
+  return { startRelative, endRelative }
+}
+
+const getHoleRotationDegrees = (element: DrillElement) => {
+  if (
+    "hole_ccw_rotation" in element &&
+    typeof element.hole_ccw_rotation === "number"
+  ) {
+    return element.hole_ccw_rotation
+  }
+
+  if ("ccw_rotation" in element && typeof element.ccw_rotation === "number") {
+    return element.ccw_rotation
+  }
+
+  return 0
+}
+
 export const convertSoupToExcellonDrillCommands = ({
   circuitJson,
   is_plated,
@@ -222,7 +442,10 @@ export const convertSoupToExcellonDrillCommands = ({
 }): Array<AnyExcellonDrillCommand> => {
   const builder = excellonDrill()
   const layerCount = getLayerCount(circuitJson)
-  const drillableElements = getDrillableElements(circuitJson)
+  const drillElements = getDrillElements({
+    circuitJson,
+    is_plated,
+  })
 
   // Start sequence commands
   builder.add("M48", {})
@@ -260,8 +483,9 @@ export const convertSoupToExcellonDrillCommands = ({
   const diameterToToolNumber: Record<number, number> = {}
 
   // Define tools
-  for (const element of drillableElements) {
+  for (const element of drillElements) {
     if (
+      element.type !== "pcb_cutout" &&
       !shouldIncludeElement({
         element,
         is_plated,
@@ -275,15 +499,7 @@ export const convertSoupToExcellonDrillCommands = ({
       continue
     }
 
-    const holeDiameter =
-      "hole_diameter" in element && typeof element.hole_diameter === "number"
-        ? element.hole_diameter
-        : "hole_width" in element &&
-            typeof element.hole_width === "number" &&
-            "hole_height" in element &&
-            typeof element.hole_height === "number"
-          ? Math.min(element.hole_width, element.hole_height)
-          : undefined
+    const holeDiameter = getHoleDiameter(element)
 
     if (!holeDiameter) continue
 
@@ -309,13 +525,15 @@ export const convertSoupToExcellonDrillCommands = ({
   // --------------------
   for (let i = 10; i < tool_counter; i++) {
     builder.add("use_tool", { tool_number: i })
-    for (const element of drillableElements) {
+    for (const element of drillElements) {
       if (
         element.type === "pcb_plated_hole" ||
         element.type === "pcb_hole" ||
-        element.type === "pcb_via"
+        element.type === "pcb_via" ||
+        element.type === "pcb_cutout"
       ) {
         if (
+          element.type !== "pcb_cutout" &&
           !shouldIncludeElement({
             element,
             is_plated,
@@ -329,38 +547,16 @@ export const convertSoupToExcellonDrillCommands = ({
           continue
         }
 
-        const holeDiameter =
-          "hole_diameter" in element &&
-          typeof element.hole_diameter === "number"
-            ? element.hole_diameter
-            : "hole_width" in element &&
-                typeof element.hole_width === "number" &&
-                "hole_height" in element &&
-                typeof element.hole_height === "number"
-              ? Math.min(element.hole_width, element.hole_height)
-              : undefined
+        const holeDiameter = getHoleDiameter(element)
 
         if (!holeDiameter || diameterToToolNumber[holeDiameter] !== i) {
           continue
         }
 
-        const elementX =
-          "x" in element && typeof element.x === "number" ? element.x : 0
-        const elementY =
-          "y" in element && typeof element.y === "number" ? element.y : 0
-        const offsetX =
-          "hole_offset_x" in element &&
-          typeof element.hole_offset_x === "number"
-            ? element.hole_offset_x
-            : 0
-        const offsetY =
-          "hole_offset_y" in element &&
-          typeof element.hole_offset_y === "number"
-            ? element.hole_offset_y
-            : 0
-        const centerX = elementX + offsetX
-        const centerY = elementY + offsetY
-        const yMultiplier = flip_y_axis ? -1 : 1
+        const drillCenter = getDrillCenter(element)
+        const centerX = drillCenter.x
+        const centerY = drillCenter.y
+        const yMultiplier = getYMultiplier(flip_y_axis)
 
         if (
           "hole_width" in element &&
@@ -381,26 +577,17 @@ export const convertSoupToExcellonDrillCommands = ({
             continue
           }
 
-          const rotationDegrees =
-            "hole_ccw_rotation" in element &&
-            typeof element.hole_ccw_rotation === "number"
-              ? element.hole_ccw_rotation
-              : "ccw_rotation" in element &&
-                  typeof element.ccw_rotation === "number"
-                ? element.ccw_rotation
-                : 0
+          const rotationDegrees = getHoleRotationDegrees(element)
           const rotationRadians = (rotationDegrees * Math.PI) / 180
           const cosTheta = Math.cos(rotationRadians)
           const sinTheta = Math.sin(rotationRadians)
 
-          const isWidthMajor = holeWidth >= holeHeight
           const slotHalfLength = (maxDim - minDim) / 2
-          const startRelative = isWidthMajor
-            ? { x: -slotHalfLength, y: 0 }
-            : { x: 0, y: -slotHalfLength }
-          const endRelative = isWidthMajor
-            ? { x: slotHalfLength, y: 0 }
-            : { x: 0, y: slotHalfLength }
+          const { startRelative, endRelative } = getSlotEndpoints({
+            holeWidth,
+            holeHeight,
+            slotHalfLength,
+          })
 
           const rotatePoint = ({ x, y }: { x: number; y: number }) => ({
             x: x * cosTheta - y * sinTheta,
@@ -490,14 +677,13 @@ export const convertSoupToExcellonDrillCommandLayers = ({
     ]),
   )
   const hasNonPlatedDrill = circuitJson.some((element) => {
-    if (element.type !== "pcb_hole") {
-      return false
-    }
-
-    return hasDrillGeometry(element)
+    return element.type === "pcb_hole" && hasDrillGeometry(element)
   })
 
-  if (!hasNonPlatedDrill) {
+  const hasInternalCircularCutoutDrill =
+    getInternalCircularCutoutDrills(circuitJson).length > 0
+
+  if (!hasNonPlatedDrill && !hasInternalCircularCutoutDrill) {
     return platedDrillLayers
   }
 

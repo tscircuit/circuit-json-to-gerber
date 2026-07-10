@@ -69,11 +69,21 @@ test("Generate gerber with cutouts", async () => {
     circuitJson,
     is_plated: true,
   })
+  const excellon_drill_cmds_unplated = convertSoupToExcellonDrillCommands({
+    circuitJson,
+    is_plated: false,
+  })
 
   const gerberOutput = stringifyGerberCommandLayers(gerber_cmds)
   const excellonDrillOutput = stringifyExcellonDrill(excellon_drill_cmds)
+  const excellonDrillOutputUnplated = stringifyExcellonDrill(
+    excellon_drill_cmds_unplated,
+  )
 
   await maybeOutputGerber(gerberOutput, excellonDrillOutput)
 
-  expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "cutouts")
+  expect({
+    ...gerberOutput,
+    "drill_npth.drl": excellonDrillOutputUnplated,
+  }).toMatchGerberSnapshot(import.meta.path, "cutouts")
 })
