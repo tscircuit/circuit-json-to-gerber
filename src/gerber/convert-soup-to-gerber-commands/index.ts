@@ -57,6 +57,7 @@ import {
   doesSolidCutoutOverlapBoardEdge,
   getBoardOutlinePolygons,
   isCutoutFullyInternal,
+  getSolidCutoutOutlinePolygon,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
 
@@ -93,78 +94,7 @@ const emitEdgeCutRing = (
   }
 }
 
-const getRectCutoutPolygonPoints = (
-  cutout: Extract<PcbCutout, { shape: "rect" }>,
-): Point[] => {
-  const { center, width, height, rotation, corner_radius } = cutout
-  const w = width / 2
-  const h = height / 2
-  const r = Math.max(0, Math.min(corner_radius ?? 0, Math.abs(w), Math.abs(h)))
-  const transformMatrix = compose(
-    translate(center.x, center.y),
-    rotation ? rotate((rotation * Math.PI) / 180) : identity(),
-  )
 
-  if (r === 0) {
-    return [
-      { x: -w, y: h },
-      { x: w, y: h },
-      { x: w, y: -h },
-      { x: -w, y: -h },
-    ].map((point) => applyToPoint(transformMatrix, point))
-  }
-
-  const points: Point[] = []
-  const cornerSteps = 8
-  const corners = [
-    { center: { x: w - r, y: h - r }, start: Math.PI / 2, end: 0 },
-    { center: { x: w - r, y: -h + r }, start: 0, end: -Math.PI / 2 },
-    { center: { x: -w + r, y: -h + r }, start: -Math.PI / 2, end: -Math.PI },
-    { center: { x: -w + r, y: h - r }, start: Math.PI, end: Math.PI / 2 },
-  ]
-
-  for (const corner of corners) {
-    for (let i = 0; i <= cornerSteps; i++) {
-      const t = i / cornerSteps
-      const angle = corner.start + (corner.end - corner.start) * t
-      points.push({
-        x: corner.center.x + r * Math.cos(angle),
-        y: corner.center.y + r * Math.sin(angle),
-      })
-    }
-  }
-
-  return points.map((point) => applyToPoint(transformMatrix, point))
-}
-
-const getCutoutPolygon = (cutout: PcbCutout): Polygon | null => {
-  if (cutout.shape === "rect") {
-    return [
-      getRectCutoutPolygonPoints(cutout).map((point) => [point.x, point.y]),
-    ]
-  }
-  if (cutout.shape === "circle") {
-    const points: Ring = []
-    const steps = 64
-    for (let i = 0; i < steps; i++) {
-      const angle = (i / steps) * Math.PI * 2
-      points.push([
-        cutout.center.x + cutout.radius * Math.cos(angle),
-        cutout.center.y + cutout.radius * Math.sin(angle),
-      ])
-    }
-    return [points]
-  }
-  if (cutout.shape === "polygon") {
-    return [cutout.points.map((point) => [point.x, point.y])]
-  }
-  return null
-}
-
-const isSolidCutout = (cutout: PcbCutout) =>
-  cutout.shape === "rect" ||
-  cutout.shape === "circle" ||
-  cutout.shape === "polygon"
 
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
@@ -294,7 +224,12 @@ export const convertSoupToGerberCommands = (
   /**
    * "maybe flip y axis" to handle y axis negating
    */
-  const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
+  const mfy = (y: number) => {
+    if (opts.flip_y_axis) {
+      return -y
+    }
+    return y
+  }
   const boardOutlinePolygons = getBoardOutlinePolygons(circuitJson)
 
   // Only cutouts that straddle the board edge are subtracted from the outline.
@@ -304,7 +239,7 @@ export const convertSoupToGerberCommands = (
     .filter((cutout) =>
       doesSolidCutoutOverlapBoardEdge({ cutout, boardOutlinePolygons }),
     )
-    .map(getCutoutPolygon)
+    .map(getSolidCutoutOutlinePolygon)
     .filter((polygon): polygon is Polygon => polygon !== null)
 
   const renderPillFlash = ({
@@ -1604,10 +1539,10 @@ export const convertSoupToGerberCommands = (
           const boardPolygon: Polygon = [
             outline.map((point) => [point.x, point.y]),
           ]
-          const boardGeometry: MultiPolygon =
-            solidCutoutPolygons.length > 0
-              ? polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
-              : [boardPolygon]
+          let boardGeometry: MultiPolygon = [boardPolygon]
+          if (solidCutoutPolygons.length > 0) {
+            boardGeometry = polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+          }
 
           for (const polygon of boardGeometry) {
             for (const ring of polygon) {
@@ -1623,10 +1558,10 @@ export const convertSoupToGerberCommands = (
               [center!.x - width! / 2, center!.y + height! / 2],
             ],
           ]
-          const boardGeometry: MultiPolygon =
-            solidCutoutPolygons.length > 0
-              ? polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
-              : [boardPolygon]
+          let boardGeometry: MultiPolygon = [boardPolygon]
+          if (solidCutoutPolygons.length > 0) {
+            boardGeometry = polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+          }
 
           for (const polygon of boardGeometry) {
             for (const ring of polygon) {
