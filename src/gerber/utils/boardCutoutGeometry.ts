@@ -13,6 +13,7 @@ import polygonClipping, {
   type Ring,
 } from "polygon-clipping"
 import { applyToPoint, compose, rotate, translate } from "transformation-matrix"
+import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 
 type SolidCutoutInCircuitJson =
   | PcbCutoutRect
@@ -32,12 +33,18 @@ export const getBoardOutlinePolygon = (board: PcbBoard): Polygon => {
   }
 
   // Boards without an explicit outline are represented by their bounding rectangle.
+  const bounds = getBoundFromCenteredRect({
+    center: board.center!,
+    width: board.width!,
+    height: board.height!,
+  })
+
   return [
     [
-      [board.center!.x - board.width! / 2, board.center!.y - board.height! / 2],
-      [board.center!.x + board.width! / 2, board.center!.y - board.height! / 2],
-      [board.center!.x + board.width! / 2, board.center!.y + board.height! / 2],
-      [board.center!.x - board.width! / 2, board.center!.y + board.height! / 2],
+      [bounds.minX, bounds.minY],
+      [bounds.maxX, bounds.minY],
+      [bounds.maxX, bounds.maxY],
+      [bounds.minX, bounds.maxY],
     ],
   ]
 }

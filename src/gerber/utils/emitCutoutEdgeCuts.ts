@@ -54,11 +54,19 @@ const emitCircle = ({
   // Edge cutouts (boundary notch): CCW so the outline is a standard outer ring.
   // Internal holes: CW so fill rules treat the loop as removed material.
   // Gerber viewers use the non-zero winding rule to determine what is filled.
+  const isYFlipped = mfy(1) < 0
+  let isClockwise = drawCw
+  if (isYFlipped) {
+    // If the Y-axis is inverted, the geometric mirroring means that a path that
+    // was CW in math-space is now tracing CCW in output-space.
+    isClockwise = !isClockwise
+  }
+
   let arcMode:
     | "set_movement_mode_to_counterclockwise_circular"
     | "set_movement_mode_to_clockwise_circular" =
     "set_movement_mode_to_counterclockwise_circular"
-  if (drawCw) {
+  if (isClockwise) {
     arcMode = "set_movement_mode_to_clockwise_circular"
   }
 
@@ -127,9 +135,14 @@ const emitSharpRect = ({
     { x: w, y: -h },
     { x: -w, y: -h },
   ]
+  const isYFlipped = mfy(1) < 0
+  let shouldReverse = !drawCw
+  if (isYFlipped) {
+    shouldReverse = !shouldReverse
+  }
+
   let pts = cwPoints
-  // Reverse the array to draw in CCW order if this is an edge cutout
-  if (!drawCw) {
+  if (shouldReverse) {
     pts = [...cwPoints].reverse()
   }
   const tpts = pts.map((p) => applyToPoint(transformMatrix, p))
@@ -159,50 +172,23 @@ const emitRoundedRect = ({
 }) => {
   // Edge cutouts: CW gerber arc mode (CCW winding). Internal holes: CCW arc mode (CW winding).
   // Note: gerber arc modes are based on the direction the tool travels.
+  const isYFlipped = mfy(1) < 0
+  let isClockwise = drawCw
+  if (isYFlipped) {
+    // If the Y-axis is inverted, the geometric mirroring means that a path that
+    // was CW in math-space is now tracing CCW in output-space.
+    isClockwise = !isClockwise
+  }
+
   let arcMode:
     | "set_movement_mode_to_counterclockwise_circular"
     | "set_movement_mode_to_clockwise_circular" =
     "set_movement_mode_to_counterclockwise_circular"
-  if (drawCw) {
+  if (isClockwise) {
     arcMode = "set_movement_mode_to_clockwise_circular"
   }
 
-  // CW traversal segments. Each entry represents a straight line to the edge,
-  // followed by an arc around the corner.
-  const cwSegments = [
-    {
-      lineTo: { x: w - r, y: h },
-      arcEnd: { x: w, y: h - r },
-      arcCenter: { x: w - r, y: h - r },
-    },
-    {
-      lineTo: { x: w, y: -h + r },
-      arcEnd: { x: w - r, y: -h },
-      arcCenter: { x: w - r, y: -h + r },
-    },
-    {
-      lineTo: { x: -w + r, y: -h },
-      arcEnd: { x: -w, y: -h + r },
-      arcCenter: { x: -w + r, y: -h + r },
-    },
-    {
-      lineTo: { x: -w, y: h - r },
-      arcEnd: { x: -w + r, y: h },
-      arcCenter: { x: -w + r, y: h - r },
-    },
-  ]
-
-  const lastSeg = cwSegments[cwSegments.length - 1]!
-
-  // If we are drawing CCW, we start at the end of the last segment's arc
-  // and trace backwards through the CW path.
-  let startPt = { x: -w + r, y: h }
-  if (!drawCw) {
-    startPt = lastSeg.arcEnd
-  }
-
-  let currentPoint = applyToPoint(transformMatrix, startPt)
-  builder.add("move_operation", { x: currentPoint.x, y: mfy(currentPoint.y) })
+  let currentPoint: { x: number; y: number }
 
   const addLine = (pt: { x: number; y: number }) => {
     const tpt = applyToPoint(transformMatrix, pt)
@@ -228,25 +214,61 @@ const emitRoundedRect = ({
     currentPoint = tEnd
   }
 
-  if (!drawCw) {
-    // To reverse the path into CCW, we walk the CW segments in reverse order.
-    // The target of the arc becomes the end of the previous segment.
-    const reversed = [...cwSegments].reverse()
-    for (let i = 0; i < reversed.length; i++) {
-      const cur = reversed[i]!
-      addLine(cur.lineTo)
-      const prevSeg = reversed[i + 1]
-      let arcTarget = lastSeg.arcEnd
-      if (prevSeg) {
-        arcTarget = prevSeg.arcEnd
-      }
-      addArc(arcTarget, cur.arcCenter)
-    }
-  } else {
+  if (isClockwise) {
+    const cwSegments = [
+      {
+        lineTo: { x: w - r, y: h },
+        arcEnd: { x: w, y: h - r },
+        arcCenter: { x: w - r, y: h - r },
+      },
+      {
+        lineTo: { x: w, y: -h + r },
+        arcEnd: { x: w - r, y: -h },
+        arcCenter: { x: w - r, y: -h + r },
+      },
+      {
+        lineTo: { x: -w + r, y: -h },
+        arcEnd: { x: -w, y: -h + r },
+        arcCenter: { x: -w + r, y: -h + r },
+      },
+      {
+        lineTo: { x: -w, y: h - r },
+        arcEnd: { x: -w + r, y: h },
+        arcCenter: { x: -w + r, y: h - r },
+      },
+    ]
+
+    const startPt = { x: -w + r, y: h }
+    const tStart = applyToPoint(transformMatrix, startPt)
+    builder.add("move_operation", { x: tStart.x, y: mfy(tStart.y) })
+    currentPoint = tStart
+
     for (const seg of cwSegments) {
       addLine(seg.lineTo)
       addArc(seg.arcEnd, seg.arcCenter)
     }
+  } else {
+    // Start at Top-Right going LEFT (Top edge)
+    const startPt = { x: w - r, y: h }
+    const tStart = applyToPoint(transformMatrix, startPt)
+    builder.add("move_operation", { x: tStart.x, y: mfy(tStart.y) })
+    currentPoint = tStart
+
+    // Top edge -> Top-Left corner
+    addLine({ x: -w + r, y: h })
+    addArc({ x: -w, y: h - r }, { x: -w + r, y: h - r })
+
+    // Left edge -> Bottom-Left corner
+    addLine({ x: -w, y: -h + r })
+    addArc({ x: -w + r, y: -h }, { x: -w + r, y: -h + r })
+
+    // Bottom edge -> Bottom-Right corner
+    addLine({ x: w - r, y: -h })
+    addArc({ x: w, y: -h + r }, { x: w - r, y: -h + r })
+
+    // Right edge -> Top-Right corner
+    addLine({ x: w, y: h - r })
+    addArc({ x: w - r, y: h }, { x: w - r, y: h - r })
   }
 }
 
@@ -261,16 +283,20 @@ const emitPolygon = ({
   mfy: (y: number) => number
   drawCw: boolean
 }) => {
-  const { points } = cutout
+  const points = cutout.points
   if (points.length === 0) return
 
-  // Reverse point order if we need to enforce CCW winding (though polygon
-  // winding depends on how it was originally defined). For now we assume
-  // polygons are defined in CW order as well.
+  const isYFlipped = mfy(1) < 0
+  let shouldReverse = !drawCw
+  if (isYFlipped) {
+    shouldReverse = !shouldReverse
+  }
+
   let ordered = points
-  if (!drawCw) {
+  if (shouldReverse) {
     ordered = [...points].reverse()
   }
+
   builder.add("move_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
   for (let i = 1; i < ordered.length; i++) {
     builder.add("plot_operation", { x: ordered[i].x, y: mfy(ordered[i].y) })
