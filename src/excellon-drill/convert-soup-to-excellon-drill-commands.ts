@@ -490,11 +490,7 @@ export const convertSoupToExcellonDrillCommandLayers = ({
     ]),
   )
   const hasNonPlatedDrill = circuitJson.some((element) => {
-    if (element.type !== "pcb_hole") {
-      return false
-    }
-
-    return hasDrillGeometry(element)
+    return element.type === "pcb_hole" && hasDrillGeometry(element)
   })
 
   if (!hasNonPlatedDrill) {

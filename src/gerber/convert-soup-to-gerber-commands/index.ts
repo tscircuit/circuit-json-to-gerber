@@ -53,6 +53,12 @@ import polygonClipping, {
   type Polygon,
   type Ring,
 } from "polygon-clipping"
+import {
+  doesSolidCutoutOverlapBoardEdge,
+  getBoardOutlinePolygons,
+  isCutoutFullyInternal,
+} from "../utils/boardCutoutGeometry"
+import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
 
 type Point = { x: number; y: number }
 
@@ -289,8 +295,15 @@ export const convertSoupToGerberCommands = (
    * "maybe flip y axis" to handle y axis negating
    */
   const mfy = (y: number) => (opts.flip_y_axis ? -y : y)
+  const boardOutlinePolygons = getBoardOutlinePolygons(circuitJson)
+
+  // Only cutouts that straddle the board edge are subtracted from the outline.
+  // Internal cutouts stay as standalone CW Edge.Cuts loops (see pcb_cutout branch).
   const solidCutoutPolygons = circuitJson
     .filter((element): element is PcbCutout => element.type === "pcb_cutout")
+    .filter((cutout) =>
+      doesSolidCutoutOverlapBoardEdge({ cutout, boardOutlinePolygons }),
+    )
     .map(getCutoutPolygon)
     .filter((polygon): polygon is Polygon => polygon !== null)
 
@@ -1655,175 +1668,37 @@ export const convertSoupToGerberCommands = (
         glayer.push(...gerberBuild.build())
       } else if (element.type === "pcb_cutout") {
         if (layer === "edgecut") {
-          if (hasBoard && !hasPanel && isSolidCutout(element as PcbCutout)) {
+          // Skip cutouts that overlap the board edge — they are already merged
+          // into the board outline polygon above and must not be double-emitted.
+          if (
+            hasBoard &&
+            !hasPanel &&
+            doesSolidCutoutOverlapBoardEdge({
+              cutout: element as PcbCutout,
+              boardOutlinePolygons,
+            })
+          ) {
             continue
           }
           const ec_layer = glayers.Edge_Cuts
           const cutout_builder = gerberBuilder().add("select_aperture", {
             aperture_number: 10,
           })
-
-          const el = element as PcbCutout
-
-          if (el.shape === "rect") {
-            const { center, width, height, rotation, corner_radius } = el
-            const w = width / 2
-            const h = height / 2
-            const r = Math.max(
-              0,
-              Math.min(corner_radius ?? 0, Math.abs(w), Math.abs(h)),
-            )
-
-            const makeTransformMatrix = () => {
-              let transformMatrix = identity()
-              if (rotation) {
-                const angle_rad = (rotation * Math.PI) / 180
-                transformMatrix = rotate(angle_rad)
-              }
-              return compose(translate(center.x, center.y), transformMatrix)
-            }
-
-            const transformMatrix = makeTransformMatrix()
-
-            if (r > 0) {
-              const startPoint = { x: -w + r, y: h }
-
-              let currentPoint = applyToPoint(transformMatrix, startPoint)
-
-              cutout_builder.add("move_operation", {
-                x: currentPoint.x,
-                y: mfy(currentPoint.y),
-              })
-
-              const addLine = (point: { x: number; y: number }) => {
-                const transformedPoint = applyToPoint(transformMatrix, point)
-                cutout_builder.add("plot_operation", {
-                  x: transformedPoint.x,
-                  y: mfy(transformedPoint.y),
-                })
-                currentPoint = transformedPoint
-              }
-
-              const addArc = (options: {
-                point: { x: number; y: number }
-                center: { x: number; y: number }
-              }) => {
-                const transformedPoint = applyToPoint(
-                  transformMatrix,
-                  options.point,
-                )
-                const transformedCenter = applyToPoint(
-                  transformMatrix,
-                  options.center,
-                )
-
-                cutout_builder
-                  .add("set_movement_mode_to_clockwise_circular", {})
-                  .add("plot_operation", {
-                    x: transformedPoint.x,
-                    y: mfy(transformedPoint.y),
-                    i: transformedCenter.x - currentPoint.x,
-                    j: mfy(transformedCenter.y) - mfy(currentPoint.y),
-                  })
-                  .add("set_movement_mode_to_linear", {})
-
-                currentPoint = transformedPoint
-              }
-
-              addLine({ x: w - r, y: h })
-              addArc({
-                point: { x: w, y: h - r },
-                center: { x: w - r, y: h - r },
-              })
-              addLine({ x: w, y: -h + r })
-              addArc({
-                point: { x: w - r, y: -h },
-                center: { x: w - r, y: -h + r },
-              })
-              addLine({ x: -w + r, y: -h })
-              addArc({
-                point: { x: -w, y: -h + r },
-                center: { x: -w + r, y: -h + r },
-              })
-              addLine({ x: -w, y: h - r })
-              addArc({
-                point: { x: -w + r, y: h },
-                center: { x: -w + r, y: h - r },
-              })
-            } else {
-              const points = [
-                { x: -w, y: h }, // Top-left
-                { x: w, y: h }, // Top-right
-                { x: w, y: -h }, // Bottom-right
-                { x: -w, y: -h }, // Bottom-left
-              ]
-
-              const transformedPoints = points.map((p) =>
-                applyToPoint(transformMatrix, p),
-              )
-
-              cutout_builder.add("move_operation", {
-                x: transformedPoints[0].x,
-                y: mfy(transformedPoints[0].y),
-              })
-              for (let i = 1; i < transformedPoints.length; i++) {
-                cutout_builder.add("plot_operation", {
-                  x: transformedPoints[i].x,
-                  y: mfy(transformedPoints[i].y),
-                })
-              }
-              cutout_builder.add("plot_operation", {
-                x: transformedPoints[0].x,
-                y: mfy(transformedPoints[0].y),
-              })
-            }
-          } else if (el.shape === "circle") {
-            const { center, radius } = el
-
-            // To draw a circle, we draw two semi-circles
-            const p1 = { x: center.x + radius, y: center.y }
-            const p2 = { x: center.x - radius, y: center.y }
-
-            cutout_builder
-              .add("move_operation", {
-                x: p1.x,
-                y: mfy(p1.y),
-              })
-              .add("set_movement_mode_to_counterclockwise_circular", {})
-              // Draw the first semi-circle (top half if we start from rightmost point)
-              .add("plot_operation", {
-                x: p2.x,
-                y: mfy(p2.y),
-                i: -radius,
-                j: 0,
-              })
-              // Draw the second semi-circle (bottom half)
-              .add("plot_operation", {
-                x: p1.x,
-                y: mfy(p1.y),
-                i: radius,
-                j: 0,
-              })
-              .add("set_movement_mode_to_linear", {})
-          } else if (el.shape === "polygon") {
-            const { points } = el
-            if (points.length > 0) {
-              cutout_builder.add("move_operation", {
-                x: points[0].x,
-                y: mfy(points[0].y),
-              })
-              for (let i = 1; i < points.length; i++) {
-                cutout_builder.add("plot_operation", {
-                  x: points[i].x,
-                  y: mfy(points[i].y),
-                })
-              }
-              cutout_builder.add("plot_operation", {
-                x: points[0].x,
-                y: mfy(points[0].y),
-              })
-            }
-          }
+          // Internal cutouts (fully inside the board, not touching the edge)
+          // must use CW winding so fill rules treat the loop as a hole.
+          const drawCw =
+            hasBoard &&
+            !hasPanel &&
+            isCutoutFullyInternal({
+              cutout: element as PcbCutout,
+              boardOutlinePolygons,
+            })
+          emitCutoutEdgeCuts({
+            cutout: element as PcbCutout,
+            builder: cutout_builder,
+            mfy,
+            drawCw,
+          })
           ec_layer.push(...cutout_builder.build())
         }
       }
