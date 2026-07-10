@@ -94,8 +94,6 @@ const emitEdgeCutRing = (
   }
 }
 
-
-
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
     | { num_layers?: number }
@@ -1541,7 +1539,10 @@ export const convertSoupToGerberCommands = (
           ]
           let boardGeometry: MultiPolygon = [boardPolygon]
           if (solidCutoutPolygons.length > 0) {
-            boardGeometry = polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+            boardGeometry = polygonClipping.difference(
+              boardPolygon,
+              ...solidCutoutPolygons,
+            )
           }
 
           for (const polygon of boardGeometry) {
@@ -1560,7 +1561,10 @@ export const convertSoupToGerberCommands = (
           ]
           let boardGeometry: MultiPolygon = [boardPolygon]
           if (solidCutoutPolygons.length > 0) {
-            boardGeometry = polygonClipping.difference(boardPolygon, ...solidCutoutPolygons)
+            boardGeometry = polygonClipping.difference(
+              boardPolygon,
+              ...solidCutoutPolygons,
+            )
           }
 
           for (const polygon of boardGeometry) {

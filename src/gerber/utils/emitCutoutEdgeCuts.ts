@@ -54,7 +54,10 @@ const emitCircle = ({
   // Edge cutouts (boundary notch): CCW so the outline is a standard outer ring.
   // Internal holes: CW so fill rules treat the loop as removed material.
   // Gerber viewers use the non-zero winding rule to determine what is filled.
-  let arcMode: "set_movement_mode_to_counterclockwise_circular" | "set_movement_mode_to_clockwise_circular" = "set_movement_mode_to_counterclockwise_circular"
+  let arcMode:
+    | "set_movement_mode_to_counterclockwise_circular"
+    | "set_movement_mode_to_clockwise_circular" =
+    "set_movement_mode_to_counterclockwise_circular"
   if (drawCw) {
     arcMode = "set_movement_mode_to_clockwise_circular"
   }
@@ -156,12 +159,15 @@ const emitRoundedRect = ({
 }) => {
   // Edge cutouts: CW gerber arc mode (CCW winding). Internal holes: CCW arc mode (CW winding).
   // Note: gerber arc modes are based on the direction the tool travels.
-  let arcMode: "set_movement_mode_to_counterclockwise_circular" | "set_movement_mode_to_clockwise_circular" = "set_movement_mode_to_counterclockwise_circular"
+  let arcMode:
+    | "set_movement_mode_to_counterclockwise_circular"
+    | "set_movement_mode_to_clockwise_circular" =
+    "set_movement_mode_to_counterclockwise_circular"
   if (drawCw) {
     arcMode = "set_movement_mode_to_clockwise_circular"
   }
 
-  // CW traversal segments. Each entry represents a straight line to the edge, 
+  // CW traversal segments. Each entry represents a straight line to the edge,
   // followed by an arc around the corner.
   const cwSegments = [
     {
