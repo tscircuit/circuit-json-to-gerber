@@ -54,9 +54,9 @@ const emitCircle = ({
   // Edge cutouts (boundary notch): CCW so the outline is a standard outer ring.
   // Internal holes: CW so fill rules treat the loop as removed material.
   // Gerber viewers use the non-zero winding rule to determine what is filled.
-  let arcMode = "set_movement_mode_to_counterclockwise_circular" as const
+  let arcMode: "set_movement_mode_to_counterclockwise_circular" | "set_movement_mode_to_clockwise_circular" = "set_movement_mode_to_counterclockwise_circular"
   if (drawCw) {
-    arcMode = "set_movement_mode_to_clockwise_circular" as const
+    arcMode = "set_movement_mode_to_clockwise_circular"
   }
 
   builder
@@ -81,7 +81,11 @@ const emitRect = ({
   const { center, width, height, rotation, corner_radius } = cutout
   const w = width / 2
   const h = height / 2
-  const r = Math.max(0, Math.min(corner_radius ?? 0, Math.abs(w), Math.abs(h)))
+  let cr = 0
+  if (corner_radius !== undefined) {
+    cr = corner_radius
+  }
+  const r = Math.max(0, Math.min(cr, Math.abs(w), Math.abs(h)))
 
   let rotationTransform = identity()
   if (rotation) {
@@ -113,17 +117,17 @@ const emitSharpRect = ({
   mfy: (y: number) => number
   drawCw: boolean
 }) => {
-  // Standard CCW order: Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left
-  const ccwPoints = [
+  // Standard CW order: Top-Left -> Top-Right -> Bottom-Right -> Bottom-Left
+  const cwPoints = [
     { x: -w, y: h },
     { x: w, y: h },
     { x: w, y: -h },
     { x: -w, y: -h },
   ]
-  let pts = ccwPoints
-  // Reverse the array to draw in CW order if this is an internal cutout
-  if (drawCw) {
-    pts = [...ccwPoints].reverse()
+  let pts = cwPoints
+  // Reverse the array to draw in CCW order if this is an edge cutout
+  if (!drawCw) {
+    pts = [...cwPoints].reverse()
   }
   const tpts = pts.map((p) => applyToPoint(transformMatrix, p))
   builder.add("move_operation", { x: tpts[0].x, y: mfy(tpts[0].y) })
@@ -152,14 +156,14 @@ const emitRoundedRect = ({
 }) => {
   // Edge cutouts: CW gerber arc mode (CCW winding). Internal holes: CCW arc mode (CW winding).
   // Note: gerber arc modes are based on the direction the tool travels.
-  let arcMode = "set_movement_mode_to_counterclockwise_circular" as const
+  let arcMode: "set_movement_mode_to_counterclockwise_circular" | "set_movement_mode_to_clockwise_circular" = "set_movement_mode_to_counterclockwise_circular"
   if (drawCw) {
-    arcMode = "set_movement_mode_to_clockwise_circular" as const
+    arcMode = "set_movement_mode_to_clockwise_circular"
   }
 
-  // CCW traversal segments. Each entry represents a straight line to the edge,
+  // CW traversal segments. Each entry represents a straight line to the edge, 
   // followed by an arc around the corner.
-  const ccwSegments = [
+  const cwSegments = [
     {
       lineTo: { x: w - r, y: h },
       arcEnd: { x: w, y: h - r },
@@ -182,12 +186,12 @@ const emitRoundedRect = ({
     },
   ]
 
-  const lastSeg = ccwSegments[ccwSegments.length - 1]!
+  const lastSeg = cwSegments[cwSegments.length - 1]!
 
-  // If we are drawing CW, we start at the end of the last segment's arc
-  // and trace backwards through the CCW path.
+  // If we are drawing CCW, we start at the end of the last segment's arc
+  // and trace backwards through the CW path.
   let startPt = { x: -w + r, y: h }
-  if (drawCw) {
+  if (!drawCw) {
     startPt = lastSeg.arcEnd
   }
 
@@ -218,10 +222,10 @@ const emitRoundedRect = ({
     currentPoint = tEnd
   }
 
-  if (drawCw) {
-    // To reverse the path, we walk the CCW segments in reverse order.
+  if (!drawCw) {
+    // To reverse the path into CCW, we walk the CW segments in reverse order.
     // The target of the arc becomes the end of the previous segment.
-    const reversed = [...ccwSegments].reverse()
+    const reversed = [...cwSegments].reverse()
     for (let i = 0; i < reversed.length; i++) {
       const cur = reversed[i]!
       addLine(cur.lineTo)
@@ -233,7 +237,7 @@ const emitRoundedRect = ({
       addArc(arcTarget, cur.arcCenter)
     }
   } else {
-    for (const seg of ccwSegments) {
+    for (const seg of cwSegments) {
       addLine(seg.lineTo)
       addArc(seg.arcEnd, seg.arcCenter)
     }
@@ -254,9 +258,11 @@ const emitPolygon = ({
   const { points } = cutout
   if (points.length === 0) return
 
-  // Reverse point order so gerber non-zero fill rules treat the loop as a hole.
+  // Reverse point order if we need to enforce CCW winding (though polygon
+  // winding depends on how it was originally defined). For now we assume
+  // polygons are defined in CW order as well.
   let ordered = points
-  if (drawCw) {
+  if (!drawCw) {
     ordered = [...points].reverse()
   }
   builder.add("move_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
