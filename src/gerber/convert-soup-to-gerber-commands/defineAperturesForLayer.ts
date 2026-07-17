@@ -28,7 +28,7 @@ const getLayerRefFromGerberLayerName = (
   if (glayer_name.startsWith("F_")) return "top"
   if (glayer_name.startsWith("B_")) return "bottom"
 
-  const innerLayerMatch = glayer_name.match(/^In([1-6])_/)
+  const innerLayerMatch = glayer_name.match(/^In(\d+)_/)
   if (innerLayerMatch) return `inner${innerLayerMatch[1]}` as LayerRef
 
   throw new Error(`Could not infer layer ref from ${glayer_name}`)
@@ -96,7 +96,7 @@ export function defineAperturesForLayer({
   // Add all trace width apertures
   const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(circuitJson)
   const layerRef = getLayerRefFromGerberLayerName(glayer_name)
-  for (const width of traceWidths[layerRef]) {
+  for (const width of traceWidths[layerRef] ?? []) {
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {
