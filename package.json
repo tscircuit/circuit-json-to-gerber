@@ -32,7 +32,6 @@
     "gerberts": "^0.0.3",
     "jszip": "^3.10.1",
     "pcb-stackup": "^4.2.8",
-    "polygon-clipping": "^0.15.7",
     "react": "^19.2.1",
     "react-dom": "^19.2.1",
     "tscircuit": "^0.0.1776",
@@ -46,6 +45,7 @@
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.25",
     "fast-json-stable-stringify": "^2.1.0",
+    "polygon-clipping": "^0.15.7",
     "transformation-matrix": "^3.0.0"
   }
 }
