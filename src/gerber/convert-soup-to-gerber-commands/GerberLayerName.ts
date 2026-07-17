@@ -17,6 +17,8 @@ export type GerberLayerName =
   | "In4_Cu"
   | "In5_Cu"
   | "In6_Cu"
+  | "In7_Cu"
+  | "In8_Cu"
   | "Edge_Cuts"
 
 export type LayerToGerberCommandsMap = {

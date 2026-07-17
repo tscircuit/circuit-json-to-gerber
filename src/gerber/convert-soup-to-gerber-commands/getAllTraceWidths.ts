@@ -26,14 +26,10 @@ export function getAllTraceWidths(
     }
   }
 
-  return {
-    top: Array.from(widths.top || []),
-    inner1: Array.from(widths.inner1 || []),
-    inner2: Array.from(widths.inner2 || []),
-    inner3: Array.from(widths.inner3 || []),
-    inner4: Array.from(widths.inner4 || []),
-    inner5: Array.from(widths.inner5 || []),
-    inner6: Array.from(widths.inner6 || []),
-    bottom: Array.from(widths.bottom || []),
-  } as any
+  return Object.fromEntries(
+    Object.entries(widths).map(([layer, layerWidths]) => [
+      layer,
+      Array.from(layerWidths),
+    ]),
+  ) as Record<LayerRef, number[]>
 }

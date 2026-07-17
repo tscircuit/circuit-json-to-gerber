@@ -99,7 +99,7 @@ const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
     | { num_layers?: number }
     | undefined
   const numLayers = board?.num_layers ?? 2
-  return Math.max(2, Math.min(8, numLayers))
+  return Math.max(2, Math.min(10, numLayers))
 }
 
 const getInnerLayerRefs = (layerCount: number): LayerRef[] =>

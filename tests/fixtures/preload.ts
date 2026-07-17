@@ -46,6 +46,8 @@ const kicadCopperLayerColors: Record<string, string> = {
   In4_Cu: "#c97f7f",
   In5_Cu: "#7fc9c9",
   In6_Cu: "#c9c97f",
+  In7_Cu: "#c97fc9",
+  In8_Cu: "#7fa8c9",
   B_Cu: "#4d7fc4",
 }
 
