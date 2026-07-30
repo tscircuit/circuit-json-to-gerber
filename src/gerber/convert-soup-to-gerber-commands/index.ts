@@ -1,65 +1,71 @@
+import {
+  glyphAdvanceRatio,
+  glyphWidthRatio,
+  letterSpacingRatio,
+  lineAlphabet,
+  spaceWidthRatio,
+} from "@tscircuit/alphabet"
 import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
-import { pairs } from "../utils/pairs"
-import { gerberBuilder } from "../gerber-builder"
-import type { LayerToGerberCommandsMap } from "./GerberLayerName"
-import { defineCommonMacros } from "./define-common-macros"
-import {
-  defineAperturesForLayer,
-  REGION_APERTURE_CONFIG,
-  getApertureConfigFromCirclePcbHole,
-  getApertureConfigFromPcbPlatedHole,
-  getApertureConfigFromPcbPlatedHoleSoldermask,
-  getApertureConfigFromCirclePcbHoleSoldermask,
-  getApertureConfigFromPcbCopperText,
-  getApertureConfigFromPcbFabricationNotePath,
-  getApertureConfigFromPcbFabricationNoteText,
-  getApertureConfigFromPcbSilkscreenPath,
-  getApertureConfigFromPcbSilkscreenText,
-  getApertureConfigFromPcbSmtpad,
-  getApertureConfigFromPcbSmtpadSoldermask,
-  getApertureConfigFromPcbSolderPaste,
-  getApertureConfigFromOuterDiameter,
-} from "./defineAperturesForLayer"
 import type { PcbCutout } from "circuit-json"
-import { findApertureNumber } from "./findApertureNumber"
-import { getCommandHeaders } from "./getCommandHeaders"
-import { getGerberLayerName } from "./getGerberLayerName"
-import { offsetPolygonOutline } from "./offsetPolygonOutline"
-import { lineAlphabet } from "@tscircuit/alphabet"
-import {
-  applyToPoint,
-  compose,
-  identity,
-  rotate,
-  translate,
-  type Matrix,
-} from "transformation-matrix"
-import type { AnyGerberCommand } from "../any_gerber_command"
 import type { LayerRef } from "circuit-json"
-import {
-  getFabricationLayerRefs,
-  isOuterLayerRef,
-  outerLayerRefs,
-} from "./fabricationLayerRefs"
-import { getFabRectPoints } from "./getFabRectPoints"
-import { renderFabricationDimension } from "./renderFabricationDimension"
-import { renderOpenPath } from "./renderOpenPath"
-import {
-  getSilkscreenShapeStroke,
-  isSilkscreenShape,
-} from "./getSilkscreenShapeStroke"
 import polygonClipping, {
   type MultiPolygon,
   type Polygon,
   type Ring,
 } from "polygon-clipping"
 import {
+  type Matrix,
+  applyToPoint,
+  compose,
+  identity,
+  rotate,
+  translate,
+} from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import { gerberBuilder } from "../gerber-builder"
+import {
   doesSolidCutoutOverlapBoardEdge,
   getBoardOutlinePolygons,
-  isCutoutFullyInternal,
   getSolidCutoutOutlinePolygon,
+  isCutoutFullyInternal,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
+import { pairs } from "../utils/pairs"
+import type { LayerToGerberCommandsMap } from "./GerberLayerName"
+import { defineCommonMacros } from "./define-common-macros"
+import {
+  REGION_APERTURE_CONFIG,
+  defineAperturesForLayer,
+  getApertureConfigFromCirclePcbHole,
+  getApertureConfigFromCirclePcbHoleSoldermask,
+  getApertureConfigFromOuterDiameter,
+  getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbFabricationNotePath,
+  getApertureConfigFromPcbFabricationNoteText,
+  getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbPlatedHoleSoldermask,
+  getApertureConfigFromPcbSilkscreenPath,
+  getApertureConfigFromPcbSilkscreenText,
+  getApertureConfigFromPcbSmtpad,
+  getApertureConfigFromPcbSmtpadSoldermask,
+  getApertureConfigFromPcbSolderPaste,
+} from "./defineAperturesForLayer"
+import {
+  getFabricationLayerRefs,
+  isOuterLayerRef,
+  outerLayerRefs,
+} from "./fabricationLayerRefs"
+import { findApertureNumber } from "./findApertureNumber"
+import { getCommandHeaders } from "./getCommandHeaders"
+import { getFabRectPoints } from "./getFabRectPoints"
+import { getGerberLayerName } from "./getGerberLayerName"
+import {
+  getSilkscreenShapeStroke,
+  isSilkscreenShape,
+} from "./getSilkscreenShapeStroke"
+import { offsetPolygonOutline } from "./offsetPolygonOutline"
+import { renderFabricationDimension } from "./renderFabricationDimension"
+import { renderOpenPath } from "./renderOpenPath"
 
 type Point = { x: number; y: number }
 
@@ -369,16 +375,21 @@ export const convertSoupToGerberCommands = (
     let initialX = element.anchor_position.x
     let initialY = element.anchor_position.y
     const fontSize = element.font_size * CAP_HEIGHT_SCALE
-    const letterSpacing = fontSize * 0.4
-    const spaceWidth = fontSize * 0.5
-
-    const textWidth =
-      element.text.split("").reduce((width: number, char: string) => {
-        if (char === " ") {
-          return width + spaceWidth + letterSpacing
-        }
-        return width + fontSize + letterSpacing
-      }, 0) - letterSpacing
+    const letterSpacing = element.font_size * letterSpacingRatio
+    const getCharacterAdvance = (char: string) =>
+      element.font_size *
+      (char === " "
+        ? spaceWidthRatio
+        : (glyphAdvanceRatio[char] ?? glyphWidthRatio))
+    const textWidth = element.text
+      .split("")
+      .reduce(
+        (width: number, char: string, index: number) =>
+          width +
+          getCharacterAdvance(char) +
+          (index < element.text.length - 1 ? letterSpacing : 0),
+        0,
+      )
 
     const textHeight = fontSize
 
@@ -537,7 +548,7 @@ export const convertSoupToGerberCommands = (
 
     for (const char of element.text) {
       if (char === " ") {
-        anchoredX += spaceWidth + letterSpacing
+        anchoredX += getCharacterAdvance(char) + letterSpacing
         continue
       }
 
@@ -555,7 +566,7 @@ export const convertSoupToGerberCommands = (
         gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
       }
 
-      anchoredX += fontSize + letterSpacing
+      anchoredX += getCharacterAdvance(char) + letterSpacing
     }
 
     glayer.push(...gerber.build())

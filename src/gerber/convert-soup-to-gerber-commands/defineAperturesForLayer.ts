@@ -1,6 +1,7 @@
+import { strokeWidthRatio } from "@tscircuit/alphabet"
 import type {
-  PCBHole,
   LayerRef,
+  PCBHole,
   PCBPlatedHole,
   PCBSMTPad,
   PcbCopperText,
@@ -9,18 +10,18 @@ import type {
   PcbFabricationNoteRect,
   PcbFabricationNoteText,
   PcbHole,
-  PcbSolderPaste,
   PcbSilkscreenPath,
   PcbSilkscreenText,
+  PcbSolderPaste,
 } from "circuit-json"
-import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
+import type { AnyCircuitElement } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
-import type { AnyCircuitElement } from "circuit-json"
+import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
@@ -280,7 +281,7 @@ export const getApertureConfigFromPcbSilkscreenText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8, // font size and diamater have different units of measurement
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
@@ -292,7 +293,7 @@ export const getApertureConfigFromPcbCopperText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8, // font size and diamater have different units of measurement
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
@@ -308,7 +309,7 @@ export const getApertureConfigFromPcbFabricationNoteText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8,
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
