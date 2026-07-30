@@ -1,7 +1,6 @@
-import { strokeWidthRatio } from "@tscircuit/alphabet"
 import type {
-  LayerRef,
   PCBHole,
+  LayerRef,
   PCBPlatedHole,
   PCBSMTPad,
   PcbCopperText,
@@ -10,18 +9,19 @@ import type {
   PcbFabricationNoteRect,
   PcbFabricationNoteText,
   PcbHole,
+  PcbSolderPaste,
   PcbSilkscreenPath,
   PcbSilkscreenText,
-  PcbSolderPaste,
 } from "circuit-json"
-import type { AnyCircuitElement } from "circuit-json"
+import { strokeWidthRatio } from "@tscircuit/alphabet"
+import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
-import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
+import type { AnyCircuitElement } from "circuit-json"
 
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
