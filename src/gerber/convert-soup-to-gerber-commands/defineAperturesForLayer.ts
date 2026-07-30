@@ -13,6 +13,7 @@ import type {
   PcbSilkscreenPath,
   PcbSilkscreenText,
 } from "circuit-json"
+import { strokeWidthRatio } from "@tscircuit/alphabet"
 import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
@@ -280,7 +281,7 @@ export const getApertureConfigFromPcbSilkscreenText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8, // font size and diamater have different units of measurement
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
@@ -292,7 +293,7 @@ export const getApertureConfigFromPcbCopperText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8, // font size and diamater have different units of measurement
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)
@@ -308,7 +309,7 @@ export const getApertureConfigFromPcbFabricationNoteText = (
   if ("font_size" in elm) {
     return {
       standard_template_code: "C",
-      diameter: elm.font_size / 8,
+      diameter: elm.font_size * strokeWidthRatio,
     }
   }
   throw new Error(`Provide font_size for: ${elm as any}`)

@@ -25,7 +25,13 @@ import { findApertureNumber } from "./findApertureNumber"
 import { getCommandHeaders } from "./getCommandHeaders"
 import { getGerberLayerName } from "./getGerberLayerName"
 import { offsetPolygonOutline } from "./offsetPolygonOutline"
-import { lineAlphabet } from "@tscircuit/alphabet"
+import {
+  glyphAdvanceRatio,
+  glyphWidthRatio,
+  letterSpacingRatio,
+  lineAlphabet,
+  spaceWidthRatio,
+} from "@tscircuit/alphabet"
 import {
   applyToPoint,
   compose,
@@ -62,6 +68,12 @@ import {
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
 
 type Point = { x: number; y: number }
+
+const getAlphabetCharacterAdvance = (char: string, fontSize: number) => {
+  if (char === " ") return fontSize * spaceWidthRatio
+  const advanceRatio = glyphAdvanceRatio[char] ?? glyphWidthRatio
+  return fontSize * advanceRatio
+}
 
 const closeRing = (ring: Ring): Ring => {
   const first = ring[0]
@@ -369,16 +381,16 @@ export const convertSoupToGerberCommands = (
     let initialX = element.anchor_position.x
     let initialY = element.anchor_position.y
     const fontSize = element.font_size * CAP_HEIGHT_SCALE
-    const letterSpacing = fontSize * 0.4
-    const spaceWidth = fontSize * 0.5
-
+    const letterSpacing = element.font_size * letterSpacingRatio
     const textWidth =
-      element.text.split("").reduce((width: number, char: string) => {
-        if (char === " ") {
-          return width + spaceWidth + letterSpacing
-        }
-        return width + fontSize + letterSpacing
-      }, 0) - letterSpacing
+      element.text
+        .split("")
+        .reduce(
+          (width: number, char: string) =>
+            width + getAlphabetCharacterAdvance(char, element.font_size),
+          0,
+        ) +
+      Math.max(0, element.text.length - 1) * letterSpacing
 
     const textHeight = fontSize
 
@@ -537,7 +549,8 @@ export const convertSoupToGerberCommands = (
 
     for (const char of element.text) {
       if (char === " ") {
-        anchoredX += spaceWidth + letterSpacing
+        anchoredX +=
+          getAlphabetCharacterAdvance(char, element.font_size) + letterSpacing
         continue
       }
 
@@ -555,7 +568,8 @@ export const convertSoupToGerberCommands = (
         gerber.add("plot_operation", { x: p2.x, y: mfy(p2.y) })
       }
 
-      anchoredX += fontSize + letterSpacing
+      anchoredX +=
+        getAlphabetCharacterAdvance(char, element.font_size) + letterSpacing
     }
 
     glayer.push(...gerber.build())
