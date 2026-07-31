@@ -1278,8 +1278,12 @@ export const convertSoupToGerberCommands = (
             if (element.shape === "hole_with_polygon_pad") {
               const { pad_outline } = element
               if (!pad_outline?.length) continue
-              const soldermaskGlayer =
-                glayers[getGerberLayerName(layer, "soldermask")]
+              // Inner layers have no soldermask gerber, so only resolve the
+              // soldermask layer for outer layers. getGerberLayerName throws
+              // for an inner layer_ref with a non-copper type (#127).
+              const soldermaskGlayer = isOuterLayerRef(layer)
+                ? glayers[getGerberLayerName(layer, "soldermask")]
+                : undefined
               let points = pad_outline
               if (
                 glayer === soldermaskGlayer &&
@@ -1343,8 +1347,12 @@ export const convertSoupToGerberCommands = (
               padHeightCandidates.push(element.rect_pad_height)
             }
             const padH = Math.max(...padHeightCandidates)
-            const soldermaskGlayer =
-              glayers[getGerberLayerName(layer, "soldermask")]
+            // Inner layers have no soldermask gerber, so only resolve the
+            // soldermask layer for outer layers. getGerberLayerName throws for
+            // an inner layer_ref with a non-copper type (#127).
+            const soldermaskGlayer = isOuterLayerRef(layer)
+              ? glayers[getGerberLayerName(layer, "soldermask")]
+              : undefined
             let soldermaskMargin = 0
             if (
               glayer === soldermaskGlayer &&
