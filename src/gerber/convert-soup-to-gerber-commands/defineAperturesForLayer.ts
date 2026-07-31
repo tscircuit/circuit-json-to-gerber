@@ -604,11 +604,7 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
-        if (
-          elm.shape === "pill" ||
-          (elm.shape === "rotated_pill" &&
-            (elm.ccw_rotation === 90 || elm.ccw_rotation === 270))
-        ) {
+        if (elm.shape === "pill") {
           addConfigIfNew(
             getApertureConfigFromPcbSolderPaste({
               ...elm,
