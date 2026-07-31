@@ -1236,7 +1236,7 @@ export const convertSoupToGerberCommands = (
 
           let apertureConfig = getApertureConfigFromPcbSolderPaste(element)
           if (
-            element.shape === "pill" &&
+            (element.shape === "pill" || element.shape === "rotated_pill") &&
             (rotation === 90 || rotation === 270)
           ) {
             apertureConfig = getApertureConfigFromPcbSolderPaste({

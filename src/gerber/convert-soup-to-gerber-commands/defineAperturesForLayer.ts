@@ -363,7 +363,8 @@ export const getApertureConfigFromPcbSolderPaste = (
       diameter: elm.radius * 2,
     }
   }
-  if (elm.shape === "pill") {
+  if (elm.shape === "pill" || elm.shape === "rotated_pill") {
+    // rotated_pill rotation is handled by the LR command at flash time
     if (!("width" in elm && "height" in elm)) {
       throw new Error(
         "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
@@ -603,7 +604,11 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
         addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
-        if (elm.shape === "pill") {
+        if (
+          elm.shape === "pill" ||
+          (elm.shape === "rotated_pill" &&
+            (elm.ccw_rotation === 90 || elm.ccw_rotation === 270))
+        ) {
           addConfigIfNew(
             getApertureConfigFromPcbSolderPaste({
               ...elm,
