@@ -1,12 +1,8 @@
 import type { AnyCircuitElement, PCBSMTPad } from "circuit-json"
 import { offsetPolygonOutline } from "./offsetPolygonOutline"
 
-export type PcbSmtPadWithSolderPasteMargin = PCBSMTPad & {
-  solderpaste_margin?: number
-}
-
 export const getSolderPasteFallbackFromSmtPad = (
-  pad: PcbSmtPadWithSolderPasteMargin,
+  pad: PCBSMTPad,
   circuitJson: AnyCircuitElement[],
 ): PCBSMTPad | null => {
   const margin = pad.solderpaste_margin
