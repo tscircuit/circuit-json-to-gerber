@@ -66,6 +66,7 @@ import {
   getSolidCutoutOutlinePolygon,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
+import { getSolderPasteFallbackFromSmtPad } from "./getSolderPasteFallbackFromSmtPad"
 
 type Point = { x: number; y: number }
 
@@ -1117,6 +1118,10 @@ export const convertSoupToGerberCommands = (
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          const solderPasteFallback = getSolderPasteFallbackFromSmtPad(
+            element,
+            circuitJson,
+          )
           if (element.shape === "pill" || element.shape === "rotated_pill") {
             const soldermaskMargin =
               typeof element.soldermask_margin === "number"
@@ -1146,6 +1151,20 @@ export const convertSoupToGerberCommands = (
               rotationDegrees: rotation,
             })
 
+            if (
+              solderPasteFallback?.shape === "pill" ||
+              solderPasteFallback?.shape === "rotated_pill"
+            ) {
+              renderPillFlash({
+                glayer: glayers[getGerberLayerName(layer, "paste")],
+                x: solderPasteFallback.x,
+                y: solderPasteFallback.y,
+                width: solderPasteFallback.width,
+                height: solderPasteFallback.height,
+                rotationDegrees: rotation,
+              })
+            }
+
             continue
           }
 
@@ -1155,7 +1174,7 @@ export const convertSoupToGerberCommands = (
               ? element.ccw_rotation
               : 0
 
-          for (const { glayer, apertureConfig } of [
+          const layersAndApertures = [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
               apertureConfig: getApertureConfigFromPcbSmtpad(element),
@@ -1164,7 +1183,17 @@ export const convertSoupToGerberCommands = (
               glayer: glayers[getGerberLayerName(layer, "soldermask")],
               apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
             },
-          ]) {
+          ]
+
+          if (solderPasteFallback) {
+            layersAndApertures.push({
+              glayer: glayers[getGerberLayerName(layer, "paste")],
+              apertureConfig:
+                getApertureConfigFromPcbSmtpad(solderPasteFallback),
+            })
+          }
+
+          for (const { glayer, apertureConfig } of layersAndApertures) {
             const apertureNumber = findApertureNumber(glayer, apertureConfig)
             const gb = gerberBuilder().add("select_aperture", {
               aperture_number: apertureNumber,
@@ -1189,17 +1218,31 @@ export const convertSoupToGerberCommands = (
       } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
           const layers_to_add_to = [
-            glayers[getGerberLayerName(layer, "copper")],
+            {
+              glayer: glayers[getGerberLayerName(layer, "copper")],
+              points: element.points,
+            },
           ]
 
           if (element.is_covered_with_solder_mask !== true) {
-            layers_to_add_to.push(
-              glayers[getGerberLayerName(layer, "soldermask")],
-            )
+            layers_to_add_to.push({
+              glayer: glayers[getGerberLayerName(layer, "soldermask")],
+              points: element.points,
+            })
           }
 
-          for (const glayer of layers_to_add_to) {
-            const { points } = element
+          const solderPasteFallback = getSolderPasteFallbackFromSmtPad(
+            element,
+            circuitJson,
+          )
+          if (solderPasteFallback?.shape === "polygon") {
+            layers_to_add_to.push({
+              glayer: glayers[getGerberLayerName(layer, "paste")],
+              points: solderPasteFallback.points,
+            })
+          }
+
+          for (const { glayer, points } of layers_to_add_to) {
             if (!points) continue
             addClosedRegionFromPoints({
               target: glayer,
