@@ -22,6 +22,7 @@ import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
 import type { AnyCircuitElement } from "circuit-json"
+import { getSolderPasteFallbackFromSmtPad } from "./getSolderPasteFallbackFromSmtPad"
 
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
@@ -579,6 +580,7 @@ function getAllApertureTemplateConfigsForLayer({
   const configs: ApertureTemplateConfig[] = []
   const configHashMap = new Set<string>()
   const isSoldermaskLayer = glayer_name.endsWith("_Mask")
+  const isPasteLayer = glayer_name.endsWith("_Paste")
   const isCopperLayer = glayer_name.endsWith("_Cu")
   const isFabricationLayer = glayer_name.endsWith("_Fab")
 
@@ -594,7 +596,14 @@ function getAllApertureTemplateConfigsForLayer({
     if (elm.type === "pcb_smtpad") {
       if (isFabricationLayer) continue
       if (elm.layer === layer && elm.shape !== "polygon") {
-        if (isSoldermaskLayer) {
+        if (isPasteLayer) {
+          // Preserve the base pad aperture historically emitted on paste layers.
+          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+          const fallback = getSolderPasteFallbackFromSmtPad(elm, circuitJson)
+          if (fallback) {
+            addConfigIfNew(getApertureConfigFromPcbSmtpad(fallback))
+          }
+        } else if (isSoldermaskLayer) {
           addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
         } else {
           addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
@@ -717,6 +726,9 @@ function getAllApertureTemplateConfigsForLayer({
     if (elm.type === "pcb_smtpad" && elm.shape === "polygon") {
       if (elm.layer !== layer) return false
       if (isCopperLayer) return true
+      if (isPasteLayer) {
+        return getSolderPasteFallbackFromSmtPad(elm, circuitJson) !== null
+      }
       return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
     }
 
