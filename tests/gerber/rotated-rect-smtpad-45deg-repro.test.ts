@@ -67,7 +67,9 @@ test("repro: 45 degree rotated rectangular SMT pads", async () => {
     convertSoupToGerberCommands(circuitJson),
   )
 
-  expect(gerberOutput.F_Cu).toContain("%LR45*%")
+  expect(gerberOutput.F_Cu).not.toContain("%LR45*%")
+  expect(gerberOutput.F_Cu).toContain("G36*")
+  expect(gerberOutput.F_Cu).toContain("X-02598173Y001289909D02*")
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
