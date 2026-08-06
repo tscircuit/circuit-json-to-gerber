@@ -10,7 +10,7 @@ test("Generate gerber of macrokeypad", async () => {
   expect(gerber_cmds).toBeDefined()
   expect(
     Object.values(gerber_cmds)[0].filter((x: any) =>
-      x?.command_code?.includes?.("LR"),
+      x?.command_code?.includes?.("G36"),
     ).length,
   ).toBeGreaterThan(0)
   expect(

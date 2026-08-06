@@ -66,6 +66,7 @@ import {
   getSolidCutoutOutlinePolygon,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
+import { getRotatedRectPoints } from "./getRotatedRectPoints"
 
 type Point = { x: number; y: number }
 
@@ -1146,6 +1147,38 @@ export const convertSoupToGerberCommands = (
               rotationDegrees: rotation,
             })
 
+            continue
+          }
+
+          if (
+            element.shape === "rotated_rect" &&
+            !element.corner_radius &&
+            !element.rect_border_radius
+          ) {
+            const soldermaskMargin = element.soldermask_margin ?? 0
+            for (const { glayer, width, height } of [
+              {
+                glayer: glayers[getGerberLayerName(layer, "copper")],
+                width: element.width,
+                height: element.height,
+              },
+              {
+                glayer: glayers[getGerberLayerName(layer, "soldermask")],
+                width: element.width + soldermaskMargin * 2,
+                height: element.height + soldermaskMargin * 2,
+              },
+            ]) {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                points: getRotatedRectPoints({
+                  center: { x: element.x, y: element.y },
+                  width,
+                  height,
+                  ccwRotationDegrees: element.ccw_rotation,
+                }),
+              })
+            }
             continue
           }
 
