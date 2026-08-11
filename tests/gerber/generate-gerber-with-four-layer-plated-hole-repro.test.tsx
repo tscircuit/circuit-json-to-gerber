@@ -3,7 +3,7 @@ import { Circuit } from "@tscircuit/core"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
-test("repro: four-layer plated holes fail during Gerber export", async () => {
+test("generates four-layer plated-hole copper without inner soldermask", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board width={12} height={8} layers={4}>
@@ -26,19 +26,21 @@ test("repro: four-layer plated holes fail during Gerber export", async () => {
     }
   }
 
-  let gerberError: string | undefined
-  try {
-    stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson))
-  } catch (error) {
-    gerberError = error instanceof Error ? error.message : String(error)
-  }
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(circuitJson),
+  )
 
-  expect(gerberError).toBe("Inner layer inner1 only supports copper gerbers")
-  if (!gerberError) throw new Error("Expected Gerber export to fail")
-  await expect(circuitJson).toMatchCircuitJsonPcbAndMessageSnapshot(
+  expect(gerberOutput.In1_Cu).toBeDefined()
+  expect(gerberOutput.In2_Cu).toBeDefined()
+  expect(gerberOutput).toMatchGerberLayerSnapshots(
+    import.meta.path,
+    "four-layer-plated-hole",
+    ["F_Cu", "In1_Cu", "In2_Cu", "B_Cu"],
+  )
+  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
     "four-layer-plated-hole-repro",
-    ["Gerber generation currently throws:", gerberError],
-    { messageLabel: "Current failure" },
+    circuitJson,
+    ["F_Cu", "In1_Cu", "In2_Cu", "B_Cu"],
   )
 })

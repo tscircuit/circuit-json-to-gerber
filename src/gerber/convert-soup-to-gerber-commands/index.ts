@@ -1311,10 +1311,12 @@ export const convertSoupToGerberCommands = (
             if (element.shape === "hole_with_polygon_pad") {
               const { pad_outline } = element
               if (!pad_outline?.length) continue
-              const soldermaskGlayer =
-                glayers[getGerberLayerName(layer, "soldermask")]
+              const soldermaskGlayer = isOuterLayerRef(layer)
+                ? glayers[getGerberLayerName(layer, "soldermask")]
+                : undefined
               let points = pad_outline
               if (
+                soldermaskGlayer &&
                 glayer === soldermaskGlayer &&
                 "soldermask_margin" in element &&
                 typeof element.soldermask_margin === "number"
@@ -1376,10 +1378,12 @@ export const convertSoupToGerberCommands = (
               padHeightCandidates.push(element.rect_pad_height)
             }
             const padH = Math.max(...padHeightCandidates)
-            const soldermaskGlayer =
-              glayers[getGerberLayerName(layer, "soldermask")]
+            const soldermaskGlayer = isOuterLayerRef(layer)
+              ? glayers[getGerberLayerName(layer, "soldermask")]
+              : undefined
             let soldermaskMargin = 0
             if (
+              soldermaskGlayer &&
               glayer === soldermaskGlayer &&
               "soldermask_margin" in element &&
               typeof element.soldermask_margin === "number"
@@ -1491,7 +1495,7 @@ export const convertSoupToGerberCommands = (
                   ? { outer_width: padW, outer_height: padH }
                   : {}),
               })
-              if (glayer === soldermaskGlayer) {
+              if (soldermaskGlayer && glayer === soldermaskGlayer) {
                 apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask({
                   ...element,
                   ...(element.shape !== "circle"
