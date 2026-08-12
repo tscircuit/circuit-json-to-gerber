@@ -20,6 +20,17 @@ test("repro: bottom copper pour with centered hole", async () => {
     convertSoupToGerberCommands(circuitJson),
   )
 
+  expect(gerberOutput.B_Cu).toMatch(/%ADD\d+C,3\.000000\*%/)
+  expect(gerberOutput.B_Cu).toMatch(
+    /%LPC\*%\nD\d+\*\nX000000000Y000000000D03\*\n%LPD\*%/,
+  )
+
+  await expect(gerberOutput).toMatchGerberLayerSnapshots(
+    import.meta.path,
+    "bottom-copper-pour-hole-copper",
+    ["B_Cu"],
+  )
+
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
     "bottom-copper-pour-hole-repro",

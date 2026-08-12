@@ -1695,6 +1695,37 @@ export const convertSoupToGerberCommands = (
     }
   }
 
+  // Clear non-plated holes after all dark copper has been emitted so copper
+  // pours do not cover the finished drill opening.
+  for (const layer of copperLayerRefs) {
+    const hasCopperPour = circuitJson.some(
+      (element) =>
+        element.type === "pcb_copper_pour" && element.layer === layer,
+    )
+    if (!hasCopperPour) continue
+
+    const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
+    for (const element of circuitJson) {
+      if (element.type !== "pcb_hole" || element.hole_shape !== "circle") {
+        continue
+      }
+
+      copperGlayer.push(
+        ...gerberBuilder()
+          .add("set_layer_polarity", { polarity: "C" })
+          .add("select_aperture", {
+            aperture_number: findApertureNumber(
+              copperGlayer,
+              getApertureConfigFromCirclePcbHole(element),
+            ),
+          })
+          .add("flash_operation", { x: element.x, y: mfy(element.y) })
+          .add("set_layer_polarity", { polarity: "D" })
+          .build(),
+      )
+    }
+  }
+
   for (const key of Object.keys(glayers)) {
     glayers[key as keyof LayerToGerberCommandsMap].push(
       ...gerberBuilder().add("end_of_file", {}).build(),
