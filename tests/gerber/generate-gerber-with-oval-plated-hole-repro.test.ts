@@ -10,6 +10,8 @@ const circuitJson: AnyCircuitElement[] = [
     width: 8,
     height: 6,
     num_layers: 2,
+    thickness: 1.6,
+    material: "fr4",
   },
   {
     type: "pcb_plated_hole",
@@ -21,6 +23,7 @@ const circuitJson: AnyCircuitElement[] = [
     hole_height: 0.5,
     x: 0,
     y: 0,
+    ccw_rotation: 0,
     layers: ["top", "bottom"],
   },
 ]
