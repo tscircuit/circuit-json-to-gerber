@@ -1,7 +1,10 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
 import gerberToSvg from "gerber-to-svg"
-import { convertSoupToExcellonDrillCommands } from "src/excellon-drill"
+import {
+  convertSoupToExcellonDrillCommands,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
@@ -57,6 +60,10 @@ test("oval plated holes export as elliptical Gerber regions", async () => {
     circuitJson,
     is_plated: true,
   })
+  const gerberAndDrillOutput = {
+    ...gerberOutput,
+    "drill.drl": stringifyExcellonDrill(platedDrill),
+  }
 
   expect(gerberLayers.F_Cu).toContainEqual({ command_code: "G36" })
   expect(gerberLayers.F_Cu).toContainEqual({ command_code: "G37" })
@@ -88,4 +95,12 @@ test("oval plated holes export as elliptical Gerber regions", async () => {
   await expect(
     renderGerberLayer(gerberOutput.F_Paste, "oval-F_Paste"),
   ).resolves.toContain("<path")
+
+  await expect(gerberAndDrillOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "oval-plated-hole-gerber",
+    circuitJson,
+    ["F_Cu"],
+    { gerberLabel: "Gerber copper + plated drill" },
+  )
 })
