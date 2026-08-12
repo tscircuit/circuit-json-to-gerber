@@ -70,6 +70,34 @@ import { getRotatedRectPoints } from "./getRotatedRectPoints"
 
 type Point = { x: number; y: number }
 
+const getEllipsePoints = ({
+  x,
+  y,
+  width,
+  height,
+  rotationDegrees = 0,
+}: {
+  x: number
+  y: number
+  width: number
+  height: number
+  rotationDegrees?: number
+}): Point[] => {
+  const rotationRadians = (rotationDegrees * Math.PI) / 180
+  const cosRotation = Math.cos(rotationRadians)
+  const sinRotation = Math.sin(rotationRadians)
+
+  return Array.from({ length: 64 }, (_, index) => {
+    const angle = (index * 2 * Math.PI) / 64
+    const dx = (width / 2) * Math.cos(angle)
+    const dy = (height / 2) * Math.sin(angle)
+    return {
+      x: x + dx * cosRotation - dy * sinRotation,
+      y: y + dx * sinRotation + dy * cosRotation,
+    }
+  })
+}
+
 const getAlphabetCharacterAdvance = (char: string, fontSize: number) => {
   if (char === " ") return fontSize * spaceWidthRatio
   const advanceRatio = glyphAdvanceRatio[char] ?? glyphWidthRatio
@@ -1243,6 +1271,21 @@ export const convertSoupToGerberCommands = (
         }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          if (element.shape === "oval") {
+            const glayer = glayers[getGerberLayerName(layer, "paste")]
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points: getEllipsePoints({
+                x: element.x,
+                y: element.y,
+                width: element.width,
+                height: element.height,
+              }),
+            })
+            continue
+          }
+
           const glayer = glayers[getGerberLayerName(layer, "paste")]
           let rotation = 0
           if (
@@ -1393,7 +1436,19 @@ export const convertSoupToGerberCommands = (
             const aperturePadW = padW + soldermaskMargin * 2
             const aperturePadH = padH + soldermaskMargin * 2
 
-            if (element.shape === "pill") {
+            if (element.shape === "oval") {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                points: getEllipsePoints({
+                  x: element.x,
+                  y: element.y,
+                  width: aperturePadW,
+                  height: aperturePadH,
+                  rotationDegrees: element.ccw_rotation,
+                }),
+              })
+            } else if (element.shape === "pill") {
               // Use min dimension as slot width (aperture circle)
               const circleApertureConfig = {
                 standard_template_code: "C" as const,

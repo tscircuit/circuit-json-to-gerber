@@ -606,6 +606,10 @@ function getAllApertureTemplateConfigsForLayer({
     } else if (elm.type === "pcb_solder_paste") {
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
+        if (elm.shape === "oval") {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
+          continue
+        }
         addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
         if (elm.shape === "pill") {
           addConfigIfNew(
@@ -627,6 +631,10 @@ function getAllApertureTemplateConfigsForLayer({
           glayer_name.endsWith("_Mask") &&
           elm.is_covered_with_solder_mask === true
         ) {
+          continue
+        }
+        if (elm.shape === "oval") {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }
         if (isSoldermaskLayer) {
