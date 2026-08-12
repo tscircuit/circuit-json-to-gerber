@@ -581,6 +581,9 @@ function getAllApertureTemplateConfigsForLayer({
   const isSoldermaskLayer = glayer_name.endsWith("_Mask")
   const isCopperLayer = glayer_name.endsWith("_Cu")
   const isFabricationLayer = glayer_name.endsWith("_Fab")
+  const hasCopperPourForLayer = circuitJson.some(
+    (element) => element.type === "pcb_copper_pour" && element.layer === layer,
+  )
 
   const addConfigIfNew = (config: ApertureTemplateConfig) => {
     const hash = stableStringify(config)
@@ -633,11 +636,9 @@ function getAllApertureTemplateConfigsForLayer({
         }
       }
     } else if (elm.type === "pcb_hole") {
-      if (!isSoldermaskLayer) continue
-      if (
-        glayer_name.endsWith("_Mask") &&
-        elm.is_covered_with_solder_mask === true
-      ) {
+      if (!isCopperLayer && !isSoldermaskLayer) continue
+      if (isCopperLayer && !hasCopperPourForLayer) continue
+      if (isSoldermaskLayer && elm.is_covered_with_solder_mask === true) {
         continue
       }
       if (elm.hole_shape === "circle") {
