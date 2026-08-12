@@ -1,6 +1,20 @@
 import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
+import gerberToSvg from "gerber-to-svg"
+import {
+  convertSoupToExcellonDrillCommands,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
+import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
+
+const renderGerberLayer = (gerber: string, id: string) =>
+  new Promise<string>((resolve, reject) => {
+    gerberToSvg(gerber, { id }, (error, svg) => {
+      if (error) reject(error)
+      else resolve(svg)
+    })
+  })
 
 const circuitJson: AnyCircuitElement[] = [
   {
@@ -23,13 +37,70 @@ const circuitJson: AnyCircuitElement[] = [
     hole_height: 0.5,
     x: 0,
     y: 0,
-    ccw_rotation: 0,
+    ccw_rotation: 90,
     layers: ["top", "bottom"],
+    soldermask_margin: 0.2,
+  },
+  {
+    type: "pcb_solder_paste",
+    pcb_solder_paste_id: "pcb_solder_paste_0",
+    shape: "oval",
+    width: 1.6,
+    height: 0.8,
+    x: 0,
+    y: 0,
+    layer: "top",
   },
 ]
 
-test("repro: oval plated holes fail during Gerber export", () => {
-  expect(() => convertSoupToGerberCommands(circuitJson)).toThrow(
-    "Unsupported shape in getApertureConfigFromPcbPlatedHole: oval",
+test("oval plated holes export as elliptical Gerber regions", async () => {
+  const gerberLayers = convertSoupToGerberCommands(circuitJson)
+  const gerberOutput = stringifyGerberCommandLayers(gerberLayers)
+  const platedDrill = convertSoupToExcellonDrillCommands({
+    circuitJson,
+    is_plated: true,
+  })
+  const gerberAndDrillOutput = {
+    ...gerberOutput,
+    "drill.drl": stringifyExcellonDrill(platedDrill),
+  }
+
+  expect(gerberLayers.F_Cu).toContainEqual({ command_code: "G36" })
+  expect(gerberLayers.F_Cu).toContainEqual({ command_code: "G37" })
+  const copperRegionStart = gerberLayers.F_Cu.find(
+    (command) => command.command_code === "D02",
+  )
+  const maskRegionStart = gerberLayers.F_Mask.find(
+    (command) => command.command_code === "D02",
+  )
+  expect(copperRegionStart?.x).toBeCloseTo(0)
+  expect(copperRegionStart?.y).toBeCloseTo(1)
+  expect(maskRegionStart?.x).toBeCloseTo(0)
+  expect(maskRegionStart?.y).toBeCloseTo(1.2)
+  expect(gerberLayers.F_Paste).toContainEqual({
+    command_code: "D02",
+    x: 0.8,
+    y: 0,
+  })
+  expect(platedDrill).toContainEqual(
+    expect.objectContaining({ command_code: "G85", width: 0.5 }),
+  )
+
+  await expect(
+    renderGerberLayer(gerberOutput.F_Cu, "oval-F_Cu"),
+  ).resolves.toContain("<path")
+  await expect(
+    renderGerberLayer(gerberOutput.F_Mask, "oval-F_Mask"),
+  ).resolves.toContain("<path")
+  await expect(
+    renderGerberLayer(gerberOutput.F_Paste, "oval-F_Paste"),
+  ).resolves.toContain("<path")
+
+  await expect(gerberAndDrillOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "oval-plated-hole-gerber",
+    circuitJson,
+    ["F_Cu"],
+    { gerberLabel: "Gerber copper + plated drill" },
   )
 })
