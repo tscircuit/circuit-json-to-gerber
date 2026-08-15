@@ -40,7 +40,7 @@ const circuitJson = [
   },
 ] as AnyCircuitElement[]
 
-test("repro: square plated-hole pads lose non-quarter-turn rotations", async () => {
+test("square plated-hole pads preserve non-quarter-turn rotations", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -51,7 +51,7 @@ test("repro: square plated-hole pads lose non-quarter-turn rotations", async () 
     circuitJson,
     ["F_Cu"],
     {
-      gerberLabel: "Gerber top copper (45° rotation is lost)",
+      gerberLabel: "Gerber top copper (45° rotation is preserved)",
       colors: { F_Cu: "#c83434" },
       backgroundColor: "#111111",
     },

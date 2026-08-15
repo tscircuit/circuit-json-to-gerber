@@ -21,6 +21,7 @@ import type { ApertureTemplateConfig } from "../commands/define_aperture_templat
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
+import { isGeometryChangingSquareRotation } from "./getRotatedRectPoints"
 import type { AnyCircuitElement } from "circuit-json"
 
 const getLayerRefFromGerberLayerName = (
@@ -739,6 +740,22 @@ function getAllApertureTemplateConfigsForLayer({
       elm.shape === "hole_with_polygon_pad"
     ) {
       if (!elm.layers.includes(layer)) return false
+      if (isCopperLayer) return true
+      return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
+    }
+
+    if (
+      elm.type === "pcb_plated_hole" &&
+      (elm.shape === "circular_hole_with_rect_pad" ||
+        elm.shape === "pill_hole_with_rect_pad" ||
+        elm.shape === "rotated_pill_hole_with_rect_pad") &&
+      elm.layers.includes(layer) &&
+      isGeometryChangingSquareRotation({
+        width: elm.rect_pad_width,
+        height: elm.rect_pad_height,
+        ccwRotationDegrees: elm.rect_ccw_rotation ?? 0,
+      })
+    ) {
       if (isCopperLayer) return true
       return isSoldermaskLayer && elm.is_covered_with_solder_mask !== true
     }

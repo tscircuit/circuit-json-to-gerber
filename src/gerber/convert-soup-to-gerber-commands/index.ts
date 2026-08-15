@@ -66,7 +66,10 @@ import {
   getSolidCutoutOutlinePolygon,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
-import { getRotatedRectPoints } from "./getRotatedRectPoints"
+import {
+  getRotatedRectPoints,
+  isGeometryChangingSquareRotation,
+} from "./getRotatedRectPoints"
 
 type Point = { x: number; y: number }
 
@@ -1558,12 +1561,37 @@ export const convertSoupToGerberCommands = (
                     : {}),
                 })
               }
-              const rotation =
+              const rectRotation =
                 "rect_ccw_rotation" in element &&
-                typeof element.rect_ccw_rotation === "number" &&
-                Math.abs(padW - padH) > 1e-9
+                typeof element.rect_ccw_rotation === "number"
                   ? element.rect_ccw_rotation
                   : undefined
+              const renderAsRotatedSquareRegion =
+                rectRotation !== undefined &&
+                isGeometryChangingSquareRotation({
+                  width: padW,
+                  height: padH,
+                  ccwRotationDegrees: rectRotation,
+                })
+
+              if (renderAsRotatedSquareRegion) {
+                // Emit explicit geometry because not all Gerber consumers apply
+                // aperture-level LR rotation to square flashes.
+                addClosedRegionFromPoints({
+                  target: glayer,
+                  apertureSource: glayer,
+                  points: getRotatedRectPoints({
+                    center: { x: element.x, y: element.y },
+                    width: aperturePadW,
+                    height: aperturePadH,
+                    ccwRotationDegrees: rectRotation,
+                  }),
+                })
+                continue
+              }
+
+              const rotation =
+                Math.abs(padW - padH) <= 1e-9 ? undefined : rectRotation
 
               const gb = gerberBuilder().add("select_aperture", {
                 aperture_number: findApertureNumber(glayer, apertureConfig),
