@@ -1,5 +1,20 @@
 import { applyToPoint, compose, rotate, translate } from "transformation-matrix"
 
+export const isGeometryChangingSquareRotation = ({
+  width,
+  height,
+  ccwRotationDegrees,
+}: {
+  width: number
+  height: number
+  ccwRotationDegrees: number
+}) => {
+  if (Math.abs(width - height) > 1e-9) return false
+
+  const normalizedQuarterTurn = ((ccwRotationDegrees % 90) + 90) % 90
+  return normalizedQuarterTurn > 1e-9 && 90 - normalizedQuarterTurn > 1e-9
+}
+
 export const getRotatedRectPoints = ({
   center,
   width,
