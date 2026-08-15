@@ -1,16 +1,90 @@
-import { useState, useCallback } from "react"
-import { createRoot } from "react-dom/client"
 import type { AnyCircuitElement } from "circuit-json"
-import { convertSoupToGerberCommands } from "../src/gerber/convert-soup-to-gerber-commands"
-import { stringifyGerberCommandLayers } from "../src/gerber/stringify-gerber"
+import { parseGerberFile, renderGerberToSvg } from "gerberts"
+import { useCallback, useState } from "react"
+import { createRoot } from "react-dom/client"
 import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
 } from "../src/excellon-drill"
-import { parseGerberFile, renderGerberToSvg } from "gerberts"
+import { convertSoupToGerberCommands } from "../src/gerber/convert-soup-to-gerber-commands"
+import { stringifyGerberCommandLayers } from "../src/gerber/stringify-gerber"
 
 type GerberOutput = Record<string, string>
 type SvgOutput = Record<string, string>
+
+// KiCad's default PCB editor palette, approximated for the browser preview.
+const KICAD_LAYER_COLORS: Record<string, string> = {
+  F_Cu: "#e31c23",
+  B_Cu: "#4d7ea8",
+  F_Mask: "#800080",
+  B_Mask: "#800080",
+  F_SilkScreen: "#ffff00",
+  B_SilkScreen: "#ffff00",
+  F_Paste: "#b3b3b3",
+  B_Paste: "#b3b3b3",
+  Edge_Cuts: "#d08000",
+}
+
+const DEFAULT_LAYER_COLOR = "#00ff00"
+
+function getLayerColor(layerName: string) {
+  return KICAD_LAYER_COLORS[layerName] ?? DEFAULT_LAYER_COLOR
+}
+
+function composeLayerSvgs(layerSvgs: SvgOutput) {
+  const layers = Object.entries(layerSvgs)
+    .map(([, svg]) => {
+      const viewBox = svg.match(/viewBox="0 0 ([^ ]+) ([^"]+)"/)
+      const width = svg.match(/<svg[^>]*width="([^"]+)"/)
+      const height = svg.match(/<svg[^>]*height="([^"]+)"/)
+      const transform = svg.match(
+        /translate\(0, ([^\)]+)\) scale\(1, -1\) translate\(([^,]+), ([^\)]+)\)/,
+      )
+      const contents = svg.match(/<svg[^>]*>([\s\S]*)<\/svg>/)
+
+      if (!viewBox || !width || !height || !transform || !contents) return null
+
+      const layerWidth = Number(viewBox[1])
+      const layerHeight = Number(viewBox[2])
+      const minX = -Number(transform[2])
+      const minY = -Number(transform[3])
+
+      return {
+        minX,
+        minY,
+        maxX: minX + layerWidth,
+        maxY: minY + layerHeight,
+        width: width[1],
+        height: height[1],
+        contents: contents[1],
+      }
+    })
+    .filter((layer): layer is NonNullable<typeof layer> => layer !== null)
+
+  if (layers.length === 0) return ""
+
+  const minX = Math.min(...layers.map((layer) => layer.minX))
+  const minY = Math.min(...layers.map((layer) => layer.minY))
+  const maxX = Math.max(...layers.map((layer) => layer.maxX))
+  const maxY = Math.max(...layers.map((layer) => layer.maxY))
+  const width = maxX - minX
+  const height = maxY - minY
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${minX} ${minY} ${width} ${height}">
+${layers
+  .map(
+    (layer) =>
+      `  <svg x="${layer.minX}" y="${layer.minY}" width="${layer.width}" height="${layer.height}" viewBox="0 0 ${layer.width} ${layer.height}">${layer.contents}</svg>`,
+  )
+  .join("\n")}
+</svg>`
+}
+
+function makeResponsiveSvg(svg: string) {
+  return svg
+    .replace(/width="[^"]*"/, 'width="100%"')
+    .replace(/height="[^"]*"/, 'height="100%"')
+}
 
 function App() {
   const [gerberOutput, setGerberOutput] = useState<GerberOutput | null>(null)
@@ -51,32 +125,36 @@ function App() {
       }
 
       // Convert gerbers to SVGs using gerberts
-      const svgs: SvgOutput = {}
+      const renderedSvgs: SvgOutput = {}
       for (const [name, content] of Object.entries(fullOutput)) {
         // Skip drill files for now (they need different parsing)
         if (name.endsWith(".drl")) continue
         try {
           const gerberFile = parseGerberFile(content)
-          let svg = renderGerberToSvg(gerberFile, {
-            strokeColor: "#00ff00",
-            fillColor: "#00ff00",
-            backgroundColor: "#1a1a1a",
+          const renderedSvg = renderGerberToSvg(gerberFile, {
+            strokeColor: getLayerColor(name),
+            fillColor: getLayerColor(name),
+            backgroundColor: "none",
             padding: 1,
           })
-          // Replace fixed width/height with 100% to fill container
-          svg = svg.replace(/width="[^"]*"/, 'width="100%"')
-          svg = svg.replace(/height="[^"]*"/, 'height="100%"')
-          svgs[name] = svg
+          renderedSvgs[name] = renderedSvg
         } catch (e) {
           console.warn(`Failed to render ${name} to SVG:`, e)
         }
       }
 
-      setSvgOutput(svgs)
-      // Select first layer by default
-      const firstLayer = Object.keys(svgs)[0]
-      if (firstLayer) {
-        setSelectedLayer(firstLayer)
+      const fullBoardSvg = composeLayerSvgs(renderedSvgs)
+      const responsiveSvgs: SvgOutput = {}
+      if (fullBoardSvg) {
+        responsiveSvgs["Full Board"] = makeResponsiveSvg(fullBoardSvg)
+      }
+      for (const [name, svg] of Object.entries(renderedSvgs)) {
+        responsiveSvgs[name] = makeResponsiveSvg(svg)
+      }
+      setSvgOutput(responsiveSvgs)
+      // Show the complete board by default.
+      if (responsiveSvgs["Full Board"]) {
+        setSelectedLayer("Full Board")
       }
 
       setGerberOutput(fullOutput)
@@ -287,6 +365,24 @@ function App() {
                   </>
                 )}
               </div>
+              {svgOutput && Object.keys(svgOutput).length > 1 && (
+                <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs text-gray-300">
+                  {Object.keys(svgOutput)
+                    .filter((layer) => layer !== "Full Board")
+                    .map((layer) => (
+                      <span
+                        key={layer}
+                        className="inline-flex items-center gap-1.5"
+                      >
+                        <span
+                          className="h-2.5 w-2.5 rounded-sm border border-white/30"
+                          style={{ backgroundColor: getLayerColor(layer) }}
+                        />
+                        {layer}
+                      </span>
+                    ))}
+                </div>
+              )}
             </div>
 
             {/* Layers List & Download */}
