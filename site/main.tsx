@@ -12,17 +12,17 @@ import { stringifyGerberCommandLayers } from "../src/gerber/stringify-gerber"
 type GerberOutput = Record<string, string>
 type SvgOutput = Record<string, string>
 
-// KiCad's default PCB editor palette, approximated for the browser preview.
+// KiCad's "KiCad Default" PCB editor theme.
 const KICAD_LAYER_COLORS: Record<string, string> = {
-  F_Cu: "#e31c23",
-  B_Cu: "#4d7ea8",
-  F_Mask: "#800080",
-  B_Mask: "#800080",
-  F_SilkScreen: "#ffff00",
-  B_SilkScreen: "#ffff00",
-  F_Paste: "#b3b3b3",
-  B_Paste: "#b3b3b3",
-  Edge_Cuts: "#d08000",
+  B_Cu: "#4d7fc4",
+  F_Cu: "#c83434",
+  B_Mask: "rgba(2, 255, 238, 0.4)",
+  F_Mask: "rgba(216, 100, 255, 0.4)",
+  B_Paste: "#00c2c2",
+  F_Paste: "#b4a09a",
+  B_SilkScreen: "#e8b2a7",
+  F_SilkScreen: "#f2eda1",
+  Edge_Cuts: "#d0d2cd",
 }
 
 const DEFAULT_LAYER_COLOR = "#00ff00"
@@ -32,7 +32,9 @@ function getLayerColor(layerName: string) {
 }
 
 function composeLayerSvgs(layerSvgs: SvgOutput) {
+  const layerOrder = Object.keys(KICAD_LAYER_COLORS)
   const layers = Object.entries(layerSvgs)
+    .sort(([a], [b]) => layerOrder.indexOf(a) - layerOrder.indexOf(b))
     .map(([, svg]) => {
       const viewBox = svg.match(/viewBox="0 0 ([^ ]+) ([^"]+)"/)
       const width = svg.match(/<svg[^>]*width="([^"]+)"/)
@@ -56,6 +58,8 @@ function composeLayerSvgs(layerSvgs: SvgOutput) {
         maxY: minY + layerHeight,
         width: width[1],
         height: height[1],
+        layerWidth,
+        layerHeight,
         contents: contents[1],
       }
     })
@@ -74,7 +78,7 @@ function composeLayerSvgs(layerSvgs: SvgOutput) {
 ${layers
   .map(
     (layer) =>
-      `  <svg x="${layer.minX}" y="${layer.minY}" width="${layer.width}" height="${layer.height}" viewBox="0 0 ${layer.width} ${layer.height}">${layer.contents}</svg>`,
+      `  <svg x="${layer.minX}" y="${layer.minY}" width="${layer.width}" height="${layer.height}" viewBox="0 0 ${layer.layerWidth} ${layer.layerHeight}">${layer.contents}</svg>`,
   )
   .join("\n")}
 </svg>`
