@@ -172,3 +172,54 @@ test("generate gerber with copper pour", async () => {
 
   expect(gerberOutput).toMatchGerberSnapshot(import.meta.path, "copper-pour")
 })
+
+test("rotated pill hole clears copper pour", async () => {
+  const circuitJson: AnyCircuitElement[] = [
+    {
+      type: "pcb_board",
+      pcb_board_id: "board1",
+      center: { x: 0, y: 0 },
+      width: 20,
+      height: 20,
+      material: "fr4",
+      num_layers: 2,
+      thickness: 1.6,
+    },
+    {
+      type: "pcb_copper_pour",
+      pcb_copper_pour_id: "pour_rect_1",
+      layer: "top",
+      shape: "rect",
+      source_net_id: "net1",
+      center: { x: 0, y: 0 },
+      width: 12,
+      height: 10,
+      rotation: 0,
+    } as PcbCopperPour,
+    {
+      type: "pcb_hole",
+      pcb_hole_id: "rotated_pill_hole_1",
+      hole_shape: "rotated_pill",
+      hole_width: 6,
+      hole_height: 2,
+      ccw_rotation: 30,
+      x: 0,
+      y: 0,
+    },
+  ]
+
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(circuitJson),
+  )
+
+  expect(gerberOutput.F_Cu).toMatch(/%ADD\d+C,2\.000000\*%/)
+  expect(gerberOutput.F_Cu).toMatch(
+    /%LPC\*%\nD\d+\*\nX-?\d+Y-?\d+D03\*\nX-?\d+Y-?\d+D02\*\nX-?\d+Y-?\d+D01\*\nX-?\d+Y-?\d+D03\*\n%LPD\*%/,
+  )
+
+  await expect(gerberOutput).toMatchGerberLayerSnapshots(
+    import.meta.path,
+    "rotated-pill-hole-in-copper-pour",
+    ["F_Cu"],
+  )
+})
