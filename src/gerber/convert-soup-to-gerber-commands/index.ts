@@ -1588,6 +1588,18 @@ export const convertSoupToGerberCommands = (
           for (const glayer of [
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
+            if (element.hole_shape === "rotated_pill") {
+              const soldermaskMargin = element.soldermask_margin ?? 0
+              renderPillFlash({
+                glayer,
+                x: element.x,
+                y: element.y,
+                width: element.hole_width + soldermaskMargin * 2,
+                height: element.hole_height + soldermaskMargin * 2,
+                rotationDegrees: element.ccw_rotation,
+              })
+              continue
+            }
             if (element.hole_shape !== "circle") {
               console.warn(
                 "NOT IMPLEMENTED: drawing gerber for non-round holes",
@@ -1761,9 +1773,33 @@ export const convertSoupToGerberCommands = (
 
     const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
     for (const element of circuitJson) {
-      if (element.type !== "pcb_hole" || element.hole_shape !== "circle") {
+      if (element.type !== "pcb_hole") {
         continue
       }
+
+      if (element.hole_shape === "rotated_pill") {
+        copperGlayer.push(
+          ...gerberBuilder()
+            .add("set_layer_polarity", { polarity: "C" })
+            .build(),
+        )
+        renderPillFlash({
+          glayer: copperGlayer,
+          x: element.x,
+          y: element.y,
+          width: element.hole_width,
+          height: element.hole_height,
+          rotationDegrees: element.ccw_rotation,
+        })
+        copperGlayer.push(
+          ...gerberBuilder()
+            .add("set_layer_polarity", { polarity: "D" })
+            .build(),
+        )
+        continue
+      }
+
+      if (element.hole_shape !== "circle") continue
 
       copperGlayer.push(
         ...gerberBuilder()

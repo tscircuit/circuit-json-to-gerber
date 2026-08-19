@@ -91,6 +91,18 @@ test("Generate gerber with hole_with_rect_pad offsets and zip", async () => {
     pcb_plated_hole_id: "rotated-pill-offset",
   })
 
+  circuitJson.push({
+    type: "pcb_hole",
+    pcb_hole_id: "rotated-pill-npth",
+    hole_shape: "rotated_pill",
+    hole_width: 4,
+    hole_height: 1.2,
+    ccw_rotation: 30,
+    soldermask_margin: 0.25,
+    x: 10,
+    y: 6,
+  })
+
   const gerber_cmds = convertSoupToGerberCommands(circuitJson as any)
 
   const excellon_drill_cmds = convertSoupToExcellonDrillCommands({
