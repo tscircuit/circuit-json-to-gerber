@@ -553,6 +553,16 @@ export const getApertureConfigFromCirclePcbHoleSoldermask = (
   }
 }
 
+export const getApertureConfigFromRotatedPillPcbHole = (
+  elm: Extract<PcbHole, { hole_shape: "rotated_pill" }>,
+  soldermaskMargin = 0,
+): ApertureTemplateConfig => {
+  return {
+    standard_template_code: "C",
+    diameter: Math.min(elm.hole_width, elm.hole_height) + soldermaskMargin * 2,
+  }
+}
+
 export const getApertureConfigFromOuterDiameter = (elm: {
   outer_diameter?: number
 }): ApertureTemplateConfig => {
@@ -655,6 +665,13 @@ function getAllApertureTemplateConfigsForLayer({
         } else {
           addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
         }
+      } else if (elm.hole_shape === "rotated_pill") {
+        const soldermaskMargin = isSoldermaskLayer
+          ? (elm.soldermask_margin ?? 0)
+          : 0
+        addConfigIfNew(
+          getApertureConfigFromRotatedPillPcbHole(elm, soldermaskMargin),
+        )
       } else
         console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
