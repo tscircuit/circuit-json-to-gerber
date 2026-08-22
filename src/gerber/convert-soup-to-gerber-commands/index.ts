@@ -156,7 +156,7 @@ const getGerberInnerLayerName = (layerRef: LayerRef) => {
 /**
  * Converts Circuit JSON to arrays of Gerber commands for each layer
  */
-export const convertSoupToGerberCommands = (
+export const convertCircuitJsonToGerberCommands = (
   circuitJson: AnyCircuitElement[],
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
@@ -1825,3 +1825,8 @@ export const convertSoupToGerberCommands = (
 
   return glayers
 }
+
+/**
+ * @deprecated Use `convertCircuitJsonToGerberCommands` instead.
+ */
+export const convertSoupToGerberCommands = convertCircuitJsonToGerberCommands

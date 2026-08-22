@@ -429,7 +429,7 @@ const getHoleRotationDegrees = (element: DrillElement) => {
   return 0
 }
 
-export const convertSoupToExcellonDrillCommands = ({
+export const convertCircuitJsonToExcellonDrillCommands = ({
   circuitJson,
   is_plated,
   flip_y_axis = false,
@@ -646,7 +646,7 @@ const hasDrillGeometry = (element: AnyCircuitElement) => {
   )
 }
 
-export const convertSoupToExcellonDrillCommandLayers = ({
+export const convertCircuitJsonToExcellonDrillCommandLayers = ({
   circuitJson,
   flip_y_axis = false,
 }: {
@@ -668,7 +668,7 @@ export const convertSoupToExcellonDrillCommandLayers = ({
   const platedDrillLayers = Object.fromEntries(
     [...platedSpans.entries()].sort().map(([spanKey, span]) => [
       `drill-${spanKey}.drl`,
-      convertSoupToExcellonDrillCommands({
+      convertCircuitJsonToExcellonDrillCommands({
         circuitJson,
         is_plated: true,
         flip_y_axis,
@@ -689,10 +689,22 @@ export const convertSoupToExcellonDrillCommandLayers = ({
 
   return {
     ...platedDrillLayers,
-    "drill_npth.drl": convertSoupToExcellonDrillCommands({
+    "drill_npth.drl": convertCircuitJsonToExcellonDrillCommands({
       circuitJson,
       is_plated: false,
       flip_y_axis,
     }),
   }
 }
+
+/**
+ * @deprecated Use `convertCircuitJsonToExcellonDrillCommands` instead.
+ */
+export const convertSoupToExcellonDrillCommands =
+  convertCircuitJsonToExcellonDrillCommands
+
+/**
+ * @deprecated Use `convertCircuitJsonToExcellonDrillCommandLayers` instead.
+ */
+export const convertSoupToExcellonDrillCommandLayers =
+  convertCircuitJsonToExcellonDrillCommandLayers
