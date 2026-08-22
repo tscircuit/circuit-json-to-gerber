@@ -1,10 +1,10 @@
 import type { AnyCircuitElement } from "circuit-json"
 import {
-  convertSoupToExcellonDrillCommandLayers,
+  convertCircuitJsonToExcellonDrillCommandLayers,
   stringifyExcellonDrill,
 } from "./excellon-drill"
 import {
-  convertSoupToGerberCommands,
+  convertCircuitJsonToGerberCommands,
   stringifyGerberCommandLayers,
 } from "./gerber"
 
@@ -20,7 +20,7 @@ export const convertCircuitJsonToGerberFiles = (
   options: { flip_y_axis?: boolean } = {},
 ): GerberFileMap => {
   const { flip_y_axis = false } = options
-  const gerberCommandLayers = convertSoupToGerberCommands(circuitJson, {
+  const gerberCommandLayers = convertCircuitJsonToGerberCommands(circuitJson, {
     flip_y_axis,
   })
   const gerberFiles = Object.fromEntries(
@@ -28,7 +28,7 @@ export const convertCircuitJsonToGerberFiles = (
       ([layerName, contents]) => [`${layerName}.gbr`, contents],
     ),
   )
-  const drillCommandLayers = convertSoupToExcellonDrillCommandLayers({
+  const drillCommandLayers = convertCircuitJsonToExcellonDrillCommandLayers({
     circuitJson,
     flip_y_axis,
   })

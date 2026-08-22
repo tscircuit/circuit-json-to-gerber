@@ -1,5 +1,7 @@
 export { stringifyExcellonDrill } from "./stringify-excellon-drill"
 export {
+  convertCircuitJsonToExcellonDrillCommandLayers,
+  convertCircuitJsonToExcellonDrillCommands,
   convertSoupToExcellonDrillCommandLayers,
   convertSoupToExcellonDrillCommands,
 } from "./convert-soup-to-excellon-drill-commands"
