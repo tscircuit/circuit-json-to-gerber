@@ -1,18 +1,10 @@
 #!/usr/bin/env node
 
 import { program } from "commander"
-import { readFile, writeFile } from "node:fs/promises"
+import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
-import { resolve, dirname, basename } from "node:path"
-import { fileURLToPath } from "node:url"
 import archiver from "archiver"
-import { convertSoupToGerberCommands, stringifyGerberCommandLayers } from "./"
-import {
-  convertSoupToExcellonDrillCommandLayers,
-  stringifyExcellonDrill,
-} from "./"
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
+import { convertCircuitJsonToGerberFiles } from "./"
 
 program
   .name("circuit-to-gerber")
@@ -27,20 +19,7 @@ program
       // Read and parse input JSON
       const circuitJson = JSON.parse(await readFile(input, "utf8"))
 
-      // Convert to gerber commands
-      const gerberCmds = convertSoupToGerberCommands(circuitJson)
-      const excellonDrillCmdLayers = convertSoupToExcellonDrillCommandLayers({
-        circuitJson,
-      })
-
-      // Stringify all outputs
-      const gerberOutput = stringifyGerberCommandLayers(gerberCmds)
-      const excellonDrillOutput = Object.fromEntries(
-        Object.entries(excellonDrillCmdLayers).map(([filename, commands]) => [
-          filename,
-          stringifyExcellonDrill(commands),
-        ]),
-      )
+      const gerberFiles = convertCircuitJsonToGerberFiles(circuitJson)
 
       // Create output ZIP file
       const outputPath =
@@ -50,13 +29,7 @@ program
 
       archive.pipe(output)
 
-      // Add all gerber files to ZIP
-      for (const [filename, content] of Object.entries(gerberOutput)) {
-        archive.append(content, { name: `${filename}.gbr` })
-      }
-
-      // Add drill files
-      for (const [filename, content] of Object.entries(excellonDrillOutput)) {
+      for (const [filename, content] of Object.entries(gerberFiles)) {
         archive.append(content, { name: filename })
       }
 

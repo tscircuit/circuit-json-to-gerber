@@ -30,34 +30,19 @@ The output ZIP file will contain:
 ## Library Usage
 
 ```typescript
-import {
-  convertSoupToGerberCommands,
-  stringifyGerberCommandLayers,
-} from "circuit-json-to-gerber"
-import {
-  convertSoupToExcellonDrillCommands,
-  stringifyExcellonDrill,
-} from "circuit-json-to-gerber"
+import { convertCircuitJsonToGerberFiles } from "circuit-json-to-gerber"
 
-// Convert Circuit JSON to Gerber commands
-const gerberCommands = convertSoupToGerberCommands(circuitJson)
+const files = convertCircuitJsonToGerberFiles(circuitJson)
 
-// Convert to Gerber file content
-const gerberOutput = stringifyGerberCommandLayers(gerberCommands)
-
-// Generate drill files
-const platedDrillCommands = convertSoupToExcellonDrillCommands({
-  circuitJson,
-  is_plated: true,
-})
-const unplatedDrillCommands = convertSoupToExcellonDrillCommands({
-  circuitJson,
-  is_plated: false,
-})
-
-const platedDrillOutput = stringifyExcellonDrill(platedDrillCommands)
-const unplatedDrillOutput = stringifyExcellonDrill(unplatedDrillCommands)
+// The result is filesystem-neutral and includes Gerber and Excellon files.
+// Write it to disk, add it to a ZIP, or store it with any file API.
+for (const [fileName, contents] of Object.entries(files)) {
+  await output.write(fileName, contents)
+}
 ```
+
+Lower-level command conversion and stringification APIs remain available when
+custom layer processing is needed.
 
 ## References
 
