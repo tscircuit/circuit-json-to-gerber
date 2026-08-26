@@ -22,6 +22,7 @@ import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
 import type { AnyCircuitElement } from "circuit-json"
+import { isGeometryChangingRectRotation } from "./getRotatedRectPoints"
 
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
@@ -651,6 +652,21 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(getApertureConfigFromPcbPlatedHoleSoldermask(elm))
         } else {
           addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+        }
+        if (
+          "rect_pad_width" in elm &&
+          typeof elm.rect_pad_width === "number" &&
+          "rect_pad_height" in elm &&
+          typeof elm.rect_pad_height === "number" &&
+          "rect_ccw_rotation" in elm &&
+          typeof elm.rect_ccw_rotation === "number" &&
+          isGeometryChangingRectRotation({
+            width: elm.rect_pad_width,
+            height: elm.rect_pad_height,
+            ccwRotationDegrees: elm.rect_ccw_rotation,
+          })
+        ) {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
         }
       }
     } else if (elm.type === "pcb_hole") {

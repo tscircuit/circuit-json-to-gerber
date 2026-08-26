@@ -45,6 +45,10 @@ test("repro: USB-C rotated pill plated hole drill orientation", async () => {
     }),
   )
 
+  expect(gerberOutput.F_Cu).toContain("G36*")
+  expect(gerberOutput.F_Cu).toContain("G37*")
+  expect(gerberOutput.F_Cu).not.toContain("%LR270*%")
+
   await expect({
     ...gerberOutput,
     "drill.drl": excellonDrillOutput,
@@ -54,7 +58,7 @@ test("repro: USB-C rotated pill plated hole drill orientation", async () => {
     circuitJson,
     ["F_Cu"],
     {
-      gerberLabel: "Gerber top copper (rectangular pad rotation is lost)",
+      gerberLabel: "Gerber top copper (rectangular pad rotation is preserved)",
       colors: { F_Cu: "#c83434" },
       backgroundColor: "#111111",
     },

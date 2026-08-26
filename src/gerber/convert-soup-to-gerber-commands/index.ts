@@ -66,7 +66,10 @@ import {
   getSolidCutoutOutlinePolygon,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
-import { getRotatedRectPoints } from "./getRotatedRectPoints"
+import {
+  getRotatedRectPoints,
+  isGeometryChangingRectRotation,
+} from "./getRotatedRectPoints"
 
 type Point = { x: number; y: number }
 
@@ -1558,23 +1561,38 @@ export const convertCircuitJsonToGerberCommands = (
                     : {}),
                 })
               }
-              const rotation =
+              const rectRotation =
                 "rect_ccw_rotation" in element &&
-                typeof element.rect_ccw_rotation === "number" &&
-                Math.abs(padW - padH) > 1e-9
+                typeof element.rect_ccw_rotation === "number"
                   ? element.rect_ccw_rotation
                   : undefined
+              const renderAsRotatedRectRegion =
+                rectRotation !== undefined &&
+                isGeometryChangingRectRotation({
+                  width: aperturePadW,
+                  height: aperturePadH,
+                  ccwRotationDegrees: rectRotation,
+                })
+
+              if (renderAsRotatedRectRegion) {
+                addClosedRegionFromPoints({
+                  target: glayer,
+                  apertureSource: glayer,
+                  points: getRotatedRectPoints({
+                    center: { x: element.x, y: element.y },
+                    width: aperturePadW,
+                    height: aperturePadH,
+                    ccwRotationDegrees: rectRotation,
+                  }),
+                })
+                continue
+              }
 
               const gb = gerberBuilder().add("select_aperture", {
                 aperture_number: findApertureNumber(glayer, apertureConfig),
               })
 
-              if (rotation)
-                gb.add("load_rotation", { rotation_degrees: rotation })
-
               gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
-
-              if (rotation) gb.add("load_rotation", { rotation_degrees: 0 })
 
               glayer.push(...gb.build())
             }
