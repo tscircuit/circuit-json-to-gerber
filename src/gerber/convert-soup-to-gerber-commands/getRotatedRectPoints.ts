@@ -1,5 +1,22 @@
 import { applyToPoint, compose, rotate, translate } from "transformation-matrix"
 
+export const isGeometryChangingRectRotation = ({
+  width,
+  height,
+  ccwRotationDegrees,
+}: {
+  width: number
+  height: number
+  ccwRotationDegrees: number
+}) => {
+  const isSquare = Math.abs(width - height) <= 1e-9
+  const symmetryPeriod = isSquare ? 90 : 180
+  const normalizedRotation =
+    ((ccwRotationDegrees % symmetryPeriod) + symmetryPeriod) % symmetryPeriod
+
+  return normalizedRotation > 1e-9 && symmetryPeriod - normalizedRotation > 1e-9
+}
+
 export const getRotatedRectPoints = ({
   center,
   width,
