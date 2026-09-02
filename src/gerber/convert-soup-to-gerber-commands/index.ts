@@ -868,6 +868,7 @@ export const convertCircuitJsonToGerberCommands = (
                 }
               }
               if (!bPoint) continue
+              if (a.x === bPoint.x && a.y === bPoint.y) continue
 
               const glayer = glayers[getGerberLayerName(layer, "copper")]
               glayer.push(
@@ -884,6 +885,7 @@ export const convertCircuitJsonToGerberCommands = (
             }
           } else if (a.route_type === "via" && b.route_type === "wire") {
             if (b.layer === layer) {
+              if (a.x === b.x && a.y === b.y) continue
               const glayer = glayers[getGerberLayerName(layer, "copper")]
               glayer.push(
                 ...gerberBuilder()

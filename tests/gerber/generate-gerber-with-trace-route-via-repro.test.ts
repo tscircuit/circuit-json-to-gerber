@@ -28,6 +28,13 @@ const circuitJson = [
         layer: "top",
       },
       {
+        route_type: "wire",
+        x: 0,
+        y: 0,
+        width: 0.6,
+        layer: "top",
+      },
+      {
         route_type: "via",
         x: 0,
         y: 0,
@@ -35,6 +42,13 @@ const circuitJson = [
         to_layer: "bottom",
         hole_diameter: 0.6,
         outer_diameter: 1.2,
+      },
+      {
+        route_type: "wire",
+        x: 0,
+        y: 0,
+        width: 0.3,
+        layer: "bottom",
       },
       {
         route_type: "wire",
@@ -60,9 +74,11 @@ test("trace route vias emit via pads, drill hits, and following layer segments",
 
   expect(gerberOutput.F_Cu).toContain("X-04000000Y000000000D02*")
   expect(gerberOutput.F_Cu).toContain("X000000000Y000000000D01*")
+  expect(gerberOutput.F_Cu.match(/D01\*/g)).toHaveLength(1)
   expect(gerberOutput.F_Cu).toContain("X000000000Y000000000D03*")
   expect(gerberOutput.B_Cu).toContain("X000000000Y000000000D03*")
   expect(gerberOutput.B_Cu).toContain("X004000000Y000000000D01*")
+  expect(gerberOutput.B_Cu.match(/D01\*/g)).toHaveLength(1)
   expect(drillOutput).toContain("X0.0000Y0.0000")
 
   expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
