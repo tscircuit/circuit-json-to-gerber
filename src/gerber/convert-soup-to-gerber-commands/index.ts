@@ -1374,9 +1374,19 @@ export const convertCircuitJsonToGerberCommands = (
                   element.soldermask_margin,
                 )
               }
+              // pad_outline is relative to the hole position and rotates with
+              // ccw_rotation (the component rotation emitted by core)
+              const outlineRotationDegrees =
+                "ccw_rotation" in element &&
+                typeof element.ccw_rotation === "number"
+                  ? element.ccw_rotation
+                  : 0
+              const outlineRotation = (outlineRotationDegrees * Math.PI) / 180
+              const cosRotation = Math.cos(outlineRotation)
+              const sinRotation = Math.sin(outlineRotation)
               const translatedPoints = points.map((point) => ({
-                x: point.x + element.x,
-                y: point.y + element.y,
+                x: element.x + point.x * cosRotation - point.y * sinRotation,
+                y: element.y + point.x * sinRotation + point.y * cosRotation,
               }))
               addClosedRegionFromPoints({
                 target: glayer,
