@@ -68,6 +68,22 @@ const getPlatedElementLayerSpan = (
     return undefined
   }
 
+  // Physical layers describe the drilled barrel. Deprecated from/to fields
+  // may describe only a trace transition through part of a through-board via.
+  let layers: LayerRef[] = []
+  if ("layers" in element && Array.isArray(element.layers)) {
+    layers = element.layers as LayerRef[]
+  }
+  if (layers.length > 0) {
+    const sortedLayers = [...layers].sort(
+      (a, b) => getLayerNumber(a, layerCount) - getLayerNumber(b, layerCount),
+    )
+    return {
+      from_layer: sortedLayers[0],
+      to_layer: sortedLayers[sortedLayers.length - 1],
+    }
+  }
+
   if (
     "from_layer" in element &&
     typeof element.from_layer === "string" &&
@@ -81,20 +97,6 @@ const getPlatedElementLayerSpan = (
       },
       layerCount,
     )
-  }
-
-  let layers: LayerRef[] = []
-  if ("layers" in element && Array.isArray(element.layers)) {
-    layers = element.layers as LayerRef[]
-  }
-  if (layers.length > 0) {
-    const sortedLayers = [...layers].sort(
-      (a, b) => getLayerNumber(a, layerCount) - getLayerNumber(b, layerCount),
-    )
-    return {
-      from_layer: sortedLayers[0],
-      to_layer: sortedLayers[sortedLayers.length - 1],
-    }
   }
 
   return {
