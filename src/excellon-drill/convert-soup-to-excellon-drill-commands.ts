@@ -68,6 +68,22 @@ const getPlatedElementLayerSpan = (
     return undefined
   }
 
+  // `layers` describes the physical barrel. The deprecated from/to fields can
+  // describe only the routing transition through part of a through-board via.
+  let layers: LayerRef[] = []
+  if ("layers" in element && Array.isArray(element.layers)) {
+    layers = element.layers as LayerRef[]
+  }
+  if (layers.length > 0) {
+    const sortedLayers = [...layers].sort(
+      (a, b) => getLayerNumber(a, layerCount) - getLayerNumber(b, layerCount),
+    )
+    return {
+      from_layer: sortedLayers[0],
+      to_layer: sortedLayers[sortedLayers.length - 1],
+    }
+  }
+
   if (
     "from_layer" in element &&
     typeof element.from_layer === "string" &&
@@ -81,20 +97,6 @@ const getPlatedElementLayerSpan = (
       },
       layerCount,
     )
-  }
-
-  let layers: LayerRef[] = []
-  if ("layers" in element && Array.isArray(element.layers)) {
-    layers = element.layers as LayerRef[]
-  }
-  if (layers.length > 0) {
-    const sortedLayers = [...layers].sort(
-      (a, b) => getLayerNumber(a, layerCount) - getLayerNumber(b, layerCount),
-    )
-    return {
-      from_layer: sortedLayers[0],
-      to_layer: sortedLayers[sortedLayers.length - 1],
-    }
   }
 
   return {
@@ -178,6 +180,10 @@ const getTraceRouteViaElements = (
   circuitJson: Array<AnyCircuitElement>,
 ): Array<AnyCircuitElement> => {
   const routeVias: Array<AnyCircuitElement> = []
+  const physicalVias = circuitJson.filter(
+    (element) => element.type === "pcb_via",
+  )
+  const layerCount = getLayerCount(circuitJson)
 
   for (const element of circuitJson) {
     if (element.type !== "pcb_trace") {
@@ -198,6 +204,28 @@ const getTraceRouteViaElements = (
       const fromLayer = point.from_layer as LayerRef
       const toLayer = point.to_layer as LayerRef
 
+      // The trace can enter/leave an existing barrel on intermediate layers.
+      // Do not generate a second, shorter drill for that same physical via.
+      if (
+        physicalVias.some((via) => {
+          if (
+            via.pcb_trace_id !== element.pcb_trace_id ||
+            via.x !== point.x ||
+            via.y !== point.y ||
+            via.hole_diameter !== point.hole_diameter
+          )
+            return false
+          const span = getPlatedElementLayerSpan(via, layerCount)!
+          const firstLayer = getLayerNumber(span.from_layer, layerCount)
+          const lastLayer = getLayerNumber(span.to_layer, layerCount)
+          return [fromLayer, toLayer].every((layer) => {
+            const layerNumber = getLayerNumber(layer, layerCount)
+            return layerNumber >= firstLayer && layerNumber <= lastLayer
+          })
+        })
+      )
+        continue
+
       routeVias.push({
         type: "pcb_via",
         pcb_via_id: `${element.pcb_trace_id}_route_via_${index}`,
@@ -215,10 +243,26 @@ const getTraceRouteViaElements = (
   return routeVias
 }
 
-const getDrillableElements = (circuitJson: Array<AnyCircuitElement>) => [
-  ...circuitJson,
-  ...getTraceRouteViaElements(circuitJson),
-]
+const getDrillableElements = (circuitJson: Array<AnyCircuitElement>) => {
+  const layerCount = getLayerCount(circuitJson)
+  const seenViaDrills = new Set<string>()
+  return [...circuitJson, ...getTraceRouteViaElements(circuitJson)].filter(
+    (element) => {
+      if (element.type !== "pcb_via") return true
+      const span = getPlatedElementLayerSpan(element, layerCount)!
+      const drillKey = JSON.stringify([
+        element.x,
+        element.y,
+        element.hole_diameter,
+        span.from_layer,
+        span.to_layer,
+      ])
+      if (seenViaDrills.has(drillKey)) return false
+      seenViaDrills.add(drillKey)
+      return true
+    },
+  )
+}
 
 const circleCutoutPolygonSegmentCount = 64
 
