@@ -3,8 +3,8 @@ import type { AnyCircuitElement } from "circuit-json"
 import {
   convertCircuitJsonToExcellonDrillCommandLayers,
   convertCircuitJsonToExcellonDrillCommands,
-  stringifyExcellonDrill,
 } from "src/excellon-drill"
+import type { AnyExcellonDrillCommand } from "src/excellon-drill/any-excellon-drill-command-map"
 import {
   makeDrillCircuit,
   makeDrillTrace,
@@ -12,15 +12,12 @@ import {
 } from "../fixtures/via-drill-deduplication"
 
 const exportDrills = (elements: AnyCircuitElement[]) =>
-  Object.fromEntries(
-    Object.entries(
-      convertCircuitJsonToExcellonDrillCommandLayers({
-        circuitJson: makeDrillCircuit(elements),
-      }),
-    ).map(([name, commands]) => [name, stringifyExcellonDrill(commands)]),
-  )
+  convertCircuitJsonToExcellonDrillCommandLayers({
+    circuitJson: makeDrillCircuit(elements),
+  })
 
-const drillHits = (file: string) => file.match(/^X.*Y.*$/gm) ?? []
+const drillHits = (commands: AnyExcellonDrillCommand[]) =>
+  commands.filter((command) => command.command_code === "drill_at")
 
 test("shared physical vias emit one drill despite different IDs and layer ordering", () => {
   const files = exportDrills([
@@ -33,7 +30,9 @@ test("shared physical vias emit one drill despite different IDs and layer orderi
     }),
   ])
   expect(Object.keys(files)).toEqual(["drill-L1-L4.drl"])
-  expect(drillHits(files["drill-L1-L4.drl"])).toEqual(["X1.0000Y1.0000"])
+  expect(drillHits(files["drill-L1-L4.drl"])).toEqual([
+    { command_code: "drill_at", x: 1, y: 1 },
+  ])
 })
 
 test.each([
@@ -122,8 +121,11 @@ test("different drill diameters remain separate for explicit and route vias", ()
   ])
   const file = files["drill-L1-L4.drl"]
   expect(drillHits(file)).toHaveLength(3)
-  for (const diameter of ["0.600000", "0.400000", "0.300000"])
-    expect(file).toContain(`C${diameter}`)
+  expect(
+    file
+      .filter((command) => command.command_code === "define_tool")
+      .map((command) => command.diameter),
+  ).toEqual([0.6, 0.4, 0.3])
 })
 
 test("different x or y coordinates are not merged", () => {
@@ -133,9 +135,9 @@ test("different x or y coordinates are not merged", () => {
     makeDrillTrace({ y: 2 }),
   ])
   expect(drillHits(files["drill-L1-L4.drl"])).toEqual([
-    "X1.0000Y1.0000",
-    "X1.0002Y1.0000",
-    "X1.0000Y2.0000",
+    { command_code: "drill_at", x: 1, y: 1 },
+    { command_code: "drill_at", x: 1.0002, y: 1 },
+    { command_code: "drill_at", x: 1, y: 2 },
   ])
 })
 
@@ -153,15 +155,13 @@ test.each([{ flip_y_axis: false }, { flip_y_axis: true }])(
   ({ flip_y_axis }) => {
     const circuitJson = makeDrillCircuit([makeDrillVia(), makeDrillTrace()])
     const original = structuredClone(circuitJson)
-    const file = stringifyExcellonDrill(
-      convertCircuitJsonToExcellonDrillCommands({
-        circuitJson,
-        is_plated: true,
-        flip_y_axis,
-      }),
-    )
+    const file = convertCircuitJsonToExcellonDrillCommands({
+      circuitJson,
+      is_plated: true,
+      flip_y_axis,
+    })
     expect(drillHits(file)).toEqual([
-      flip_y_axis ? "X1.0000Y-1.0000" : "X1.0000Y1.0000",
+      { command_code: "drill_at", x: 1, y: flip_y_axis ? -1 : 1 },
     ])
     expect(circuitJson).toEqual(original)
   },
@@ -191,9 +191,11 @@ test("non-plated holes and plated component holes are not deduplicated as vias",
       layers: ["top", "bottom"],
     } as AnyCircuitElement,
   ])
-  expect(drillHits(files["drill_npth.drl"])).toEqual(["X3.0000Y1.0000"])
+  expect(drillHits(files["drill_npth.drl"])).toEqual([
+    { command_code: "drill_at", x: 3, y: 1 },
+  ])
   expect(drillHits(files["drill-L1-L4.drl"])).toEqual([
-    "X1.0000Y1.0000",
-    "X-3.0000Y1.0000",
+    { command_code: "drill_at", x: 1, y: 1 },
+    { command_code: "drill_at", x: -3, y: 1 },
   ])
 })
