@@ -1,6 +1,6 @@
 {
   "name": "circuit-json-to-gerber",
-  "version": "0.0.101",
+  "version": "0.0.103",
   "repository": {
     "type": "git",
     "url": "https://github.com/tscircuit/circuit-json-to-gerber"

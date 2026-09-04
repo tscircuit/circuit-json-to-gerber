@@ -68,8 +68,8 @@ const getPlatedElementLayerSpan = (
     return undefined
   }
 
-  // `layers` describes the physical barrel. The deprecated from/to fields can
-  // describe only the routing transition through part of a through-board via.
+  // Physical layers describe the drilled barrel. Deprecated from/to fields
+  // may describe only a trace transition through part of a through-board via.
   let layers: LayerRef[] = []
   if ("layers" in element && Array.isArray(element.layers)) {
     layers = element.layers as LayerRef[]
@@ -176,14 +176,35 @@ const getFileFunctionLayerSpan = ({
   return `Plated,${getLayerNumber(span.from_layer, layerCount)},${getLayerNumber(span.to_layer, layerCount)},PTH`
 }
 
+const getViaDrillLocationKey = (via: {
+  x: number
+  y: number
+  hole_diameter: number
+}) => JSON.stringify([via.x, via.y, via.hole_diameter])
+
 const getTraceRouteViaElements = (
   circuitJson: Array<AnyCircuitElement>,
 ): Array<AnyCircuitElement> => {
   const routeVias: Array<AnyCircuitElement> = []
-  const physicalVias = circuitJson.filter(
-    (element) => element.type === "pcb_via",
-  )
   const layerCount = getLayerCount(circuitJson)
+  const physicalViaSpans = new Map<
+    string,
+    Array<{ firstLayer: number; lastLayer: number }>
+  >()
+
+  // Index all explicit vias first, regardless of input order or trace owner:
+  // multiple traces can enter the same physical barrel on different layers.
+  for (const element of circuitJson) {
+    if (element.type !== "pcb_via") continue
+    const span = getPlatedElementLayerSpan(element, layerCount)!
+    const key = getViaDrillLocationKey(element)
+    const spans = physicalViaSpans.get(key) ?? []
+    spans.push({
+      firstLayer: getLayerNumber(span.from_layer, layerCount),
+      lastLayer: getLayerNumber(span.to_layer, layerCount),
+    })
+    physicalViaSpans.set(key, spans)
+  }
 
   for (const element of circuitJson) {
     if (element.type !== "pcb_trace") {
@@ -204,27 +225,26 @@ const getTraceRouteViaElements = (
       const fromLayer = point.from_layer as LayerRef
       const toLayer = point.to_layer as LayerRef
 
-      // The trace can enter/leave an existing barrel on intermediate layers.
-      // Do not generate a second, shorter drill for that same physical via.
-      if (
-        physicalVias.some((via) => {
-          if (
-            via.pcb_trace_id !== element.pcb_trace_id ||
-            via.x !== point.x ||
-            via.y !== point.y ||
-            via.hole_diameter !== point.hole_diameter
-          )
-            return false
-          const span = getPlatedElementLayerSpan(via, layerCount)!
-          const firstLayer = getLayerNumber(span.from_layer, layerCount)
-          const lastLayer = getLayerNumber(span.to_layer, layerCount)
-          return [fromLayer, toLayer].every((layer) => {
-            const layerNumber = getLayerNumber(layer, layerCount)
-            return layerNumber >= firstLayer && layerNumber <= lastLayer
-          })
-        })
+      const fromLayerNumber = getLayerNumber(fromLayer, layerCount)
+      const toLayerNumber = getLayerNumber(toLayer, layerCount)
+      const existingSpans = physicalViaSpans.get(
+        getViaDrillLocationKey({
+          x: point.x,
+          y: point.y,
+          hole_diameter: point.hole_diameter,
+        }),
       )
+      // A route transition covered by one explicit barrel is not another drill.
+      // Do not combine stacked barrels or suppress different drill diameters.
+      if (
+        existingSpans?.some(
+          ({ firstLayer, lastLayer }) =>
+            firstLayer <= Math.min(fromLayerNumber, toLayerNumber) &&
+            lastLayer >= Math.max(fromLayerNumber, toLayerNumber),
+        )
+      ) {
         continue
+      }
 
       routeVias.push({
         type: "pcb_via",
@@ -250,15 +270,9 @@ const getDrillableElements = (circuitJson: Array<AnyCircuitElement>) => {
     (element) => {
       if (element.type !== "pcb_via") return true
       const span = getPlatedElementLayerSpan(element, layerCount)!
-      const drillKey = JSON.stringify([
-        element.x,
-        element.y,
-        element.hole_diameter,
-        span.from_layer,
-        span.to_layer,
-      ])
-      if (seenViaDrills.has(drillKey)) return false
-      seenViaDrills.add(drillKey)
+      const key = `${getViaDrillLocationKey(element)}:${span.from_layer}:${span.to_layer}`
+      if (seenViaDrills.has(key)) return false
+      seenViaDrills.add(key)
       return true
     },
   )
