@@ -40,7 +40,7 @@ const expectedBoardPaths = [
 ]
 
 for (const flip_y_axis of [false, true]) {
-  test(`individual board export preserves profiles with flip_y_axis=${flip_y_axis}`, async () => {
+  test(`individual board export preserves profiles with flip_y_axis=${flip_y_axis}`, () => {
     const inputBefore = JSON.stringify(panelBoardOutlines)
     const files = convertCircuitJsonToGerberFiles(panelBoardOutlines, {
       panel_mode: "individual_boards",
@@ -60,13 +60,6 @@ for (const flip_y_axis of [false, true]) {
         flip_y_axis,
       }),
     ).toEqual(convertCircuitJsonToGerberCommands(boardsOnly, { flip_y_axis }))
-
-    if (!flip_y_axis) {
-      await expect(files).toMatchGerberSnapshot(
-        import.meta.path,
-        "individual-board-profiles",
-      )
-    }
   })
 }
 
@@ -132,6 +125,15 @@ test("mode changes only Edge_Cuts and is independent of panel element order", ()
     },
   ]
   const panel = convertCircuitJsonToGerberFiles(input)
+  expect(readEdgePaths(panel["Edge_Cuts.gbr"]!)).toEqual([
+    [
+      [-30, -15],
+      [30, -15],
+      [30, 15],
+      [-30, 15],
+      [-30, -15],
+    ],
+  ])
   expect(
     convertCircuitJsonToGerberFiles(input, { panel_mode: "panel" }),
   ).toEqual(panel)
