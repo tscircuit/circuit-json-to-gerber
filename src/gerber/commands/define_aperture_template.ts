@@ -121,9 +121,10 @@ export const define_aperture_template = defineGerberCommand({
       ) {
         commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
       } else if (standard_template_code === "P") {
-        commandString += `${props.outer_diameter}X${props.number_of_vertices}X${
-          props.rotation ? `X${props.rotation}` : ""
-        }`
+        commandString += `${props.outer_diameter}X${props.number_of_vertices}`
+        if (props.rotation !== undefined || props.hole_diameter) {
+          commandString += `X${props.rotation ?? 0}`
+        }
       }
 
       if (props.hole_diameter) {
