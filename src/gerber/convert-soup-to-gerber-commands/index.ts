@@ -634,8 +634,9 @@ export const convertCircuitJsonToGerberCommands = (
       const end = vertices_loop[i + 1]
 
       if (start.bulge && Math.abs(start.bulge) > 1e-9) {
-        const bulge = (opts.flip_y_axis ? -1 : 1) * (start.bulge as number)
-        if (bulge > 0) {
+        const bulge = start.bulge
+        const outputBulge = opts.flip_y_axis ? -bulge : bulge
+        if (outputBulge > 0) {
           // CCW
           builder.add("set_movement_mode_to_counterclockwise_circular", {})
         } else {
