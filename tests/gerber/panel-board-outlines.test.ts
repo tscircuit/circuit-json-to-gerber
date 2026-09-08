@@ -3,6 +3,7 @@ import type { AnyCircuitElement } from "circuit-json"
 import { convertCircuitJsonToGerberFiles } from "src/convert-circuit-json-to-gerber-files"
 import { convertCircuitJsonToGerberCommands } from "src/gerber"
 import { panelBoardOutlines } from "tests/fixtures/panel-board-outlines"
+import { renderPanelOutlineComparison } from "tests/fixtures/render-panel-outline-comparison"
 
 // Gerber headers include creation timestamps; keep comparisons deterministic.
 beforeEach(() => setSystemTime(new Date("2026-01-01T00:00:00Z")))
@@ -62,12 +63,24 @@ for (const flip_y_axis of [false, true]) {
     ).toEqual(convertCircuitJsonToGerberCommands(boardsOnly, { flip_y_axis }))
 
     if (!flip_y_axis) {
-      await expect({
-        Edge_Cuts: files["Edge_Cuts.gbr"]!,
-      }).toMatchGerberLayerSnapshots(
+      const comparison = await renderPanelOutlineComparison([
+        {
+          gerber:
+            convertCircuitJsonToGerberFiles(panelBoardOutlines)[
+              "Edge_Cuts.gbr"
+            ]!,
+          title: "Default panel mode",
+          caption: "Panel boundary; individual profiles omitted",
+        },
+        {
+          gerber: files["Edge_Cuts.gbr"]!,
+          title: "Individual boards mode — fixed",
+          caption: "Both board profiles and connector notch preserved",
+        },
+      ])
+      await expect(comparison).toMatchSvgSnapshot(
         import.meta.path,
         "individual-board-profiles",
-        ["Edge_Cuts"],
       )
     }
   })
