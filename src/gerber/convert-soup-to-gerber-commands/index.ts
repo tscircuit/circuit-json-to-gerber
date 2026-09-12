@@ -160,15 +160,27 @@ const getGerberInnerLayerName = (layerRef: LayerRef) => {
   return `In${layerRef.replace("inner", "")}_Cu` as const
 }
 
+export type GerberConversionOptions = {
+  flip_y_axis?: boolean
+  /**
+   * "panel" uses the panel boundary and explicit routing cutouts, preserving
+   * holding tabs. "individual_boards" emits each board profile instead of the
+   * panel boundary, cutting the boards as separate pieces at their input positions.
+   */
+  panel_mode?: "panel" | "individual_boards"
+}
+
 /**
  * Converts Circuit JSON to arrays of Gerber commands for each layer
  */
 export const convertCircuitJsonToGerberCommands = (
   circuitJson: AnyCircuitElement[],
-  opts: { flip_y_axis?: boolean } = {},
+  opts: GerberConversionOptions = {},
 ): LayerToGerberCommandsMap => {
   opts.flip_y_axis ??= false
-  const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
+  const emitPanelOutline =
+    opts.panel_mode !== "individual_boards" &&
+    circuitJson.some((e) => e.type === "pcb_panel")
   const hasBoard = circuitJson.some((e) => e.type === "pcb_board")
   const layerCount = getLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
@@ -1675,8 +1687,8 @@ export const convertCircuitJsonToGerberCommands = (
           }
         }
       } else if (element.type === "pcb_board" && layer === "edgecut") {
-        // Skip boards when a panel exists
-        if (hasPanel) continue
+        // Panel routing cutouts may leave holding tabs along these board edges.
+        if (emitPanelOutline) continue
 
         const glayer = glayers.Edge_Cuts
         const { width, height, center, outline } = element
@@ -1727,6 +1739,7 @@ export const convertCircuitJsonToGerberCommands = (
 
         glayer.push(...gerberBuild.build())
       } else if (element.type === "pcb_panel" && layer === "edgecut") {
+        if (!emitPanelOutline) continue
         const glayer = glayers.Edge_Cuts
         const panel = element
         const { width, height, center } = panel
@@ -1762,7 +1775,7 @@ export const convertCircuitJsonToGerberCommands = (
           // into the board outline polygon above and must not be double-emitted.
           if (
             hasBoard &&
-            !hasPanel &&
+            !emitPanelOutline &&
             doesSolidCutoutOverlapBoardEdge({
               cutout: element as PcbCutout,
               boardOutlinePolygons,
@@ -1778,7 +1791,7 @@ export const convertCircuitJsonToGerberCommands = (
           // must use CW winding so fill rules treat the loop as a hole.
           const drawCw =
             hasBoard &&
-            !hasPanel &&
+            !emitPanelOutline &&
             isCutoutFullyInternal({
               cutout: element as PcbCutout,
               boardOutlinePolygons,

@@ -44,6 +44,34 @@ for (const [fileName, contents] of Object.entries(files)) {
 Lower-level command conversion and stringification APIs remain available when
 custom layer processing is needed.
 
+## Exporting boards from a panel
+
+By default, inputs containing `pcb_panel` export the panel's rectangular boundary
+and explicit `pcb_cutout` routing geometry. Individual `pcb_board` outlines are
+omitted so they do not cut through holding tabs defined by the panel routing.
+
+To cut the boards as separate pieces using their own profiles, select
+`individual_boards` mode:
+
+```bash
+circuit-to-gerber input.circuit.json --panel-mode individual_boards -o boards.zip
+```
+
+```typescript
+const files = convertCircuitJsonToGerberFiles(circuitJson, {
+  panel_mode: "individual_boards",
+})
+```
+
+This mode emits each board's outline (or its rectangle when no outline is supplied)
+and omits the panel boundary. Board-edge cutouts are merged into the board profiles;
+internal cutouts remain holes. Coordinates and copper/drill layers are preserved,
+and the result is one combined file set, not a separate ZIP for each board.
+It does not generate panel rails, routing tabs, or mouse bites. Existing cutouts
+are still exported, so use the default `panel` mode for a tabbed manufacturing panel.
+The same option is accepted by `convertCircuitJsonToGerberCommands` and its
+`convertSoupToGerberCommands` alias. Inputs without a panel behave the same in both modes.
+
 ## References
 
 - [Gerber Format Specification (2022)](https://www.ucamco.com/files/downloads/file_en/456/gerber-layer-format-specification-revision-2022-02_en.pdf?7b3ca7f0753aa2d77f5f9afe31b9f826)
