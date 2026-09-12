@@ -23,7 +23,8 @@ program
 
       // Create output ZIP file
       const outputPath =
-        options.output || input.replace(".circuit.json", ".gerbers.zip")
+        options.output ||
+        `${input.replace(/(?:\.circuit)?\.json$/i, "")}.gerbers.zip`
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
