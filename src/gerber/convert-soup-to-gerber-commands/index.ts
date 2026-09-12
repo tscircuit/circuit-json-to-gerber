@@ -1378,9 +1378,18 @@ export const convertCircuitJsonToGerberCommands = (
                   element.soldermask_margin,
                 )
               }
+              const rotationRadians =
+                (("ccw_rotation" in element &&
+                typeof element.ccw_rotation === "number"
+                  ? element.ccw_rotation
+                  : 0) *
+                  Math.PI) /
+                180
+              const cosRotation = Math.cos(rotationRadians)
+              const sinRotation = Math.sin(rotationRadians)
               const translatedPoints = points.map((point) => ({
-                x: point.x + element.x,
-                y: point.y + element.y,
+                x: point.x * cosRotation - point.y * sinRotation + element.x,
+                y: point.x * sinRotation + point.y * cosRotation + element.y,
               }))
               addClosedRegionFromPoints({
                 target: glayer,
