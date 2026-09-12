@@ -1,4 +1,8 @@
-import type { AnyCircuitElement, PcbPlatedHole } from "circuit-json"
+import type {
+  AnyCircuitElement,
+  PcbPlatedHole,
+  PcbViaInput,
+} from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
 import type { LayerToGerberCommandsMap } from "./GerberLayerName"
@@ -1644,8 +1648,17 @@ export const convertCircuitJsonToGerberCommands = (
           const layersToAddTo = [
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
-          if (element.is_tented === false && isOuterLayerRef(layer)) {
-            layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
+          if (isOuterLayerRef(layer)) {
+            const tenting: PcbViaInput = element
+            const isTented =
+              (layer === "top"
+                ? tenting.tented_on_top
+                : tenting.tented_on_bottom) ?? tenting.is_tented
+            if (isTented === false) {
+              layersToAddTo.push(
+                glayers[getGerberLayerName(layer, "soldermask")],
+              )
+            }
           }
           for (const glayer of layersToAddTo) {
             glayer.push(
