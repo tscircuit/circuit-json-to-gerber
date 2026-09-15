@@ -1155,6 +1155,8 @@ export const convertCircuitJsonToGerberCommands = (
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          const soldermaskGlayer =
+            glayers[getGerberLayerName(layer, "soldermask")]
           if (element.shape === "pill" || element.shape === "rotated_pill") {
             const soldermaskMargin =
               typeof element.soldermask_margin === "number"
@@ -1175,14 +1177,16 @@ export const convertCircuitJsonToGerberCommands = (
               rotationDegrees: rotation,
             })
 
-            renderPillFlash({
-              glayer: glayers[getGerberLayerName(layer, "soldermask")],
-              x: element.x,
-              y: element.y,
-              width: element.width + soldermaskMargin * 2,
-              height: element.height + soldermaskMargin * 2,
-              rotationDegrees: rotation,
-            })
+            if (element.is_covered_with_solder_mask !== true) {
+              renderPillFlash({
+                glayer: soldermaskGlayer,
+                x: element.x,
+                y: element.y,
+                width: element.width + soldermaskMargin * 2,
+                height: element.height + soldermaskMargin * 2,
+                rotationDegrees: rotation,
+              })
+            }
 
             continue
           }
@@ -1205,6 +1209,12 @@ export const convertCircuitJsonToGerberCommands = (
                 height: element.height + soldermaskMargin * 2,
               },
             ]) {
+              if (
+                element.is_covered_with_solder_mask === true &&
+                glayer === soldermaskGlayer
+              ) {
+                continue
+              }
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
@@ -1235,6 +1245,12 @@ export const convertCircuitJsonToGerberCommands = (
               apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
             },
           ]) {
+            if (
+              element.is_covered_with_solder_mask === true &&
+              glayer === soldermaskGlayer
+            ) {
+              continue
+            }
             const apertureNumber = findApertureNumber(glayer, apertureConfig)
             const gb = gerberBuilder().add("select_aperture", {
               aperture_number: apertureNumber,
