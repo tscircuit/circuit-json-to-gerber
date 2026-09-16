@@ -1175,14 +1175,16 @@ export const convertCircuitJsonToGerberCommands = (
               rotationDegrees: rotation,
             })
 
-            renderPillFlash({
-              glayer: glayers[getGerberLayerName(layer, "soldermask")],
-              x: element.x,
-              y: element.y,
-              width: element.width + soldermaskMargin * 2,
-              height: element.height + soldermaskMargin * 2,
-              rotationDegrees: rotation,
-            })
+            if (element.is_covered_with_solder_mask !== true) {
+              renderPillFlash({
+                glayer: glayers[getGerberLayerName(layer, "soldermask")],
+                x: element.x,
+                y: element.y,
+                width: element.width + soldermaskMargin * 2,
+                height: element.height + soldermaskMargin * 2,
+                rotationDegrees: rotation,
+              })
+            }
 
             continue
           }
@@ -1205,6 +1207,12 @@ export const convertCircuitJsonToGerberCommands = (
                 height: element.height + soldermaskMargin * 2,
               },
             ]) {
+              if (
+                element.is_covered_with_solder_mask === true &&
+                glayer === glayers[getGerberLayerName(layer, "soldermask")]
+              ) {
+                continue
+              }
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
