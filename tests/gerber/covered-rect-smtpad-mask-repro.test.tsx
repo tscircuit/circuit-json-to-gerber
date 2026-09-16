@@ -70,7 +70,6 @@ test("covered smt pad soldermask repro", async () => {
       />
       {shapes.map(({ label }, index) => (
         <silkscreentext
-          key={label}
           text={label}
           pcbX={-25 + index * 9}
           pcbY={7}
