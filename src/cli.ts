@@ -3,6 +3,7 @@
 import { program } from "commander"
 import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
+import path from "node:path"
 import archiver from "archiver"
 import { convertCircuitJsonToGerberFiles } from "./"
 
@@ -23,7 +24,10 @@ program
 
       // Create output ZIP file
       const outputPath =
-        options.output || input.replace(".circuit.json", ".gerbers.zip")
+        options.output ||
+        (input.endsWith(".circuit.json")
+          ? input.replace(/\.circuit\.json$/, ".gerbers.zip")
+          : path.join(path.dirname(input), path.basename(input, path.extname(input)) + ".gerbers.zip"))
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
