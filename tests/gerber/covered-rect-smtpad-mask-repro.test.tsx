@@ -1,5 +1,6 @@
 import { expect, test } from "bun:test"
 import { Circuit } from "@tscircuit/core"
+import { Fragment } from "react"
 import { parseGerberFile } from "gerberts"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
@@ -41,10 +42,12 @@ const shapes = [
     pad: {
       shape: "polygon" as const,
       points: [
-        { x: -2, y: -1 },
-        { x: 1, y: -1 },
-        { x: 2, y: 1 },
-        { x: -1, y: 1 },
+        { x: -2, y: 0 },
+        { x: -1, y: -1.5 },
+        { x: 1, y: -1.5 },
+        { x: 2, y: 0 },
+        { x: 1, y: 1.5 },
+        { x: -1, y: 1.5 },
       ],
     },
   },
@@ -69,12 +72,14 @@ test("covered smt pad soldermask repro", async () => {
         fontSize={1}
       />
       {shapes.map(({ label }, index) => (
-        <silkscreentext
-          text={label}
-          pcbX={-25 + index * 9}
-          pcbY={7}
-          fontSize={0.8}
-        />
+        <Fragment key={label}>
+          <silkscreentext
+            text={label}
+            pcbX={-25 + index * 9}
+            pcbY={7}
+            fontSize={0.8}
+          />
+        </Fragment>
       ))}
       {[
         { covered: true, y: 3 },
@@ -113,6 +118,11 @@ test("covered smt pad soldermask repro", async () => {
         element.type === "pcb_smtpad" && element.is_covered_with_solder_mask,
     ),
   ).toHaveLength(7)
+  expect(
+    circuitJson.filter(
+      (element) => element.type === "pcb_smtpad" && element.shape === "polygon",
+    ),
+  ).toHaveLength(2)
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )

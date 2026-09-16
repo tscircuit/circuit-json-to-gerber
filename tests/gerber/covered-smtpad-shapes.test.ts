@@ -43,6 +43,18 @@ const shapes: PcbSmtPad[] = [
       { x: -2, y: 1 },
     ],
   },
+  {
+    ...pad,
+    shape: "polygon",
+    points: [
+      { x: -2, y: -2 },
+      { x: 2, y: -2 },
+      { x: 2, y: 0 },
+      { x: 0, y: 0 },
+      { x: 0, y: 2 },
+      { x: -2, y: 2 },
+    ],
+  },
 ]
 
 for (const [index, shape] of shapes.entries()) {
