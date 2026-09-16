@@ -106,8 +106,16 @@ test("covered smt pad soldermask repro", async () => {
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
-  expect(parseGerberFile(gerberOutput.F_Cu).operations.length).toBeGreaterThan(
-    0,
+  const exposedOnly = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(
+      circuitJson.filter(
+        (element) =>
+          element.type !== "pcb_smtpad" || !element.is_covered_with_solder_mask,
+      ),
+    ),
+  )
+  expect(parseGerberFile(gerberOutput.F_Mask).operations).toEqual(
+    parseGerberFile(exposedOnly.F_Mask).operations,
   )
   await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
