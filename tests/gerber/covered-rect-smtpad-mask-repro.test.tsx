@@ -66,7 +66,7 @@ test("covered smt pad soldermask repro", async () => {
       <silkscreentext text="covered" pcbX={-37} pcbY={3} fontSize={1} />
       <silkscreentext text="exposed" pcbX={-37} pcbY={-4} fontSize={1} />
       <silkscreentext
-        text="RED: COPPER ONLY    WHITE: MASK OPENING"
+        text="OVERLAY ONLY: RED COPPER / WHITE OPENING"
         pcbX={0}
         pcbY={-10.5}
         fontSize={1}
@@ -123,6 +123,29 @@ test("covered smt pad soldermask repro", async () => {
       (element) => element.type === "pcb_smtpad" && element.shape === "polygon",
     ),
   ).toHaveLength(2)
+  // Polygon coverage already worked before the other SMT pad paths were fixed.
+  for (const covered of [true, false]) {
+    const polygonOutput = stringifyGerberCommandLayers(
+      convertSoupToGerberCommands(
+        circuitJson.filter(
+          (element) =>
+            element.type === "pcb_smtpad" &&
+            element.shape === "polygon" &&
+            element.is_covered_with_solder_mask === covered,
+        ),
+      ),
+    )
+    expect(
+      parseGerberFile(polygonOutput.F_Cu).operations.length,
+    ).toBeGreaterThan(0)
+    if (covered) {
+      expect(parseGerberFile(polygonOutput.F_Mask).operations).toHaveLength(0)
+    } else {
+      expect(
+        parseGerberFile(polygonOutput.F_Mask).operations.length,
+      ).toBeGreaterThan(0)
+    }
+  }
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
@@ -136,6 +159,18 @@ test("covered smt pad soldermask repro", async () => {
     {
       backgroundColor: "#111827",
       colors: { F_Cu: "#ef4444", F_Mask: "#f8fafc", F_SilkScreen: "#cbd5e1" },
+    },
+  )
+  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
+    import.meta.path,
+    "covered-smtpad-full-board",
+    circuitJson,
+    ["F_Cu", "F_Mask", "F_SilkScreen"],
+    {
+      circuitJsonLabel: "Source PCB (copper geometry)",
+      gerberLabel: "Exported Gerbers (gold = exposed)",
+      panelWidth: 1000,
+      panelHeight: 400,
     },
   )
 })
