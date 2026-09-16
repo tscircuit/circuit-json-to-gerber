@@ -48,6 +48,7 @@ test("covered rectangular touch electrode soldermask repro", async () => {
     convertSoupToGerberCommands(circuitJson),
   )
   expect(parseGerberFile(gerberOutput.F_Cu).operations).toHaveLength(2)
+  expect(parseGerberFile(gerberOutput.F_Mask).operations).toHaveLength(1)
   await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
     "covered-rect-smtpad-mask-repro",

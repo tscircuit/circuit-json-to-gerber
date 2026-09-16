@@ -1235,6 +1235,12 @@ export const convertCircuitJsonToGerberCommands = (
               apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
             },
           ]) {
+            if (
+              element.is_covered_with_solder_mask === true &&
+              glayer === glayers[getGerberLayerName(layer, "soldermask")]
+            ) {
+              continue
+            }
             const apertureNumber = findApertureNumber(glayer, apertureConfig)
             const gb = gerberBuilder().add("select_aperture", {
               aperture_number: apertureNumber,
