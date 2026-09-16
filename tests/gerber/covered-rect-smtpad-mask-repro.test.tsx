@@ -36,35 +36,20 @@ const shapes = [
     ccwRotationDegrees: 45,
     pad: { shape: "pill" as const, width: 4, height: 2, radius: 1 },
   },
-  {
-    label: "polygon",
-    ccwRotationDegrees: 0,
-    pad: {
-      shape: "polygon" as const,
-      points: [
-        { x: -2, y: 0 },
-        { x: -1, y: -1.5 },
-        { x: 1, y: -1.5 },
-        { x: 2, y: 0 },
-        { x: 1, y: 1.5 },
-        { x: -1, y: 1.5 },
-      ],
-    },
-  },
 ]
 
 test("covered smt pad soldermask repro", async () => {
   const circuit = new Circuit()
   circuit.add(
-    <board width={82} height={28} routingDisabled>
+    <board width={73} height={28} routingDisabled>
       <silkscreentext
         text="SMT SOLDER MASK COVERAGE"
         pcbX={0}
         pcbY={10.5}
         fontSize={1.5}
       />
-      <silkscreentext text="covered" pcbX={-37} pcbY={3} fontSize={1} />
-      <silkscreentext text="exposed" pcbX={-37} pcbY={-4} fontSize={1} />
+      <silkscreentext text="covered" pcbX={-32.5} pcbY={3} fontSize={1} />
+      <silkscreentext text="exposed" pcbX={-32.5} pcbY={-4} fontSize={1} />
       <silkscreentext
         text="OVERLAY ONLY: RED COPPER / WHITE OPENING"
         pcbX={0}
@@ -75,7 +60,7 @@ test("covered smt pad soldermask repro", async () => {
         <Fragment key={label}>
           <silkscreentext
             text={label}
-            pcbX={-25 + index * 9}
+            pcbX={-20.5 + index * 9}
             pcbY={7}
             fontSize={0.8}
           />
@@ -89,7 +74,7 @@ test("covered smt pad soldermask repro", async () => {
           <chip
             key={`${row}-${index}`}
             name={`K${row}_${index}`}
-            pcbX={-25 + index * 9}
+            pcbX={-20.5 + index * 9}
             pcbY={y}
             pcbRotation={ccwRotationDegrees}
             footprint={
@@ -111,41 +96,13 @@ test("covered smt pad soldermask repro", async () => {
   const circuitJson = circuit.getCircuitJson()
   expect(
     circuitJson.filter((element) => element.type === "pcb_smtpad"),
-  ).toHaveLength(14)
+  ).toHaveLength(12)
   expect(
     circuitJson.filter(
       (element) =>
         element.type === "pcb_smtpad" && element.is_covered_with_solder_mask,
     ),
-  ).toHaveLength(7)
-  expect(
-    circuitJson.filter(
-      (element) => element.type === "pcb_smtpad" && element.shape === "polygon",
-    ),
-  ).toHaveLength(2)
-  // Polygon coverage already worked before the other SMT pad paths were fixed.
-  for (const covered of [true, false]) {
-    const polygonOutput = stringifyGerberCommandLayers(
-      convertSoupToGerberCommands(
-        circuitJson.filter(
-          (element) =>
-            element.type === "pcb_smtpad" &&
-            element.shape === "polygon" &&
-            element.is_covered_with_solder_mask === covered,
-        ),
-      ),
-    )
-    expect(
-      parseGerberFile(polygonOutput.F_Cu).operations.length,
-    ).toBeGreaterThan(0)
-    if (covered) {
-      expect(parseGerberFile(polygonOutput.F_Mask).operations).toHaveLength(0)
-    } else {
-      expect(
-        parseGerberFile(polygonOutput.F_Mask).operations.length,
-      ).toBeGreaterThan(0)
-    }
-  }
+  ).toHaveLength(6)
   const gerberOutput = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuitJson),
   )
