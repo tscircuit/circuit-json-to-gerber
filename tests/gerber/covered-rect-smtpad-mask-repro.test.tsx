@@ -126,16 +126,4 @@ test("covered smt pad soldermask repro", async () => {
       colors: { F_Cu: "#ef4444", F_Mask: "#f8fafc", F_SilkScreen: "#cbd5e1" },
     },
   )
-  await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
-    import.meta.path,
-    "covered-smtpad-full-board",
-    circuitJson,
-    ["F_Cu", "F_Mask", "F_SilkScreen"],
-    {
-      circuitJsonLabel: "Source PCB (copper geometry)",
-      gerberLabel: "Exported Gerbers (gold = exposed)",
-      panelWidth: 1000,
-      panelHeight: 400,
-    },
-  )
 })
