@@ -840,7 +840,10 @@ export const convertCircuitJsonToGerberCommands = (
 
         copper_glayer.push(...all_pour_commands)
 
-        if (element.covered_with_solder_mask === false) {
+        if (
+          isOuterLayerRef(layer) &&
+          element.covered_with_solder_mask === false
+        ) {
           const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
           mask_layer.push(...all_pour_commands)
         }
