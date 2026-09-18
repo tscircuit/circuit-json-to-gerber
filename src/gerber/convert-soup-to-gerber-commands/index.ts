@@ -696,6 +696,8 @@ export const convertCircuitJsonToGerberCommands = (
         builder.add("plot_operation", { x: end.x, y: mfy(end.y) })
       }
     }
+    // Circular interpolation is modal and must not leak into later geometry.
+    builder.add("set_movement_mode_to_linear", {})
   }
 
   // To conform to Gerber spec (CCW outer, CW inner) from tscircuit
