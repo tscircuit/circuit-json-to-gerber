@@ -23,6 +23,7 @@ import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
 import type { AnyCircuitElement } from "circuit-json"
 import { isGeometryChangingRectRotation } from "./getRotatedRectPoints"
+import { isPcbSilkscreenTextHidden } from "./isPcbSilkscreenTextHidden"
 
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
@@ -724,7 +725,7 @@ function getAllApertureTemplateConfigsForLayer({
         addConfigIfNew(REGION_APERTURE_CONFIG)
       }
     } else if (elm.type === "pcb_silkscreen_text") {
-      if (!isFabricationLayer)
+      if (!isFabricationLayer && !isPcbSilkscreenTextHidden(elm))
         addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
     } else if (elm.type === "pcb_fabrication_note_text") {
       if (isFabricationLayer && elm.layer === layer)

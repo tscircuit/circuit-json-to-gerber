@@ -58,6 +58,7 @@ import {
   getSilkscreenShapeStroke,
   isSilkscreenShape,
 } from "./getSilkscreenShapeStroke"
+import { isPcbSilkscreenTextHidden } from "./isPcbSilkscreenTextHidden"
 import polygonClipping, {
   type MultiPolygon,
   type Polygon,
@@ -1066,6 +1067,7 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (
         element.type === "pcb_silkscreen_text" &&
+        !isPcbSilkscreenTextHidden(element) &&
         isOuterLayerRef(layer)
       ) {
         renderVectorText(
