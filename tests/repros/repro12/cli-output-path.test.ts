@@ -5,14 +5,7 @@ import { tmpdir } from "node:os"
 import { join, resolve } from "node:path"
 import { getDefaultOutputPath } from "../../../src/get-default-output-path"
 
-const CLI = resolve(
-  import.meta.dir,
-  "..",
-  "..",
-  "..",
-  "src",
-  "cli.ts",
-)
+const CLI = resolve(import.meta.dir, "..", "..", "..", "src", "cli.ts")
 
 const MINIMAL_BOARD = JSON.stringify([
   {
