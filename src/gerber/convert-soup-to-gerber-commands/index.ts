@@ -1626,7 +1626,10 @@ export const convertCircuitJsonToGerberCommands = (
           for (const glayer of [
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
-            if (element.hole_shape === "rotated_pill") {
+            if (
+              element.hole_shape === "rotated_pill" ||
+              element.hole_shape === "oval"
+            ) {
               const soldermaskMargin = element.soldermask_margin ?? 0
               renderPillFlash({
                 glayer,
@@ -1634,7 +1637,10 @@ export const convertCircuitJsonToGerberCommands = (
                 y: element.y,
                 width: element.hole_width + soldermaskMargin * 2,
                 height: element.hole_height + soldermaskMargin * 2,
-                rotationDegrees: element.ccw_rotation,
+                rotationDegrees:
+                  element.hole_shape === "rotated_pill"
+                    ? element.ccw_rotation
+                    : 0,
               })
               continue
             }
@@ -1824,7 +1830,10 @@ export const convertCircuitJsonToGerberCommands = (
         continue
       }
 
-      if (element.hole_shape === "rotated_pill") {
+      if (
+        element.hole_shape === "rotated_pill" ||
+        element.hole_shape === "oval"
+      ) {
         copperGlayer.push(
           ...gerberBuilder()
             .add("set_layer_polarity", { polarity: "C" })
@@ -1836,7 +1845,8 @@ export const convertCircuitJsonToGerberCommands = (
           y: element.y,
           width: element.hole_width,
           height: element.hole_height,
-          rotationDegrees: element.ccw_rotation,
+          rotationDegrees:
+            element.hole_shape === "rotated_pill" ? element.ccw_rotation : 0,
         })
         copperGlayer.push(
           ...gerberBuilder()

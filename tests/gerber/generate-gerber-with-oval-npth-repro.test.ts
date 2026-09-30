@@ -50,7 +50,7 @@ const circuitJson: AnyCircuitElement[] = [
   },
 ]
 
-test("repro: USB-C oval NPTH is drilled but omitted from Gerber clearances", async () => {
+test("USB-C oval NPTH is included in drill and Gerber clearances", async () => {
   const gerberLayers = convertSoupToGerberCommands(circuitJson)
   const gerberOutput = stringifyGerberCommandLayers(gerberLayers)
   const unplatedDrillCommands = convertSoupToExcellonDrillCommands({
@@ -76,10 +76,10 @@ test("repro: USB-C oval NPTH is drilled but omitted from Gerber clearances", asy
     (command) => command.command_code === "D03",
   ).length
 
-  // Only the circular control hole is cleared. The oval USB-C alignment slot
-  // is present in the drill file but missing from copper and soldermask Gerbers.
-  expect(innerCopperClearPolarityCount).toBe(1)
-  expect(frontMaskFlashCount).toBe(1)
+  // Both the circular control hole and the oval USB-C alignment slot are
+  // included in the copper and soldermask Gerbers.
+  expect(innerCopperClearPolarityCount).toBe(2)
+  expect(frontMaskFlashCount).toBe(3)
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
