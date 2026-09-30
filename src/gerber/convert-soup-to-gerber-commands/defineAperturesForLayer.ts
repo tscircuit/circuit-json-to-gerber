@@ -555,7 +555,7 @@ export const getApertureConfigFromCirclePcbHoleSoldermask = (
 }
 
 export const getApertureConfigFromRotatedPillPcbHole = (
-  elm: Extract<PcbHole, { hole_shape: "rotated_pill" }>,
+  elm: Extract<PcbHole, { hole_shape: "rotated_pill" | "oval" }>,
   soldermaskMargin = 0,
 ): ApertureTemplateConfig => {
   return {
@@ -681,7 +681,10 @@ function getAllApertureTemplateConfigsForLayer({
         } else {
           addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
         }
-      } else if (elm.hole_shape === "rotated_pill") {
+      } else if (
+        elm.hole_shape === "rotated_pill" ||
+        elm.hole_shape === "oval"
+      ) {
         const soldermaskMargin = isSoldermaskLayer
           ? (elm.soldermask_margin ?? 0)
           : 0
