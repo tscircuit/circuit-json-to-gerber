@@ -30,7 +30,7 @@
     "@types/react-dom": "^19.1.5",
     "archiver": "^7.0.1",
     "bun-match-svg": "^0.0.13",
-    "circuit-json": "^0.0.487",
+    "circuit-json": "^0.0.501",
     "commander": "^12.1.0",
     "format-si-unit": "^0.0.7",
     "gerber-to-svg": "^4.2.8",
@@ -51,6 +51,7 @@
     "@tscircuit/alphabet": "^0.0.25",
     "fast-json-stable-stringify": "^2.1.0",
     "polygon-clipping": "^0.15.7",
-    "transformation-matrix": "^3.0.0"
+    "transformation-matrix": "^3.0.0",
+    "@tscircuit/circuit-json-util": "^0.0.116"
   }
 }

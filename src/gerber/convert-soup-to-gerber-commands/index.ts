@@ -1,7 +1,9 @@
+import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
 import type {
   AnyCircuitElement,
   PcbPlatedHole,
   PcbViaInput,
+  PcbVia,
 } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
@@ -167,6 +169,16 @@ export const convertCircuitJsonToGerberCommands = (
   circuitJson: AnyCircuitElement[],
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
+  const boardOwners = createBoardOwnerMap(circuitJson)
+  const standaloneViasByPosition = new Map<string, PcbVia[]>()
+  for (const element of circuitJson) {
+    if (element.type !== "pcb_via") continue
+    const board = boardOwners.get(element.pcb_via_id)
+    const key = JSON.stringify([board?.pcb_board_id, element.x, element.y])
+    const vias = standaloneViasByPosition.get(key) ?? []
+    vias.push(element)
+    standaloneViasByPosition.set(key, vias)
+  }
   opts.flip_y_axis ??= false
   const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
   const hasBoard = circuitJson.some((e) => e.type === "pcb_board")
@@ -931,13 +943,39 @@ export const convertCircuitJsonToGerberCommands = (
             }
           }
         }
+        const board = boardOwners.get(element.pcb_trace_id)
         for (const point of route) {
           if (
-            point.route_type === "via" &&
-            typeof point.outer_diameter === "number" &&
-            (point.from_layer === layer || point.to_layer === layer)
-          ) {
-            const glayer = glayers[getGerberLayerName(layer, "copper")]
+            point.route_type !== "via" ||
+            typeof point.outer_diameter !== "number" ||
+            (point.from_layer !== layer && point.to_layer !== layer)
+          )
+            continue
+
+          const targetLayers = [glayers[getGerberLayerName(layer, "copper")]]
+          if (isOuterLayerRef(layer)) {
+            const key = JSON.stringify([board?.pcb_board_id, point.x, point.y])
+            const hasStandaloneVia = standaloneViasByPosition
+              .get(key)
+              ?.some(
+                (via) =>
+                  via.layers.includes(point.from_layer) &&
+                  via.layers.includes(point.to_layer),
+              )
+            const isTented =
+              layer === "top"
+                ? (point.tented_on_top ?? board?.default_via_tented_on_top)
+                : (point.tented_on_bottom ??
+                  board?.default_via_tented_on_bottom)
+            // An explicit pcb_via owns its mask settings, even when a trace
+            // also describes the same transition.
+            if (!hasStandaloneVia && isTented === false) {
+              targetLayers.push(
+                glayers[getGerberLayerName(layer, "soldermask")],
+              )
+            }
+          }
+          for (const glayer of targetLayers) {
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
@@ -1669,11 +1707,16 @@ export const convertCircuitJsonToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
           if (isOuterLayerRef(layer)) {
+            const board = boardOwners.get(element.pcb_via_id)
             const tenting: PcbViaInput = element
             const isTented =
               (layer === "top"
                 ? tenting.tented_on_top
-                : tenting.tented_on_bottom) ?? tenting.is_tented
+                : tenting.tented_on_bottom) ??
+              tenting.is_tented ??
+              (layer === "top"
+                ? board?.default_via_tented_on_top
+                : board?.default_via_tented_on_bottom)
             if (isTented === false) {
               layersToAddTo.push(
                 glayers[getGerberLayerName(layer, "soldermask")],
