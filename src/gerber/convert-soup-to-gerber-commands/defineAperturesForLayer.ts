@@ -614,6 +614,13 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
         }
       }
+    } else if (elm.type === "pcb_soldermask_opening") {
+      if (!isSoldermaskLayer || elm.layer !== layer) continue
+      addConfigIfNew(
+        elm.shape === "circle"
+          ? { standard_template_code: "C", diameter: elm.radius * 2 }
+          : REGION_APERTURE_CONFIG,
+      )
     } else if (elm.type === "pcb_solder_paste") {
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
