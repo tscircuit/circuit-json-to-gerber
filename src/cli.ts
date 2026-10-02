@@ -3,8 +3,10 @@
 import { program } from "commander"
 import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
+import { resolve } from "node:path"
 import archiver from "archiver"
 import { convertCircuitJsonToGerberFiles } from "./"
+import { getDefaultOutputPath } from "./get-default-output-path"
 
 program
   .name("circuit-to-gerber")
@@ -22,8 +24,18 @@ program
       const gerberFiles = convertCircuitJsonToGerberFiles(circuitJson)
 
       // Create output ZIP file
-      const outputPath =
-        options.output || input.replace(".circuit.json", ".gerbers.zip")
+      const outputPath = options.output || getDefaultOutputPath(input)
+
+      // Never allow the output to overwrite the input file, even when
+      // --output explicitly points at it (defense in depth: the default
+      // path derivation above already guarantees they differ).
+      if (resolve(outputPath) === resolve(input)) {
+        console.error(
+          "Error: output path would overwrite the input file. Use --output to specify a different file.",
+        )
+        process.exit(1)
+      }
+
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
