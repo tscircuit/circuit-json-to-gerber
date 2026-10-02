@@ -20,6 +20,7 @@ export type GerberLayerName =
   | "In7_Cu"
   | "In8_Cu"
   | "Edge_Cuts"
+  | `${"F" | "B"}_Stiffener_${"fr4" | "polyimide" | "stainless_steel" | "aluminum"}`
 
 export type LayerToGerberCommandsMap = {
   [key: string]: AnyGerberCommand[]

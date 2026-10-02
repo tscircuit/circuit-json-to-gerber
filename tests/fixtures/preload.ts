@@ -401,7 +401,7 @@ const wrapTextLines = (input: string, maxCharsPerLine = 40) => {
   return wrappedLines
 }
 
-const positionSvg = ({
+export const positionSvg = ({
   svg,
   x,
   y,

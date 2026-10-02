@@ -74,6 +74,7 @@ import {
   getRotatedRectPoints,
   isGeometryChangingRectRotation,
 } from "./getRotatedRectPoints"
+import { renderStiffenerLayers } from "./render-stiffener-layers"
 
 type Point = { x: number; y: number }
 
@@ -1908,6 +1909,8 @@ export const convertCircuitJsonToGerberCommands = (
       )
     }
   }
+
+  Object.assign(glayers, renderStiffenerLayers(circuitJson, opts))
 
   for (const key of Object.keys(glayers)) {
     glayers[key as keyof LayerToGerberCommandsMap].push(
