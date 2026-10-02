@@ -517,6 +517,14 @@ const renderGerberLayerOverlaySvg = async (
       return `<g id="${svgName}-${layer.layerName}" fill="${color}" stroke="${color}">${layer.content}</g>`
     })
     .join("")
+  // Reflect raw Gerber Y coordinates about the common viewBox center, as
+  // gerber-to-svg does for a single layer. Reflecting about zero crops boards
+  // whose absolute PCB center is away from the origin.
+  const reflectionY = 2 * viewBox.y + viewBox.height
+  const layerTransform =
+    Math.abs(reflectionY) < 1e-9
+      ? "scale(1,-1)"
+      : `translate(0,${reflectionY}) scale(1,-1)`
 
   return [
     '<svg version="1.1" xmlns="http://www.w3.org/2000/svg" ',
@@ -526,7 +534,7 @@ const renderGerberLayerOverlaySvg = async (
     `width="${viewBox.width / 1000}mm" height="${viewBox.height / 1000}mm">`,
     `<defs>${defs}</defs>`,
     `<rect x="${viewBox.x}" y="${viewBox.y}" width="${viewBox.width}" height="${viewBox.height}" fill="${opts.backgroundColor ?? "#666666"}"/>`,
-    `<g transform="scale(1,-1)">${layerGroups}</g>`,
+    `<g transform="${layerTransform}">${layerGroups}</g>`,
     "</svg>",
   ].join("")
 }

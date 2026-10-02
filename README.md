@@ -27,15 +27,6 @@ The output ZIP file will contain:
 - Plated drill file (plated.drl)
 - Unplated drill file (unplated.drl)
 
-For flex boards with `pcb_stiffener` records, the export also includes a
-`F_Stiffener_<material>.gbr` or `B_Stiffener_<material>.gbr` outline drawing for
-each attachment face and material (for example, `B_Stiffener_polyimide.gbr`).
-These files contain closed rectangular or polygonal outlines translated from
-the owning board center into the same coordinates as the other layers,
-including rectangle rotation. Gerber comments preserve the material and each
-stiffener's thickness and specified adhesive thickness. They are mechanical fabrication drawings; share them with
-the fabricator together with the electrical layers.
-
 ## Library Usage
 
 ```typescript

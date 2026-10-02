@@ -1,11 +1,16 @@
 import { expect, test } from "bun:test"
 import { board, rectangle, polygon } from "../fixtures/pcb-stiffeners"
+import { visualCopperLandmarks } from "../fixtures/stiffener-visuals"
 import { convertCircuitJsonToGerberCommands } from "../../src/gerber"
 
 test("leaves electrical layers and board cuts unchanged and emits no empty stiffener files", () => {
-  const baseline = convertCircuitJsonToGerberCommands([board])
+  const baseline = convertCircuitJsonToGerberCommands([
+    board,
+    ...visualCopperLandmarks,
+  ])
   const withStiffeners = convertCircuitJsonToGerberCommands([
     board,
+    ...visualCopperLandmarks,
     rectangle,
     polygon,
   ])
