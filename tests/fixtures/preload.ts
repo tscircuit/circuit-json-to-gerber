@@ -401,7 +401,7 @@ const wrapTextLines = (input: string, maxCharsPerLine = 40) => {
   return wrappedLines
 }
 
-const positionSvg = ({
+export const positionSvg = ({
   svg,
   x,
   y,
@@ -478,7 +478,7 @@ const getGerberLayerSvgContent = (svg: string, layerName: string) => {
   )
 }
 
-const renderGerberLayerOverlaySvg = async (
+export const renderGerberLayerOverlaySvg = async (
   gerberOutput: Record<string, string>,
   svgName: string,
   layerNames: string[],

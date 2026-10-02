@@ -15,7 +15,7 @@ test.each([false, true])(
           center: { x: 3, y: 7 },
           width: 4,
           height: 2,
-          rotation: 90,
+          rotation: 37,
         },
         polygon,
       ],
@@ -23,11 +23,11 @@ test.each([false, true])(
     )
     const expectedOutlines = {
       B_Stiffener_polyimide: [
-        [32, -5],
-        [32, -1],
-        [34, -1],
-        [34, -5],
-        [32, -5],
+        [30.800914, -3.404995],
+        [33.995456, -0.997734],
+        [35.199086, -2.595005],
+        [32.004544, -5.002266],
+        [30.800914, -3.404995],
       ],
       F_Stiffener_fr4: [
         [35, -6],

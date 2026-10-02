@@ -1,18 +1,17 @@
 import { expect, test } from "bun:test"
-import { board, rectangle, polygon } from "../fixtures/pcb-stiffeners"
-import { visualCopperLandmarks } from "../fixtures/stiffener-visuals"
+import {
+  board,
+  visualCopper,
+  visualStiffeners,
+} from "../fixtures/stiffener-visuals"
 import { convertCircuitJsonToGerberCommands } from "../../src/gerber"
 
 test("leaves electrical layers and board cuts unchanged and emits no empty stiffener files", () => {
-  const baseline = convertCircuitJsonToGerberCommands([
-    board,
-    ...visualCopperLandmarks,
-  ])
+  const baseline = convertCircuitJsonToGerberCommands([board, ...visualCopper])
   const withStiffeners = convertCircuitJsonToGerberCommands([
     board,
-    ...visualCopperLandmarks,
-    rectangle,
-    polygon,
+    ...visualCopper,
+    ...visualStiffeners,
   ])
   expect(Object.keys(baseline).some((key) => key.includes("Stiffener"))).toBe(
     false,
