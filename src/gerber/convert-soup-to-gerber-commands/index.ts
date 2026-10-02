@@ -1293,6 +1293,41 @@ export const convertCircuitJsonToGerberCommands = (
             })
           }
         }
+      } else if (element.type === "pcb_soldermask_opening") {
+        if (element.layer !== layer || !isOuterLayerRef(layer)) continue
+        const glayer = glayers[getGerberLayerName(layer, "soldermask")]
+        if (element.shape === "circle") {
+          glayer.push(
+            ...gerberBuilder()
+              .add("select_aperture", {
+                aperture_number: findApertureNumber(glayer, {
+                  standard_template_code: "C",
+                  diameter: element.radius * 2,
+                }),
+              })
+              .add("flash_operation", { x: element.x, y: mfy(element.y) })
+              .build(),
+          )
+        } else {
+          // Opening points are world PCB coordinates in mm (+X right, +Y up).
+          // Rotate the centered rectangle counterclockwise in that frame;
+          // addClosedRegionFromPoints applies the optional Gerber Y reflection.
+          const points =
+            element.shape === "polygon"
+              ? element.points
+              : getRotatedRectPoints({
+                  center: { x: element.x, y: element.y },
+                  width: element.width,
+                  height: element.height,
+                  ccwRotationDegrees:
+                    element.shape === "rotated_rect" ? element.ccw_rotation : 0,
+                })
+          addClosedRegionFromPoints({
+            target: glayer,
+            apertureSource: glayer,
+            points,
+          })
+        }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
           if (element.shape === "oval") {
