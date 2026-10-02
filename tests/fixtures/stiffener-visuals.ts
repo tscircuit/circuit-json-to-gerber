@@ -1,5 +1,4 @@
 import type { AnyCircuitElement, PcbBoard, PcbStiffener } from "circuit-json"
-import type { GerberFileMap } from "../../src"
 
 const boardCenter = { x: 30, y: -10 }
 const toWorld = ({ x, y }: { x: number; y: number }) => ({
@@ -116,11 +115,3 @@ export const stiffenerOverlayOptions = {
   },
   backgroundColor: "#1c2430",
 }
-
-// Snapshot helpers use layer names; the public exporter returns filenames.
-export const getGerberLayers = (files: GerberFileMap) =>
-  Object.fromEntries(
-    Object.entries(files)
-      .filter(([name]) => name.endsWith(".gbr"))
-      .map(([name, contents]) => [name.slice(0, -4), contents]),
-  )

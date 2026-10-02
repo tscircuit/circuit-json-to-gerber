@@ -478,7 +478,7 @@ const getGerberLayerSvgContent = (svg: string, layerName: string) => {
   )
 }
 
-export const renderGerberLayerOverlaySvg = async (
+const renderGerberLayerOverlaySvg = async (
   gerberOutput: Record<string, string>,
   svgName: string,
   layerNames: string[],
