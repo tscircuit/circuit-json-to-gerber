@@ -1330,6 +1330,37 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          if (element.shape === "polygon") {
+            const glayer = glayers[getGerberLayerName(layer, "paste")]
+            // Contour points are world PCB mm (+X right, +Y up). The shared
+            // region emitter applies the optional Gerber Y reflection.
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points: element.points,
+            })
+            if (element.holes?.length) {
+              // Match copper-pour cutouts: clear each opening, then restore dark.
+              glayer.push(
+                ...gerberBuilder()
+                  .add("set_layer_polarity", { polarity: "C" })
+                  .build(),
+              )
+              for (const hole of element.holes) {
+                addClosedRegionFromPoints({
+                  target: glayer,
+                  apertureSource: glayer,
+                  points: hole,
+                })
+              }
+              glayer.push(
+                ...gerberBuilder()
+                  .add("set_layer_polarity", { polarity: "D" })
+                  .build(),
+              )
+            }
+            continue
+          }
           if (element.shape === "oval") {
             const glayer = glayers[getGerberLayerName(layer, "paste")]
             addClosedRegionFromPoints({
