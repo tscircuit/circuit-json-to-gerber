@@ -48,6 +48,16 @@ test("polygon paste emits closed regions with holes on its own layer", async () 
       hole[0],
     ])
     expect(regionPoints(commands[oppositeLayer])).toEqual([])
+    const flippedCommands = convertCircuitJsonToGerberCommands(circuitJson, {
+      flip_y_axis: true,
+    })
+    expect(regionPoints(flippedCommands[layerName])).toEqual(
+      [...points, points[0]!, ...hole, hole[0]!].map(({ x, y }) => ({
+        x,
+        y: -y,
+      })),
+    )
+    expect(regionPoints(flippedCommands[oppositeLayer])).toEqual([])
     const files = convertCircuitJsonToGerberFiles(circuitJson)
     expect(files[`${layerName}.gbr`].match(/G36\*/g)).toHaveLength(1)
     expect(files[`${layerName}.gbr`]).not.toContain("D03*")
