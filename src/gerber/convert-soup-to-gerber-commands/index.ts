@@ -364,10 +364,12 @@ export const convertCircuitJsonToGerberCommands = (
     target,
     apertureSource,
     points,
+    holes = [],
   }: {
     target: AnyGerberCommand[]
     apertureSource: AnyGerberCommand[]
     points: Array<{ x: number; y: number }>
+    holes?: Array<Array<{ x: number; y: number }>>
   }) => {
     if (points.length === 0) return
 
@@ -378,22 +380,15 @@ export const convertCircuitJsonToGerberCommands = (
       })
       .add("start_region_statement", {})
 
-    regionBuilder.add("move_operation", {
-      x: points[0].x,
-      y: mfy(points[0].y),
-    })
-
-    for (let i = 1; i < points.length; i++) {
-      regionBuilder.add("plot_operation", {
-        x: points[i].x,
-        y: mfy(points[i].y),
+    for (const contour of [points, ...holes]) {
+      regionBuilder.add("move_operation", {
+        x: contour[0].x,
+        y: mfy(contour[0].y),
       })
+      for (const point of [...contour.slice(1), contour[0]]) {
+        regionBuilder.add("plot_operation", { x: point.x, y: mfy(point.y) })
+      }
     }
-
-    regionBuilder.add("plot_operation", {
-      x: points[0].x,
-      y: mfy(points[0].y),
-    })
 
     regionBuilder.add("end_region_statement", {})
     target.push(...regionBuilder.build())
@@ -1330,6 +1325,16 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_solder_paste") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          if (element.shape === "polygon") {
+            const glayer = glayers[getGerberLayerName(layer, "paste")]
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points: element.points,
+              holes: element.holes,
+            })
+            continue
+          }
           if (element.shape === "oval") {
             const glayer = glayers[getGerberLayerName(layer, "paste")]
             addClosedRegionFromPoints({

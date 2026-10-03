@@ -624,7 +624,7 @@ function getAllApertureTemplateConfigsForLayer({
     } else if (elm.type === "pcb_solder_paste") {
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
-        if (elm.shape === "oval") {
+        if (elm.shape === "oval" || elm.shape === "polygon") {
           addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }
