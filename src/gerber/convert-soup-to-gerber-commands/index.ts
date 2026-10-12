@@ -942,10 +942,10 @@ export const convertCircuitJsonToGerberCommands = (
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
-                  aperture_number: findApertureNumber(
-                    glayer,
-                    getApertureConfigFromOuterDiameter(point),
-                  ),
+                  aperture_number: findApertureNumber(glayer, {
+                    ...getApertureConfigFromOuterDiameter(point),
+                    aper_function: "ViaPad",
+                  }),
                 })
                 .add("flash_operation", { x: point.x, y: mfy(point.y) })
                 .build(),
@@ -1237,7 +1237,10 @@ export const convertCircuitJsonToGerberCommands = (
           for (const { glayer, apertureConfig } of [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
-              apertureConfig: getApertureConfigFromPcbSmtpad(element),
+              apertureConfig: {
+                ...getApertureConfigFromPcbSmtpad(element),
+                aper_function: "SMDPad,CuDef",
+              },
             },
             {
               glayer: glayers[getGerberLayerName(layer, "soldermask")],
@@ -1539,10 +1542,13 @@ export const convertCircuitJsonToGerberCommands = (
                 }),
               })
             } else if (element.shape === "pill") {
+              const isCopper =
+                glayer === glayers[getGerberLayerName(layer, "copper")]
               // Use min dimension as slot width (aperture circle)
               const circleApertureConfig = {
                 standard_template_code: "C" as const,
                 diameter: Math.min(aperturePadW, aperturePadH),
+                ...(isCopper ? { aper_function: "ComponentPad" } : {}),
               }
 
               let aperture_number: number
@@ -1675,8 +1681,15 @@ export const convertCircuitJsonToGerberCommands = (
                 continue
               }
 
+              const isCopper =
+                glayer === glayers[getGerberLayerName(layer, "copper")]
               const gb = gerberBuilder().add("select_aperture", {
-                aperture_number: findApertureNumber(glayer, apertureConfig),
+                aperture_number: findApertureNumber(
+                  glayer,
+                  isCopper
+                    ? { ...apertureConfig, aper_function: "ComponentPad" }
+                    : apertureConfig,
+                ),
               })
 
               gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
@@ -1751,10 +1764,10 @@ export const convertCircuitJsonToGerberCommands = (
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
-                  aperture_number: findApertureNumber(
-                    glayer,
-                    getApertureConfigFromOuterDiameter(element),
-                  ),
+                  aperture_number: findApertureNumber(glayer, {
+                    ...getApertureConfigFromOuterDiameter(element),
+                    aper_function: "ViaPad",
+                  }),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })
                 .build(),

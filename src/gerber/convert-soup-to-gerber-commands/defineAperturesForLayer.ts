@@ -98,13 +98,25 @@ export function defineAperturesForLayer({
   // Add all trace width apertures
   const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(circuitJson)
   const layerRef = getLayerRefFromGerberLayerName(glayer_name)
+  const isCopperLayer = glayer_name.endsWith("_Cu")
   for (const width of traceWidths[layerRef] ?? []) {
+    if (isCopperLayer) {
+      glayer.push(
+        ...gerberBuilder()
+          .add("add_attribute_on_aperture", {
+            attribute_name: ".AperFunction",
+            attribute_value: "Conductor",
+          })
+          .build(),
+      )
+    }
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {
           aperture_number: getNextApertureNumber(),
           standard_template_code: "C",
           diameter: width,
+          aper_function: isCopperLayer ? "Conductor" : undefined,
         })
         .build(),
     )
@@ -118,6 +130,16 @@ export function defineAperturesForLayer({
   })
 
   for (const apertureConfig of apertureConfigs) {
+    if (isCopperLayer && (apertureConfig as any).aper_function) {
+      glayer.push(
+        ...gerberBuilder()
+          .add("add_attribute_on_aperture", {
+            attribute_name: ".AperFunction",
+            attribute_value: (apertureConfig as any).aper_function,
+          })
+          .build(),
+      )
+    }
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {
@@ -611,7 +633,11 @@ function getAllApertureTemplateConfigsForLayer({
         if (isSoldermaskLayer) {
           addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
         } else {
-          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+          const config = getApertureConfigFromPcbSmtpad(elm)
+          if (isCopperLayer) {
+            ;(config as any).aper_function = "SMDPad,CuDef"
+          }
+          addConfigIfNew(config)
         }
       }
     } else if (elm.type === "pcb_soldermask_opening") {
@@ -659,7 +685,11 @@ function getAllApertureTemplateConfigsForLayer({
         if (isSoldermaskLayer) {
           addConfigIfNew(getApertureConfigFromPcbPlatedHoleSoldermask(elm))
         } else {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+          const config = getApertureConfigFromPcbPlatedHole(elm)
+          if (isCopperLayer) {
+            ;(config as any).aper_function = "ComponentPad"
+          }
+          addConfigIfNew(config)
         }
         if (
           "rect_pad_width" in elm &&
@@ -703,7 +733,11 @@ function getAllApertureTemplateConfigsForLayer({
         console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
       if (isFabricationLayer) continue
-      addConfigIfNew(getApertureConfigFromOuterDiameter(elm))
+      const config = getApertureConfigFromOuterDiameter(elm)
+      if (isCopperLayer) {
+        ;(config as any).aper_function = "ViaPad"
+      }
+      addConfigIfNew(config)
     } else if (elm.type === "pcb_trace") {
       if (isFabricationLayer) continue
       for (const point of elm.route) {
@@ -712,7 +746,11 @@ function getAllApertureTemplateConfigsForLayer({
           typeof point.outer_diameter === "number" &&
           (point.from_layer === layer || point.to_layer === layer)
         ) {
-          addConfigIfNew(getApertureConfigFromOuterDiameter(point))
+          const config = getApertureConfigFromOuterDiameter(point)
+          if (isCopperLayer) {
+            ;(config as any).aper_function = "ViaPad"
+          }
+          addConfigIfNew(config)
         }
       }
     } else if (elm.type === "pcb_silkscreen_path") {
@@ -755,8 +793,13 @@ function getAllApertureTemplateConfigsForLayer({
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
       }
     } else if (elm.type === "pcb_copper_text") {
-      if (elm.layer === layer)
-        addConfigIfNew(getApertureConfigFromPcbCopperText(elm))
+      if (elm.layer === layer) {
+        const config = getApertureConfigFromPcbCopperText(elm)
+        if (isCopperLayer) {
+          ;(config as any).aper_function = "Conductor"
+        }
+        addConfigIfNew(config)
+      }
     }
   }
 
