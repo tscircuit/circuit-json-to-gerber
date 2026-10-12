@@ -1,84 +1,82 @@
 import {
-  getPillApertureConfig,
-  type CopperApertureFunction,
-} from "./defineAperturesForLayer"
-import type {
-  AnyCircuitElement,
-  PcbPlatedHole,
-  PcbViaInput,
-} from "circuit-json"
-import { pairs } from "../utils/pairs"
-import { gerberBuilder } from "../gerber-builder"
-import type { LayerToGerberCommandsMap } from "./GerberLayerName"
-import { defineCommonMacros } from "./define-common-macros"
-import {
-  defineAperturesForLayer,
-  REGION_APERTURE_CONFIG,
-  getApertureConfigFromCirclePcbHole,
-  getApertureConfigFromPcbPlatedHole,
-  getApertureConfigFromPcbPlatedHoleSoldermask,
-  getApertureConfigFromCirclePcbHoleSoldermask,
-  getApertureConfigFromPcbCopperText,
-  getApertureConfigFromPcbFabricationNotePath,
-  getApertureConfigFromPcbFabricationNoteText,
-  getApertureConfigFromPcbSilkscreenPath,
-  getApertureConfigFromPcbSilkscreenText,
-  getApertureConfigFromPcbSmtpad,
-  getApertureConfigFromPcbSmtpadSoldermask,
-  getApertureConfigFromPcbSolderPaste,
-  getApertureConfigFromOuterDiameter,
-} from "./defineAperturesForLayer"
-import type { PcbCutout } from "circuit-json"
-import { findApertureNumber } from "./findApertureNumber"
-import { getCommandHeaders } from "./getCommandHeaders"
-import { getGerberLayerName } from "./getGerberLayerName"
-import { offsetPolygonOutline } from "./offsetPolygonOutline"
-import {
   glyphAdvanceRatio,
   glyphWidthRatio,
   letterSpacingRatio,
   lineAlphabet,
   spaceWidthRatio,
 } from "@tscircuit/alphabet"
-import {
-  applyToPoint,
-  compose,
-  identity,
-  rotate,
-  translate,
-  type Matrix,
-} from "transformation-matrix"
-import type { AnyGerberCommand } from "../any_gerber_command"
+import type {
+  AnyCircuitElement,
+  PcbPlatedHole,
+  PcbViaInput,
+} from "circuit-json"
+import type { PcbCutout } from "circuit-json"
 import type { LayerRef } from "circuit-json"
-import {
-  getFabricationLayerRefs,
-  isOuterLayerRef,
-  outerLayerRefs,
-} from "./fabricationLayerRefs"
-import { getFabRectPoints } from "./getFabRectPoints"
-import { renderFabricationDimension } from "./renderFabricationDimension"
-import { renderOpenPath } from "./renderOpenPath"
-import {
-  getSilkscreenShapeStroke,
-  isSilkscreenShape,
-} from "./getSilkscreenShapeStroke"
 import polygonClipping, {
   type MultiPolygon,
   type Polygon,
   type Ring,
 } from "polygon-clipping"
 import {
+  type Matrix,
+  applyToPoint,
+  compose,
+  identity,
+  rotate,
+  translate,
+} from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import { gerberBuilder } from "../gerber-builder"
+import {
   doesSolidCutoutOverlapBoardEdge,
   getBoardOutlinePolygons,
-  isCutoutFullyInternal,
   getSolidCutoutOutlinePolygon,
+  isCutoutFullyInternal,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
+import { pairs } from "../utils/pairs"
+import type { LayerToGerberCommandsMap } from "./GerberLayerName"
+import { defineCommonMacros } from "./define-common-macros"
+import {
+  type CopperApertureFunction,
+  REGION_APERTURE_CONFIG,
+  defineAperturesForLayer,
+  getApertureConfigFromCirclePcbHole,
+  getApertureConfigFromCirclePcbHoleSoldermask,
+  getApertureConfigFromOuterDiameter,
+  getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbFabricationNotePath,
+  getApertureConfigFromPcbFabricationNoteText,
+  getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbPlatedHoleSoldermask,
+  getApertureConfigFromPcbSilkscreenPath,
+  getApertureConfigFromPcbSilkscreenText,
+  getApertureConfigFromPcbSmtpad,
+  getApertureConfigFromPcbSmtpadSoldermask,
+  getApertureConfigFromPcbSolderPaste,
+  getPillApertureConfig,
+} from "./defineAperturesForLayer"
+import {
+  getFabricationLayerRefs,
+  isOuterLayerRef,
+  outerLayerRefs,
+} from "./fabricationLayerRefs"
+import { findApertureNumber } from "./findApertureNumber"
+import { getCommandHeaders } from "./getCommandHeaders"
+import { getFabRectPoints } from "./getFabRectPoints"
+import { getGerberLayerName } from "./getGerberLayerName"
 import {
   getRotatedRectPoints,
   isGeometryChangingRectRotation,
 } from "./getRotatedRectPoints"
+import {
+  getSilkscreenShapeStroke,
+  isSilkscreenShape,
+} from "./getSilkscreenShapeStroke"
+import { offsetPolygonOutline } from "./offsetPolygonOutline"
 import { renderStiffenerLayers } from "./render-stiffener-layers"
+import { renderFabricationDimension } from "./renderFabricationDimension"
+import { renderOpenPath } from "./renderOpenPath"
 
 type Point = { x: number; y: number }
 
@@ -1670,7 +1668,8 @@ export const convertCircuitJsonToGerberCommands = (
           ]) {
             if (
               element.hole_shape === "rotated_pill" ||
-              element.hole_shape === "oval"
+              element.hole_shape === "oval" ||
+              element.hole_shape === "pill"
             ) {
               const soldermaskMargin = element.soldermask_margin ?? 0
               renderPillFlash({
@@ -1875,7 +1874,8 @@ export const convertCircuitJsonToGerberCommands = (
 
       if (
         element.hole_shape === "rotated_pill" ||
-        element.hole_shape === "oval"
+        element.hole_shape === "oval" ||
+        element.hole_shape === "pill"
       ) {
         copperGlayer.push(
           ...gerberBuilder()
