@@ -8,10 +8,13 @@ export const aper_function_header = defineExcellonDrillCommand({
       .literal("aper_function_header")
       .default("aper_function_header"),
     is_plated: z.boolean(),
+    drill_function: z.enum(["ViaDrill", "ComponentDrill"]).optional(),
   }),
-  stringify({ is_plated }) {
-    return is_plated
-      ? "; #@! TA.AperFunction,Plated,PTH,ComponentDrill"
-      : "; #@! TA.AperFunction,NonPlated,NPTH,ComponentDrill"
+  stringify({ is_plated, drill_function }) {
+    if (!is_plated) {
+      return "; #@! TA.AperFunction,NonPlated,NPTH,ComponentDrill"
+    }
+    const func = drill_function ?? "ComponentDrill"
+    return `; #@! TA.AperFunction,Plated,PTH,${func}`
   },
 })

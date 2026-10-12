@@ -1,8 +1,8 @@
+import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 import type { AnyCircuitElement, LayerRef } from "circuit-json"
+import polygonClipping, { type Polygon, type Ring } from "polygon-clipping"
 import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
-import polygonClipping, { type Polygon, type Ring } from "polygon-clipping"
-import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
 
 export type DrillLayerSpan = {
   from_layer: LayerRef
@@ -538,7 +538,7 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
   let tool_counter = 10 // Start tool numbering from 10 for example
 
-  const diameterToToolNumber: Record<number, number> = {}
+  const toolKeyToToolNumber: Record<string, number> = {}
 
   // Define tools
   for (const element of drillElements) {
@@ -561,15 +561,23 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
     if (!holeDiameter) continue
 
-    if (!diameterToToolNumber[holeDiameter]) {
+    const drillFunction = is_plated
+      ? element.type === "pcb_via"
+        ? ("ViaDrill" as const)
+        : ("ComponentDrill" as const)
+      : ("ComponentDrill" as const)
+    const toolKey = `${drillFunction}_${holeDiameter}`
+
+    if (!toolKeyToToolNumber[toolKey]) {
       builder.add("aper_function_header", {
         is_plated,
+        drill_function: drillFunction,
       })
       builder.add("define_tool", {
         tool_number: tool_counter,
         diameter: holeDiameter,
       })
-      diameterToToolNumber[holeDiameter] = tool_counter
+      toolKeyToToolNumber[toolKey] = tool_counter
       tool_counter++
     }
   }
@@ -607,7 +615,14 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
         const holeDiameter = getHoleDiameter(element)
 
-        if (!holeDiameter || diameterToToolNumber[holeDiameter] !== i) {
+        const drillFunction = is_plated
+          ? element.type === "pcb_via"
+            ? "ViaDrill"
+            : "ComponentDrill"
+          : "ComponentDrill"
+        const toolKey = `${drillFunction}_${holeDiameter}`
+
+        if (!holeDiameter || toolKeyToToolNumber[toolKey] !== i) {
           continue
         }
 
