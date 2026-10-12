@@ -81,6 +81,7 @@ export const define_aperture_template = defineGerberCommand({
     z.object({
       command_code: z.literal("ADD").default("ADD"),
       aperture_number: z.number().int(),
+      aper_function: z.string().optional(),
     }),
   ),
   stringify(props) {
