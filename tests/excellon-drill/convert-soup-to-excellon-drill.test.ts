@@ -1,5 +1,5 @@
+import { expect, test } from "bun:test"
 import type { AnyCircuitElement } from "circuit-json"
-import { test, expect } from "bun:test"
 import {
   convertSoupToExcellonDrillCommands,
   stringifyExcellonDrill,
@@ -65,4 +65,57 @@ test("generate excellon drill text from axial resistor", async () => {
   expect(excellon_drill_file_content.includes("T10C2.500000")).toBeTrue()
   expect(excellon_drill_file_content.includes("G90")).toBeTrue()
   expect(excellon_drill_file_content.includes("G05")).toBeTrue()
+})
+
+test("drill tools distinguish ViaDrill and ComponentDrill aper functions", () => {
+  const soup: AnyCircuitElement[] = [
+    {
+      type: "pcb_plated_hole",
+      pcb_plated_hole_id: "pth1",
+      x: 0,
+      y: 0,
+      layers: ["top", "bottom"],
+      hole_diameter: 0.6,
+      shape: "circle",
+      outer_diameter: 1.0,
+    },
+    {
+      type: "pcb_via",
+      pcb_via_id: "via1",
+      x: 5,
+      y: 5,
+      hole_diameter: 0.3,
+      outer_diameter: 0.6,
+      layers: ["top", "bottom"],
+      from_layer: "top",
+      to_layer: "bottom",
+    },
+    {
+      type: "pcb_via",
+      pcb_via_id: "via2_same_dia_as_pth",
+      x: 10,
+      y: 10,
+      hole_diameter: 0.6,
+      outer_diameter: 1.2,
+      layers: ["top", "bottom"],
+      from_layer: "top",
+      to_layer: "bottom",
+    },
+  ]
+
+  const commands = convertSoupToExcellonDrillCommands({
+    circuitJson: soup,
+    is_plated: true,
+  })
+  const drillFile = stringifyExcellonDrill(commands)
+
+  expect(drillFile).toContain(
+    "; #@! TA.AperFunction,Plated,PTH,ComponentDrill\nT10C0.600000",
+  )
+  expect(drillFile).toContain(
+    "; #@! TA.AperFunction,Plated,PTH,ViaDrill\nT11C0.300000",
+  )
+  expect(drillFile).toContain(
+    "; #@! TA.AperFunction,Plated,PTH,ViaDrill\nT12C0.600000",
+  )
 })
