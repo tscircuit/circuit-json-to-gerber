@@ -7,6 +7,7 @@ export const renderGerberFileSvg = (
   gerber: string,
   id: string,
   color: string,
+  parserOptions: { filetype?: "gerber" | "drill"; zero?: "L" | "T" } = {},
 ) =>
   new Promise<{
     svg: string
@@ -15,7 +16,7 @@ export const renderGerberFileSvg = (
     const warnings: string[] = []
     const converter = gerberToSvg(
       gerber,
-      { id, attributes: { color } },
+      { ...parserOptions, id, attributes: { color } },
       (error, svg) => {
         if (error) return reject(error)
         if (warnings.length) return reject(new Error(warnings.join("\n")))
