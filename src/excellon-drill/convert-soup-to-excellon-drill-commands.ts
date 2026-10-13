@@ -538,7 +538,10 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
   let tool_counter = 10 // Start tool numbering from 10 for example
 
-  const diameterToToolNumber: Record<number, number> = {}
+  // Equal diameters still need distinct tools for via and component drills.
+  const diameterToToolNumber: Record<string, number> = {}
+  const getToolKey = (element: DrillElement, diameter: number) =>
+    `${element.type === "pcb_via" ? "ViaDrill" : "ComponentDrill"}:${diameter}`
 
   // Define tools
   for (const element of drillElements) {
@@ -561,15 +564,18 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
     if (!holeDiameter) continue
 
-    if (!diameterToToolNumber[holeDiameter]) {
+    const toolKey = getToolKey(element, holeDiameter)
+    if (!diameterToToolNumber[toolKey]) {
       builder.add("aper_function_header", {
         is_plated,
+        drill_function:
+          element.type === "pcb_via" ? "ViaDrill" : "ComponentDrill",
       })
       builder.add("define_tool", {
         tool_number: tool_counter,
         diameter: holeDiameter,
       })
-      diameterToToolNumber[holeDiameter] = tool_counter
+      diameterToToolNumber[toolKey] = tool_counter
       tool_counter++
     }
   }
@@ -607,7 +613,10 @@ export const convertCircuitJsonToExcellonDrillCommands = ({
 
         const holeDiameter = getHoleDiameter(element)
 
-        if (!holeDiameter || diameterToToolNumber[holeDiameter] !== i) {
+        if (
+          !holeDiameter ||
+          diameterToToolNumber[getToolKey(element, holeDiameter)] !== i
+        ) {
           continue
         }
 

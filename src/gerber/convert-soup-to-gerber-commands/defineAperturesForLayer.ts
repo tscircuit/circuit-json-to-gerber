@@ -24,6 +24,36 @@ import { getAllTraceWidths } from "./getAllTraceWidths"
 import type { AnyCircuitElement } from "circuit-json"
 import { isGeometryChangingRectRotation } from "./getRotatedRectPoints"
 
+export type CopperApertureFunction =
+  | "Conductor"
+  | "SMDPad,CuDef"
+  | "ComponentPad"
+  | "ViaPad"
+type LayerApertureConfig = ApertureTemplateConfig & {
+  apertureFunction?: CopperApertureFunction
+}
+
+// Bake rotation into the aperture so CAM readers that ignore LR still see a pad.
+export const getPillApertureConfig = (
+  width: number,
+  height: number,
+  rotation = 0,
+): ApertureTemplateConfig => {
+  const normalized = ((rotation % 180) + 180) % 180
+  if (normalized === 0 || width === height)
+    return { standard_template_code: "O", x_size: width, y_size: height }
+  if (normalized === 90)
+    return { standard_template_code: "O", x_size: height, y_size: width }
+  const angle = (rotation * Math.PI) / 180
+  const offset = Math.abs(width - height) / 2
+  return {
+    macro_name: "ROTATEDPILL",
+    diameter: Math.min(width, height),
+    offset_x: offset * (width >= height ? Math.cos(angle) : -Math.sin(angle)),
+    offset_y: offset * (width >= height ? Math.sin(angle) : Math.cos(angle)),
+  }
+}
+
 const getLayerRefFromGerberLayerName = (
   glayer_name: GerberLayerName,
 ): LayerRef => {
@@ -71,7 +101,9 @@ export function defineAperturesForLayer({
   glayer,
   circuitJson,
   glayer_name,
+  flip_y_axis = false,
 }: {
+  flip_y_axis?: boolean
   glayer: AnyGerberCommand[]
   circuitJson: AnyCircuitElement[]
   glayer_name: GerberLayerName
@@ -99,6 +131,16 @@ export function defineAperturesForLayer({
   const traceWidths: Record<LayerRef, number[]> = getAllTraceWidths(circuitJson)
   const layerRef = getLayerRefFromGerberLayerName(glayer_name)
   for (const width of traceWidths[layerRef] ?? []) {
+    if (glayer_name.endsWith("_Cu")) {
+      glayer.push(
+        ...gerberBuilder()
+          .add("add_attribute_on_aperture", {
+            attribute_name: ".AperFunction",
+            attribute_value: "Conductor",
+          })
+          .build(),
+      )
+    }
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {
@@ -115,9 +157,20 @@ export function defineAperturesForLayer({
     circuitJson,
     layer: layerRef,
     glayer_name,
+    flip_y_axis,
   })
 
-  for (const apertureConfig of apertureConfigs) {
+  for (const { apertureFunction, ...apertureConfig } of apertureConfigs) {
+    if (apertureFunction) {
+      glayer.push(
+        ...gerberBuilder()
+          .add("add_attribute_on_aperture", {
+            attribute_name: ".AperFunction",
+            attribute_value: apertureFunction,
+          })
+          .build(),
+      )
+    }
     glayer.push(
       ...gerberBuilder()
         .add("define_aperture_template", {
@@ -184,12 +237,11 @@ export const getApertureConfigFromPcbSmtpad = (
       )
     }
 
-    // SMT pill pads are rendered as a stroked segment with circular endcaps,
-    // so the layer only needs the circular endcap aperture.
-    return {
-      standard_template_code: "C",
-      diameter: Math.min(elm.width, elm.height),
-    }
+    return getPillApertureConfig(
+      elm.width,
+      elm.height,
+      "ccw_rotation" in elm ? elm.ccw_rotation : 0,
+    )
   }
   if (elm.shape === "polygon") {
     // Polygon shapes don't use apertures - they're drawn as regions
@@ -251,12 +303,11 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
     const width = elm.width + soldermaskMargin * 2
     const height = elm.height + soldermaskMargin * 2
 
-    // SMT pill pads are rendered as a stroked segment with circular endcaps,
-    // so the layer only needs the circular endcap aperture.
-    return {
-      standard_template_code: "C",
-      diameter: Math.min(width, height),
-    }
+    return getPillApertureConfig(
+      width,
+      height,
+      "ccw_rotation" in elm ? elm.ccw_rotation : 0,
+    )
   }
   if (elm.shape === "polygon") {
     throw new Error("Polygon SMT pads are drawn as regions, not apertures")
@@ -412,22 +463,11 @@ export const getApertureConfigFromPcbPlatedHole = (
       )
     }
 
-    if (elm.outer_width > elm.outer_height) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: elm.outer_width,
-        y_size: elm.outer_height,
-        circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-        circle_center_offset: (elm.outer_width - elm.outer_height) / 2,
-      }
-    }
-    return {
-      macro_name: "VERTPILL",
-      x_size: elm.outer_width,
-      y_size: elm.outer_height,
-      circle_diameter: Math.min(elm.outer_width, elm.outer_height),
-      circle_center_offset: (elm.outer_height - elm.outer_width) / 2,
-    }
+    return getPillApertureConfig(
+      Math.max(elm.outer_width, elm.hole_width),
+      Math.max(elm.outer_height, elm.hole_height),
+      elm.ccw_rotation ?? 0,
+    )
   }
   const shape = elm.shape
   if (
@@ -478,25 +518,11 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
       )
     }
 
-    const outerWidth = elm.outer_width + soldermaskMargin * 2
-    const outerHeight = elm.outer_height + soldermaskMargin * 2
-
-    if (outerWidth > outerHeight) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: outerWidth,
-        y_size: outerHeight,
-        circle_diameter: Math.min(outerWidth, outerHeight),
-        circle_center_offset: (outerWidth - outerHeight) / 2,
-      }
-    }
-    return {
-      macro_name: "VERTPILL",
-      x_size: outerWidth,
-      y_size: outerHeight,
-      circle_diameter: Math.min(outerWidth, outerHeight),
-      circle_center_offset: (outerHeight - outerWidth) / 2,
-    }
+    return getPillApertureConfig(
+      Math.max(elm.outer_width, elm.hole_width) + soldermaskMargin * 2,
+      Math.max(elm.outer_height, elm.hole_height) + soldermaskMargin * 2,
+      elm.ccw_rotation ?? 0,
+    )
   }
 
   const shape = elm.shape
@@ -579,6 +605,7 @@ export const getApertureConfigFromOuterDiameter = (elm: {
 }
 
 function getAllApertureTemplateConfigsForLayer({
+  flip_y_axis,
   circuitJson,
   layer,
   glayer_name,
@@ -586,8 +613,9 @@ function getAllApertureTemplateConfigsForLayer({
   circuitJson: AnyCircuitElement[]
   layer: LayerRef
   glayer_name: GerberLayerName
-}): ApertureTemplateConfig[] {
-  const configs: ApertureTemplateConfig[] = []
+  flip_y_axis: boolean
+}): LayerApertureConfig[] {
+  const configs: LayerApertureConfig[] = []
   const configHashMap = new Set<string>()
   const isSoldermaskLayer = glayer_name.endsWith("_Mask")
   const isCopperLayer = glayer_name.endsWith("_Cu")
@@ -596,7 +624,17 @@ function getAllApertureTemplateConfigsForLayer({
     (element) => element.type === "pcb_copper_pour" && element.layer === layer,
   )
 
-  const addConfigIfNew = (config: ApertureTemplateConfig) => {
+  let apertureFunction: CopperApertureFunction = "Conductor"
+  const addConfigIfNew = (geometry: ApertureTemplateConfig) => {
+    if (
+      flip_y_axis &&
+      "macro_name" in geometry &&
+      geometry.macro_name === "ROTATEDPILL"
+    )
+      geometry = { ...geometry, offset_y: -geometry.offset_y }
+    const config: LayerApertureConfig = isCopperLayer
+      ? { ...geometry, apertureFunction }
+      : geometry
     const hash = stableStringify(config)
     if (!configHashMap.has(hash)) {
       configs.push(config)
@@ -605,9 +643,21 @@ function getAllApertureTemplateConfigsForLayer({
   }
 
   for (const elm of circuitJson) {
+    apertureFunction =
+      elm.type === "pcb_smtpad"
+        ? "SMDPad,CuDef"
+        : elm.type === "pcb_plated_hole"
+          ? "ComponentPad"
+          : elm.type === "pcb_via" || elm.type === "pcb_trace"
+            ? "ViaPad"
+            : "Conductor"
     if (elm.type === "pcb_smtpad") {
       if (isFabricationLayer) continue
-      if (elm.layer === layer && elm.shape !== "polygon") {
+      if (elm.layer === layer) {
+        if (elm.shape === "polygon") {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
+          continue
+        }
         if (isSoldermaskLayer) {
           addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
         } else {
@@ -644,6 +694,7 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer) continue
       if (elm.layers.includes(layer)) {
         if (elm.shape === "hole_with_polygon_pad") {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }
         if (
@@ -791,7 +842,14 @@ function getAllApertureTemplateConfigsForLayer({
   })
 
   if (needsRegionAperture) {
+    apertureFunction = "Conductor"
     addConfigIfNew(REGION_APERTURE_CONFIG)
+    if (isCopperLayer) {
+      for (const functionName of ["SMDPad,CuDef", "ComponentPad"] as const) {
+        apertureFunction = functionName
+        addConfigIfNew(REGION_APERTURE_CONFIG)
+      }
+    }
   }
 
   return configs

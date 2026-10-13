@@ -68,6 +68,12 @@ const macro_aperture_template_config = z.discriminatedUnion("macro_name", [
   horz_pill_template,
   vert_pill_template,
   roundrect_template,
+  z.object({
+    macro_name: z.literal("ROTATEDPILL"),
+    diameter: z.number(),
+    offset_x: z.number(),
+    offset_y: z.number(),
+  }),
 ])
 
 const aperture_template_config = z.union([
@@ -90,6 +96,10 @@ export const define_aperture_template = defineGerberCommand({
 
       if (macro_name === "HORZPILL" || macro_name === "VERTPILL") {
         commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}X${props.circle_diameter.toFixed(6)}X${props.circle_center_offset.toFixed(6)}`
+      } else if (macro_name === "ROTATEDPILL") {
+        commandString += [props.diameter, props.offset_x, props.offset_y]
+          .map((value) => value.toFixed(6))
+          .join("X")
       } else if (macro_name === "ROUNDRECT") {
         commandString += [
           props.corner_radius,

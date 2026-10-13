@@ -1,7 +1,7 @@
 import gerberToSvg from "gerber-to-svg"
 
 const ignoredMetadataWarning =
-  /^block "%TF\.(?:GenerationSoftware|CreationDate|SameCoordinates|FileFunction|FilePolarity),[^"\r\n]*" was not recognized and was ignored$|^block "%TD" was not recognized and was ignored$/
+  /^block "%TF\.(?:GenerationSoftware|CreationDate|SameCoordinates|FileFunction|FilePolarity),[^"\r\n]*" was not recognized and was ignored$|^block "%TA\.AperFunction,[^"\r\n]*" was not recognized and was ignored$|^block "%TD" was not recognized and was ignored$/
 
 export const renderGerberFileSvg = (
   gerber: string,
