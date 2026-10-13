@@ -53,6 +53,36 @@ preserving pad openings, copper and drills. It does not alter the native fixture
 or implement an exporter fix. The test checks region counts and unchanged copper
 and drill output in addition to the visual snapshots.
 
-This evidence identifies **native pour coverage configuration** as the cause of
-this appearance. It does not establish where upstream that configuration was
-introduced, and it is not a fabrication signoff for the board.
+## Upstream cause
+
+This is introduced by the project's custom repour scripts, rather than the TSX
+props, core conversion, or Gerber exporter. The pinned project's
+`routing-source/design/power-planes.tsx` omits `coveredWithSolderMask` for Top
+power pours and Bottom GND. Its pinned `@tscircuit/props@0.0.689` schema defaults
+that option to `true`. A minimal core render of Top and Bottom pours with the
+option omitted also emits `covered_with_solder_mask: true` on both faces.
+
+However, `routing-source/work/repour-branch-stitches-official.v8.ts`, line 56,
+constructs new `pcb_copper_pour` records with:
+
+```ts
+covered_with_solder_mask: def.layer.startsWith('inner')
+```
+
+`routing-source/completion/repour-native.ts` contains the same assignment. It
+forces Top and Bottom pours to be uncovered while marking inner pours covered,
+without carrying through the TSX's resolved coverage. All 154 native pour records
+in this fixture satisfy that rule and have `branch-repour:` IDs matching the
+branch repour script's output.
+
+The downloaded `power-planes.tsx.txt` and
+`repour-branch-stitches-official.v8.ts.txt` retain the exact upstream source bytes
+as evidence; the `.txt` suffix prevents executing or typechecking project-specific
+imports in this repository. Both were downloaded from the same pinned version
+with `file_path=routing-source/design/power-planes.tsx` and
+`file_path=routing-source/work/repour-branch-stitches-official.v8.ts`, respectively.
+
+The source producer should retain the resolved pour coverage instead of deriving
+it from whether the layer is internal. This PR is an exporter reproduction and
+visual record of that upstream problem, not a proposed core or exporter fix.
+It is not a fabrication signoff for the board.
