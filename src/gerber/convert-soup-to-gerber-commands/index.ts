@@ -1,3 +1,7 @@
+import {
+  getPillApertureConfig,
+  type CopperApertureFunction,
+} from "./defineAperturesForLayer"
 import type {
   AnyCircuitElement,
   PcbPlatedHole,
@@ -254,6 +258,7 @@ export const convertCircuitJsonToGerberCommands = (
       circuitJson,
       glayer,
       glayer_name,
+      flip_y_axis: opts.flip_y_axis,
     })
   }
 
@@ -296,6 +301,7 @@ export const convertCircuitJsonToGerberCommands = (
     width,
     height,
     rotationDegrees = 0,
+    apertureFunction,
   }: {
     glayer: AnyGerberCommand[]
     x: number
@@ -303,7 +309,28 @@ export const convertCircuitJsonToGerberCommands = (
     width: number
     height: number
     rotationDegrees?: number
+    apertureFunction?: CopperApertureFunction
   }) => {
+    if (apertureFunction) {
+      let config = getPillApertureConfig(width, height, rotationDegrees)
+      if (
+        opts.flip_y_axis &&
+        "macro_name" in config &&
+        config.macro_name === "ROTATEDPILL"
+      )
+        config = { ...config, offset_y: -config.offset_y }
+      const apertureNumber = findApertureNumber(
+        glayer,
+        config,
+        apertureFunction,
+      )
+      const gb = gerberBuilder().add("select_aperture", {
+        aperture_number: apertureNumber,
+      })
+      gb.add("flash_operation", { x, y: mfy(y) })
+      glayer.push(...gb.build())
+      return
+    }
     const circleApertureConfig = {
       standard_template_code: "C" as const,
       diameter: Math.min(width, height),
@@ -357,21 +384,28 @@ export const convertCircuitJsonToGerberCommands = (
     glayer.push(...gb.build())
   }
 
-  const getRegionApertureNumber = (glayer: AnyGerberCommand[]) =>
-    findApertureNumber(glayer, REGION_APERTURE_CONFIG)
+  const getRegionApertureNumber = (
+    glayer: AnyGerberCommand[],
+    apertureFunction?: CopperApertureFunction,
+  ) => findApertureNumber(glayer, REGION_APERTURE_CONFIG, apertureFunction)
 
   const addClosedRegionFromPoints = ({
     target,
     apertureSource,
     points,
+    apertureFunction,
   }: {
     target: AnyGerberCommand[]
     apertureSource: AnyGerberCommand[]
     points: Array<{ x: number; y: number }>
+    apertureFunction?: CopperApertureFunction
   }) => {
     if (points.length === 0) return
 
-    const regionApertureNumber = getRegionApertureNumber(apertureSource)
+    const regionApertureNumber = getRegionApertureNumber(
+      apertureSource,
+      apertureFunction,
+    )
     const regionBuilder = gerberBuilder()
       .add("select_aperture", {
         aperture_number: regionApertureNumber,
@@ -843,7 +877,16 @@ export const convertCircuitJsonToGerberCommands = (
 
         if (element.covered_with_solder_mask === false) {
           const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
-          mask_layer.push(...all_pour_commands)
+          // D-codes are local to each file; copper functions can split apertures
+          // that the mask layer shares. Remap the region aperture when copying.
+          const maskRegionAperture = getRegionApertureNumber(mask_layer)
+          mask_layer.push(
+            ...all_pour_commands.map((command) =>
+              command.command_code === "D"
+                ? { ...command, aperture_number: maskRegionAperture }
+                : command,
+            ),
+          )
         }
       }
     }
@@ -945,6 +988,7 @@ export const convertCircuitJsonToGerberCommands = (
                   aperture_number: findApertureNumber(
                     glayer,
                     getApertureConfigFromOuterDiameter(point),
+                    "ViaPad",
                   ),
                 })
                 .add("flash_operation", { x: point.x, y: mfy(point.y) })
@@ -1174,6 +1218,7 @@ export const convertCircuitJsonToGerberCommands = (
               width: element.width,
               height: element.height,
               rotationDegrees: rotation,
+              apertureFunction: "SMDPad,CuDef",
             })
 
             if (element.is_covered_with_solder_mask !== true) {
@@ -1184,6 +1229,7 @@ export const convertCircuitJsonToGerberCommands = (
                 width: element.width + soldermaskMargin * 2,
                 height: element.height + soldermaskMargin * 2,
                 rotationDegrees: rotation,
+                apertureFunction: "SMDPad,CuDef",
               })
             }
 
@@ -1217,6 +1263,7 @@ export const convertCircuitJsonToGerberCommands = (
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
+                apertureFunction: "SMDPad,CuDef",
                 points: getRotatedRectPoints({
                   center: { x: element.x, y: element.y },
                   width,
@@ -1250,7 +1297,11 @@ export const convertCircuitJsonToGerberCommands = (
             ) {
               continue
             }
-            const apertureNumber = findApertureNumber(glayer, apertureConfig)
+            const apertureNumber = findApertureNumber(
+              glayer,
+              apertureConfig,
+              "SMDPad,CuDef",
+            )
             const gb = gerberBuilder().add("select_aperture", {
               aperture_number: apertureNumber,
             })
@@ -1289,6 +1340,7 @@ export const convertCircuitJsonToGerberCommands = (
             addClosedRegionFromPoints({
               target: glayer,
               apertureSource: glayer,
+              apertureFunction: "SMDPad,CuDef",
               points,
             })
           }
@@ -1466,6 +1518,7 @@ export const convertCircuitJsonToGerberCommands = (
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
+                apertureFunction: "ComponentPad",
                 points: translatedPoints,
               })
               continue
@@ -1530,6 +1583,7 @@ export const convertCircuitJsonToGerberCommands = (
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
+                apertureFunction: "ComponentPad",
                 points: getEllipsePoints({
                   x: element.x,
                   y: element.y,
@@ -1539,99 +1593,15 @@ export const convertCircuitJsonToGerberCommands = (
                 }),
               })
             } else if (element.shape === "pill") {
-              // Use min dimension as slot width (aperture circle)
-              const circleApertureConfig = {
-                standard_template_code: "C" as const,
-                diameter: Math.min(aperturePadW, aperturePadH),
-              }
-
-              let aperture_number: number
-              try {
-                aperture_number = findApertureNumber(
-                  glayer,
-                  circleApertureConfig,
-                )
-              } catch {
-                aperture_number =
-                  Math.max(
-                    ...glayer
-                      .filter((cmd) => "aperture_number" in cmd)
-                      .map((cmd) => cmd.aperture_number),
-                    9,
-                  ) + 1
-
-                glayer.push(
-                  ...gerberBuilder()
-                    .add("define_aperture_template", {
-                      aperture_number,
-                      ...circleApertureConfig,
-                    })
-                    .build(),
-                )
-              }
-
-              const gb = gerberBuilder().add("select_aperture", {
-                aperture_number,
+              renderPillFlash({
+                glayer,
+                x: element.x,
+                y: element.y,
+                width: aperturePadW,
+                height: aperturePadH,
+                rotationDegrees: element.ccw_rotation ?? 0,
+                apertureFunction: "ComponentPad",
               })
-
-              const rotationRadians =
-                ((element.ccw_rotation ?? 0) * Math.PI) / 180
-              const cosTheta = Math.cos(rotationRadians)
-              const sinTheta = Math.sin(rotationRadians)
-
-              const rotateAndTranslate = (dx: number, dy: number) => {
-                const rotatedX = dx * cosTheta - dy * sinTheta
-                const rotatedY = dx * sinTheta + dy * cosTheta
-                return {
-                  x: element.x + rotatedX,
-                  y: element.y + rotatedY,
-                }
-              }
-
-              const isHorizontal = aperturePadW >= aperturePadH
-              const offset = isHorizontal
-                ? (aperturePadW - aperturePadH) / 2
-                : (aperturePadH - aperturePadW) / 2
-
-              if (offset <= 0) {
-                const center = rotateAndTranslate(0, 0)
-                gb.add("flash_operation", { x: center.x, y: mfy(center.y) })
-              } else {
-                const startRelative = isHorizontal
-                  ? { x: -offset, y: 0 }
-                  : { x: 0, y: -offset }
-                const endRelative = isHorizontal
-                  ? { x: offset, y: 0 }
-                  : { x: 0, y: offset }
-
-                const startPoint = rotateAndTranslate(
-                  startRelative.x,
-                  startRelative.y,
-                )
-                const endPoint = rotateAndTranslate(
-                  endRelative.x,
-                  endRelative.y,
-                )
-
-                gb.add("flash_operation", {
-                  x: startPoint.x,
-                  y: mfy(startPoint.y),
-                })
-                  .add("move_operation", {
-                    x: startPoint.x,
-                    y: mfy(startPoint.y),
-                  })
-                  .add("plot_operation", {
-                    x: endPoint.x,
-                    y: mfy(endPoint.y),
-                  })
-                  .add("flash_operation", {
-                    x: endPoint.x,
-                    y: mfy(endPoint.y),
-                  })
-              }
-
-              glayer.push(...gb.build())
             } else {
               // Non-pill shapes (rect, circle)
               let apertureConfig = getApertureConfigFromPcbPlatedHole({
@@ -1665,6 +1635,7 @@ export const convertCircuitJsonToGerberCommands = (
                 addClosedRegionFromPoints({
                   target: glayer,
                   apertureSource: glayer,
+                  apertureFunction: "ComponentPad",
                   points: getRotatedRectPoints({
                     center: { x: element.x, y: element.y },
                     width: aperturePadW,
@@ -1676,7 +1647,11 @@ export const convertCircuitJsonToGerberCommands = (
               }
 
               const gb = gerberBuilder().add("select_aperture", {
-                aperture_number: findApertureNumber(glayer, apertureConfig),
+                aperture_number: findApertureNumber(
+                  glayer,
+                  apertureConfig,
+                  "ComponentPad",
+                ),
               })
 
               gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
@@ -1754,6 +1729,7 @@ export const convertCircuitJsonToGerberCommands = (
                   aperture_number: findApertureNumber(
                     glayer,
                     getApertureConfigFromOuterDiameter(element),
+                    "ViaPad",
                   ),
                 })
                 .add("flash_operation", { x: element.x, y: mfy(element.y) })

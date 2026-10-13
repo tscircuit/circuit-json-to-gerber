@@ -49,8 +49,8 @@ test("repro: pill and rotated pill smtpads render copper without throwing", asyn
 
   expect(gerberOutput.F_Cu.length).toBeGreaterThan(0)
   expect(gerberOutput.F_Cu).toMatch(/D03\*|G36\*/)
-  expect(gerberOutput.F_Cu).toContain("X002000000Y-00650000D02*")
-  expect(gerberOutput.F_Cu).toContain("X002000000Y000650000D01*")
+  expect(gerberOutput.F_Cu).toContain("X002000000Y000000000D03*")
+  expect(gerberOutput.F_Cu).toMatch(/%ADD\d+O,1\.100000X2\.400000\*%/)
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
