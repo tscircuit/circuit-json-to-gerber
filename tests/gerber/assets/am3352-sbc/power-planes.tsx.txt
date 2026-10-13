@@ -1,0 +1,21 @@
+import { Fragment } from "react";
+import regions from './power-pour-regions.json';
+/** Local supply pours and two dedicated inner GND reference planes. */
+export const topPowerNet = 'DDR_1V5';
+// Choose one logical fanout destination for GND. Full-stack ground barrels
+// physically connect both inner planes; mapping the same net twice is ambiguous.
+export const planeNetMap = { top: ['DDR_1V5', 'V3V3'], inner1: ['GND'] };
+export function PowerPlanes() {
+  return <>
+    {regions.map(region => <Fragment key={region.name}><copperpour name={region.name}
+      layer="top" connectsTo={`net.${region.net}`} outline={region.outline}
+      clearance={0.13} boardEdgeMargin={0} /></Fragment>)}
+    <copperpour name="BOTTOM_GND" layer="bottom" connectsTo="net.GND"
+      clearance={0.13} boardEdgeMargin={0.4} />
+    {(['inner1', 'inner2'] as const).map(layer => <Fragment key={layer}>
+      <copperpour name={`GND_${layer.toUpperCase()}`} layer={layer}
+        connectsTo="net.GND" unbroken={process.env.SBC_REPOUR_INNER!=="1"} coveredWithSolderMask={true}
+        clearance={0.13} boardEdgeMargin={0.4} />
+    </Fragment>)}
+  </>;
+}
