@@ -1124,15 +1124,24 @@ export const convertCircuitJsonToGerberCommands = (
         isOuterLayerRef(layer)
       ) {
         if (element.layer === layer) {
-          renderOpenPath({
-            element,
-            glayer:
-              glayers[getGerberLayerName(layer as LayerRef, "fabrication")],
-            apertureConfig:
-              getApertureConfigFromPcbFabricationNotePath(element),
-            route: element.route,
-            mapY: mfy,
-          })
+          const glayer = glayers[getGerberLayerName(layer, "fabrication")]
+          if (element.is_filled === true) {
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points: element.route,
+            })
+          }
+          if (element.has_stroke !== false) {
+            renderOpenPath({
+              element,
+              glayer,
+              apertureConfig:
+                getApertureConfigFromPcbFabricationNotePath(element),
+              route: element.route,
+              mapY: mfy,
+            })
+          }
         }
       } else if (
         element.type === "pcb_fabrication_note_rect" &&

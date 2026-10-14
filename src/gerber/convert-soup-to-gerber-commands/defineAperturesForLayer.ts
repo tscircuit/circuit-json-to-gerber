@@ -792,8 +792,11 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer && elm.layer === layer)
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
     } else if (elm.type === "pcb_fabrication_note_path") {
-      if (isFabricationLayer && elm.layer === layer)
-        addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
+      if (isFabricationLayer && elm.layer === layer) {
+        if (elm.has_stroke !== false)
+          addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
+        if (elm.is_filled === true) addConfigIfNew(REGION_APERTURE_CONFIG)
+      }
     } else if (elm.type === "pcb_fabrication_note_rect") {
       if (isFabricationLayer && elm.layer === layer) {
         if (elm.has_stroke !== false)
