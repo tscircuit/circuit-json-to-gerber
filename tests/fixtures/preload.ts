@@ -81,7 +81,7 @@ const parseDrillSlots = (drill?: string): Slot[] => {
   const toolDefineRegex = /^T(\d+)C([\d.]+)/
   const toolSelectRegex = /^T(\d+)$/
   const moveRegex = /^X(-?[\d.]+)Y(-?[\d.]+)/
-  const slotRegex = /^G85X(-?[\d.]+)Y(-?[\d.]+)/
+  const slotRegex = /^(?:X-?[\d.]+Y-?[\d.]+)?G85X(-?[\d.]+)Y(-?[\d.]+)/
 
   for (const rawLine of drill.split(/\r?\n/)) {
     const line = rawLine.trim()
@@ -112,7 +112,6 @@ const parseDrillSlots = (drill?: string): Slot[] => {
         x: Number(moveMatch[1]),
         y: Number(moveMatch[2]),
       }
-      continue
     }
 
     const slotMatch = line.match(slotRegex)

@@ -5,7 +5,7 @@ import {
   stringifyExcellonDrill,
 } from "src/excellon-drill"
 
-test("USB mounting slot start and G85 endpoint occupy separate drill blocks", async () => {
+test("USB mounting slot start and G85 endpoint share one drill block", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board width={10} height={10} routingDisabled>
@@ -29,7 +29,7 @@ test("USB mounting slot start and G85 endpoint occupy separate drill blocks", as
   const slotBlocks = output
     .split("\n")
     .filter((line) => line.startsWith("X") || line.startsWith("G85"))
-  expect(slotBlocks).toEqual(["X0.0000Y-0.5500", "G85X0.000Y0.550"])
+  expect(slotBlocks).toEqual(["X0.0000Y-0.5500G85X0.000Y0.550"])
   expect(
     commands.filter((command) => command.command_code === "G85"),
   ).toHaveLength(1)
