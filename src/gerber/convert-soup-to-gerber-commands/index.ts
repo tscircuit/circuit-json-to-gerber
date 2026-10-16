@@ -875,7 +875,10 @@ export const convertCircuitJsonToGerberCommands = (
 
         copper_glayer.push(...all_pour_commands)
 
-        if (element.covered_with_solder_mask === false) {
+        if (
+          isOuterLayerRef(layer) &&
+          element.covered_with_solder_mask === false
+        ) {
           const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
           // D-codes are local to each file; copper functions can split apertures
           // that the mask layer shares. Remap the region aperture when copying.
