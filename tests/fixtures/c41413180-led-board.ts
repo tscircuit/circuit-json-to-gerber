@@ -6,7 +6,9 @@ import importedLed from "../gerber/assets/c41413180-led.circuit.json"
 // The fixture includes the supplier's CAD model reference and source pin names.
 export const createLedBreakoutBoard = (): AnyCircuitElement[] => {
   const component = structuredClone(importedLed) as AnyCircuitElement[]
-  const pads = component.filter((e) => e.type === "pcb_smtpad")
+  const pads = component.filter(
+    (e) => e.type === "pcb_smtpad" && e.shape === "rect",
+  )
   const names: Record<string, string> = {
     pin1: "DOUT",
     pin2: "VDD",
