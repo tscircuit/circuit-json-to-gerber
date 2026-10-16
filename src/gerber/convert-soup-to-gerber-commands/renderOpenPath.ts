@@ -48,7 +48,8 @@ export const renderOpenPath = ({
   }
 
   const dashLength = Math.max(0.2, (element.stroke_width ?? 0.1) * 4)
-  const gapLength = dashLength
+  let isDrawingDash = true
+  let remainingPatternLength = dashLength
   for (const [start, end] of pairs(route)) {
     const dx = end.x - start.x
     const dy = end.y - start.y
@@ -59,24 +60,25 @@ export const renderOpenPath = ({
     const uy = dy / length
     let distance = 0
     while (distance < length) {
-      const dashEndDistance = Math.min(distance + dashLength, length)
-      const dashStart = {
-        x: start.x + ux * distance,
-        y: start.y + uy * distance,
+      const stepLength = Math.min(remainingPatternLength, length - distance)
+      const stepEndDistance = distance + stepLength
+      if (isDrawingDash) {
+        gerber.add("move_operation", {
+          x: start.x + ux * distance,
+          y: mapY(start.y + uy * distance),
+        })
+        gerber.add("plot_operation", {
+          x: start.x + ux * stepEndDistance,
+          y: mapY(start.y + uy * stepEndDistance),
+        })
       }
-      const dashEnd = {
-        x: start.x + ux * dashEndDistance,
-        y: start.y + uy * dashEndDistance,
+      if (stepLength === remainingPatternLength) {
+        isDrawingDash = !isDrawingDash
+        remainingPatternLength = dashLength
+      } else {
+        remainingPatternLength -= stepLength
       }
-      gerber.add("move_operation", {
-        x: dashStart.x,
-        y: mapY(dashStart.y),
-      })
-      gerber.add("plot_operation", {
-        x: dashEnd.x,
-        y: mapY(dashEnd.y),
-      })
-      distance += dashLength + gapLength
+      distance = stepEndDistance
     }
   }
 
