@@ -21,9 +21,11 @@ type GerberLayerSnapshotOptions = {
 type GerberLayerOverlaySnapshotOptions = {
   colors?: Record<string, string>
   backgroundColor?: string
+  forceLayerOverlay?: boolean
 }
 
 type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
+  showFilledFabricationNotes?: boolean
   circuitJsonPcbSvgOptions?: PcbSvgOptions
   circuitJsonLabel?: string
   gerberLabel?: string
@@ -563,7 +565,7 @@ const getGerberStackupSvg = async (
   ]
 
   const hasCopperLayers = layerNames.some(isCopperLayerName)
-  if (!hasCopperLayers) {
+  if (!hasCopperLayers || opts.forceLayerOverlay) {
     return renderGerberLayerOverlaySvg(
       gerberOutput,
       `${svgName}-overlay`,
@@ -643,12 +645,35 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
   layerNames: string[]
   opts?: CircuitJsonPcbGerberSnapshotOptions
 }) => {
-  const circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
+  let circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
     matchBoardAspectRatio: true,
     backgroundColor: "#111111",
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
   })
+
+  // This preview's older circuit-to-svg renders fab paths as stroke-only.
+  // Respect the input fill flags in the input panel, independently of Gerber.
+  if (opts.showFilledFabricationNotes) {
+    const filledNotes = new Map(
+      circuitJson.flatMap((e) =>
+        e.type === "pcb_fabrication_note_path" && e.is_filled
+          ? [[e.pcb_fabrication_note_path_id, e] as const]
+          : [],
+      ),
+    )
+    circuitSvg = circuitSvg.replace(
+      /<path\b[^>]*data-pcb-fabrication-note-path-id="([^"]+)"[^>]*>/g,
+      (tag, id) => {
+        const note = filledNotes.get(id)
+        if (!note) return tag
+        const filled = tag.replace(/\bfill="[^"]*"/, 'fill="#ffffff"')
+        return note.has_stroke === false
+          ? filled.replace(/\bstroke="[^"]*"/, 'stroke="none"')
+          : filled
+      },
+    )
+  }
   const gerberSvg = await getGerberStackupSvg(
     gerberOutput,
     layerNames,
@@ -656,6 +681,7 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     {
       colors: opts.colors,
       backgroundColor: opts.backgroundColor,
+      forceLayerOverlay: opts.forceLayerOverlay,
     },
   )
 

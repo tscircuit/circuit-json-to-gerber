@@ -7,6 +7,7 @@ export const renderGerberFileSvg = (
   gerber: string,
   id: string,
   color: string,
+  displayWidth?: number,
 ) =>
   new Promise<{
     svg: string
@@ -30,7 +31,16 @@ export const renderGerberFileSvg = (
         ) {
           return reject(new Error(`Invalid Gerber bounds or units for ${id}`))
         }
-        resolve({ svg, viewBox: [x, y, width, height] })
+        // Keep Gerber coordinates intact; only scale the review image in pixels.
+        const preview =
+          displayWidth === undefined
+            ? svg
+            : gerberToSvg.render(converter, {
+                color,
+                width: displayWidth,
+                height: (displayWidth * height) / width,
+              })
+        resolve({ svg: preview, viewBox: [x, y, width, height] })
       },
     )
     converter.on("warning", ({ message, line }) => {
