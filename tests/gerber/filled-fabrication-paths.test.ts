@@ -44,11 +44,14 @@ test.each(["top", "bottom"] as const)(
         Math.round(first.y * (flip_y_axis ? -1 : 1) * 1e6),
       )
       if (!flip_y_axis) {
-        const { svg } = await renderGerberFileSvg(
+        const { svg, viewBox } = await renderGerberFileSvg(
           gerber,
           `${layer}_filled_polarity`,
           "#f5e2a1",
+          800,
         )
+        expect(svg).toContain('width="800"')
+        expect(svg).toContain(`viewBox="${viewBox.join(" ")}"`)
         await expect(svg).toMatchSvgSnapshot(
           import.meta.path,
           `${layer}-filled-polarity`,
