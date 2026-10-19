@@ -18,24 +18,19 @@ program
   )
   .action(async (input, options) => {
     try {
+      const outputPath = options.output || getDefaultOutputPath(input)
+      if (resolve(outputPath) === resolve(input)) {
+        throw new Error(
+          "output path would overwrite the input file. Use --output to specify a different file.",
+        )
+      }
+
       // Read and parse input JSON
       const circuitJson = JSON.parse(await readFile(input, "utf8"))
 
       const gerberFiles = convertCircuitJsonToGerberFiles(circuitJson)
 
       // Create output ZIP file
-      const outputPath = options.output || getDefaultOutputPath(input)
-
-      // Never allow the output to overwrite the input file, even when
-      // --output explicitly points at it (defense in depth: the default
-      // path derivation above already guarantees they differ).
-      if (resolve(outputPath) === resolve(input)) {
-        console.error(
-          "Error: output path would overwrite the input file. Use --output to specify a different file.",
-        )
-        process.exit(1)
-      }
-
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
