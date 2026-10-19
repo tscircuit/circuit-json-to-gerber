@@ -21,10 +21,6 @@ circuit-to-gerber input.circuit.json
 circuit-to-gerber input.circuit.json -o output.zip
 ```
 
-The default archive is written beside the input. `input.circuit.json`,
-`input.json`, and extensionless `input` all produce `input.gerbers.zip`.
-An explicit output path that resolves to the input path is rejected.
-
 The output ZIP file will contain:
 
 - Gerber files (\*.gbr) for each layer
