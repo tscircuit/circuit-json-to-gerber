@@ -35,6 +35,7 @@ output on main. The fix PR leaves that visual test unchanged and updates its
 four existing SVG snapshots (top/bottom copper and mask). Running the fixed code
 against the repro snapshots fails both visual tests before updating them.
 
-The image below is the actual snapshot matcher diff for top copper:
+The image below compares the same baseline and fixed top-copper geometry using
+`@tscircuit/image-utils/looks-same` (Resvg rasterizes the SVGs):
 
 ![Top copper snapshot diff](snapshot-diff-top-F_Cu.png)

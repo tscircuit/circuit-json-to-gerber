@@ -2,6 +2,8 @@ import { roundedQfp } from "../../fixtures/rounded-qfp"
 import { convertCircuitJsonToGerberCommands } from "../../../src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "../../../src/gerber/stringify-gerber"
 import gerberToSvg from "gerber-to-svg"
+import { Resvg } from "@resvg/resvg-js"
+import looksSame from "@tscircuit/image-utils/looks-same"
 
 export const renderCopper = async (gerber: string): Promise<string> => {
   // Explicitly simulate a CAM reader without aperture rotation support.
@@ -49,5 +51,18 @@ ${panel(before.replaceAll("rounded-qfp", "before-qfp"), 25)}${panel(after, 525)}
 <text x="30" y="608" font-size="13" fill="#aab6c4">Synthetic repro rendered from actual Gerber output; not a capture of JLC's CAM system.</text>
 </g></svg>`
     await Bun.write(`${import.meta.dir}/comparison.svg`, comparison)
+    await Bun.write(
+      `${import.meta.dir}/comparison.png`,
+      new Resvg(comparison).render().asPng(),
+    )
+    const options = { fitTo: { mode: "width", value: 720 } } as const
+    const diff = await looksSame.createDiff({
+      reference: new Resvg(before, options).render().asPng(),
+      current: new Resvg(after, options).render().asPng(),
+      highlightColor: "#ff00ff",
+    })
+    for (const layer of ["top-F_Cu", "bottom-B_Cu"]) {
+      await Bun.write(`${import.meta.dir}/snapshot-diff-${layer}.png`, diff)
+    }
   }
 }

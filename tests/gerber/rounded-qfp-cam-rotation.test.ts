@@ -75,14 +75,18 @@ for (const rotation of [0, 30, 45, 90, 180, 270, -90, 450]) {
 // This catches bridges that file-string and Circuit JSON snapshots can miss.
 test("CAM without LR support: 18 merged copper islands before, 32 isolated pads after", async () => {
   const { renderCopper } = await import("../repros/repro12/render-rounded-qfp")
-  const sharp = (await import("sharp")).default
+  const { Resvg } = await import("@resvg/resvg-js")
+  const { default: looksSame } = await import(
+    "@tscircuit/image-utils/looks-same"
+  )
+  const rasterize = async (gerber: string) =>
+    new Resvg(await renderCopper(gerber), {
+      fitTo: { mode: "width", value: 720 },
+    }).render()
   const countIslands = async (gerber: string) => {
-    const svg = await renderCopper(gerber)
-    const { data, info } = await sharp(Buffer.from(svg))
-      .resize(720, 720)
-      .ensureAlpha()
-      .raw()
-      .toBuffer({ resolveWithObject: true })
+    const image = await rasterize(gerber)
+    const data = image.pixels
+    const info = { width: image.width, height: image.height, channels: 4 }
     const visited = new Uint8Array(info.width * info.height)
     const copper = (i: number) =>
       data[i * info.channels + info.channels - 1] > 128
@@ -114,6 +118,7 @@ test("CAM without LR support: 18 merged copper islands before, 32 isolated pads 
     `${import.meta.dir}/../repros/repro12/before.F_Cu.gbr`,
   ).text()
   expect(await countIslands(before)).toBe(18)
+  const beforePng = (await rasterize(before)).asPng()
   for (const layer of ["top", "bottom"] as const) {
     for (const flip of [false, true]) {
       const result = stringifyGerberCommandLayers(
@@ -121,9 +126,11 @@ test("CAM without LR support: 18 merged copper islands before, 32 isolated pads 
           flip_y_axis: flip,
         }),
       )
+      const copper = layer === "top" ? result.F_Cu : result.B_Cu
+      expect(await countIslands(copper)).toBe(32)
       expect(
-        await countIslands(layer === "top" ? result.F_Cu : result.B_Cu),
-      ).toBe(32)
+        (await looksSame(beforePng, (await rasterize(copper)).asPng())).equal,
+      ).toBe(false)
     }
   }
 })
