@@ -1238,8 +1238,7 @@ export const convertCircuitJsonToGerberCommands = (
 
           if (
             element.shape === "rotated_rect" &&
-            !element.corner_radius &&
-            !element.rect_border_radius
+            !("macro_name" in getApertureConfigFromPcbSmtpad(element))
           ) {
             const soldermaskMargin = element.soldermask_margin ?? 0
             for (const { glayer, width, height } of [
@@ -1275,26 +1274,46 @@ export const convertCircuitJsonToGerberCommands = (
             continue
           }
 
-          const rotation =
-            element.shape === "rotated_rect" &&
-            typeof element.ccw_rotation === "number"
-              ? element.ccw_rotation
-              : 0
-
           for (const { glayer, apertureConfig } of [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
-              apertureConfig: getApertureConfigFromPcbSmtpad(element),
+              apertureConfig: getApertureConfigFromPcbSmtpad(
+                element,
+                opts.flip_y_axis,
+              ),
             },
             {
               glayer: glayers[getGerberLayerName(layer, "soldermask")],
-              apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
+              apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(
+                element,
+                opts.flip_y_axis,
+              ),
             },
           ]) {
             if (
               element.is_covered_with_solder_mask === true &&
               glayer === glayers[getGerberLayerName(layer, "soldermask")]
             ) {
+              continue
+            }
+            // A negative mask margin can remove the rounded corners. Preserve
+            // orientation with a region when the mask becomes a plain rectangle.
+            if (
+              element.shape === "rotated_rect" &&
+              "standard_template_code" in apertureConfig &&
+              apertureConfig.standard_template_code === "R"
+            ) {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                apertureFunction: "SMDPad,CuDef",
+                points: getRotatedRectPoints({
+                  center: { x: element.x, y: element.y },
+                  width: apertureConfig.x_size,
+                  height: apertureConfig.y_size,
+                  ccwRotationDegrees: element.ccw_rotation,
+                }),
+              })
               continue
             }
             const apertureNumber = findApertureNumber(
@@ -1306,18 +1325,7 @@ export const convertCircuitJsonToGerberCommands = (
               aperture_number: apertureNumber,
             })
 
-            if (rotation) {
-              gb.add("load_rotation", {
-                rotation_degrees: rotation,
-              })
-            }
-
             gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
-
-            if (rotation) {
-              // Reset rotation
-              gb.add("load_rotation", { rotation_degrees: 0 })
-            }
 
             glayer.push(...gb.build())
           }

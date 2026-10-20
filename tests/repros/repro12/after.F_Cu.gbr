@@ -1,0 +1,140 @@
+%TF.GenerationSoftware,tscircuit,circuit-json-to-gerber,0.0.113*%
+%TF.CreationDate,2026-10-19T22:41:23.988Z*%
+%TF.SameCoordinates,Original*%
+%TF.FileFunction,Copper,L1,Top*%
+%TF.FilePolarity,Positive*%
+%FSLAX46Y46*%
+%MOMM*%
+G04 Gerber Fmt 4.6, Leading zero omitted, Abs format (unit mm)*
+G04 Created by tscircuit (builder) date 2026-10-19T22:41:23.988Z*
+G01*
+%LPD*%
+G75*
+G04 APERTURE MACROS START*
+%AMHORZPILL*
+0 Horizontal pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to height)*
+0 $4 = Circle center offset
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+0 1 = Circle(Exposure, Diameter, Center X, Center Y, Rotation)*
+21,1,$1-$3,$2,0.0,0.0,0.0*
+1,1,$3,0.0-$4,0.0*
+1,1,$3,$4,0.0*%
+%AMVERTPILL*
+0 Vertical pill (stadium) shape macro*
+0 Parameters:*
+0 $1 = Total width*
+0 $2 = Total height*
+0 $3 = Circle diameter (equal to width)*
+0 $4 = Circle center offset
+0 21 = Center Line(Exposure, Width, Height, Center X, Center Y, Rotation)*
+21,1,$1,$2-$3,0.0,0.0,0.0*
+1,1,$3,0.0,0.0-$4*
+1,1,$3,0.0,$4*%
+%AMROUNDRECT*
+0 Rectangle with rounded corners*
+0 $1 Corner radius*
+0 $2 $3 $4 $5 $6 $7 $8 $9 X,Y Position of each corner*
+0 Polygon box body*
+4,1,4,$2,$3,$4,$5,$6,$7,$8,$9,$2,$3,0*
+0 Circles for rounded corners*
+1,1,$1+$1,$2,$3*
+1,1,$1+$1,$4,$5*
+1,1,$1+$1,$6,$7*
+1,1,$1+$1,$8,$9*
+0 Rectangles between the rounded corners*
+20,1,$1+$1,$2,$3,$4,$5,0*
+20,1,$1+$1,$4,$5,$6,$7,0*
+20,1,$1+$1,$6,$7,$8,$9,0*
+20,1,$1+$1,$8,$9,$2,$3,0*%
+%AMROTATEDPILL*
+0 Rotated pill: diameter, endpoint offset X, endpoint offset Y*
+20,1,$1,0-$2,0-$3,$2,$3,0*
+1,1,$1,0-$2,0-$3*
+1,1,$1,$2,$3*%
+G04 APERTURE MACROS END*
+G04 aperture START LIST*
+%TA.AperFunction,SMDPad,CuDef*%
+%ADD10ROUNDRECT,0.060000X-0.090000X0.540000X0.090000X0.540000X0.090000X-0.540000X-0.090000X-0.540000*%
+%TA.AperFunction,SMDPad,CuDef*%
+%ADD11ROUNDRECT,0.060000X-0.540000X-0.090000X-0.540000X0.090000X0.540000X0.090000X0.540000X-0.090000*%
+%TA.AperFunction,SMDPad,CuDef*%
+%ADD12ROUNDRECT,0.060000X0.090000X-0.540000X-0.090000X-0.540000X-0.090000X0.540000X0.090000X0.540000*%
+%TA.AperFunction,SMDPad,CuDef*%
+%ADD13ROUNDRECT,0.060000X0.540000X0.090000X0.540000X-0.090000X-0.540000X-0.090000X-0.540000X0.090000*%
+%TA.AperFunction,Conductor*%
+%ADD14C,0.001000*%
+%TA.AperFunction,SMDPad,CuDef*%
+%ADD15C,0.001000*%
+%TA.AperFunction,ComponentPad*%
+%ADD16C,0.001000*%
+%TD*%
+G04 aperture END LIST*
+D10*
+X-01750000Y003000000D03*
+D10*
+X-01250000Y003000000D03*
+D10*
+X-00750000Y003000000D03*
+D10*
+X-00250000Y003000000D03*
+D10*
+X000250000Y003000000D03*
+D10*
+X000750000Y003000000D03*
+D10*
+X001250000Y003000000D03*
+D10*
+X001750000Y003000000D03*
+D11*
+X-03000000Y-01750000D03*
+D11*
+X-03000000Y-01250000D03*
+D11*
+X-03000000Y-00750000D03*
+D11*
+X-03000000Y-00250000D03*
+D11*
+X-03000000Y000250000D03*
+D11*
+X-03000000Y000750000D03*
+D11*
+X-03000000Y001250000D03*
+D11*
+X-03000000Y001750000D03*
+D12*
+X-01750000Y-03000000D03*
+D12*
+X-01250000Y-03000000D03*
+D12*
+X-00750000Y-03000000D03*
+D12*
+X-00250000Y-03000000D03*
+D12*
+X000250000Y-03000000D03*
+D12*
+X000750000Y-03000000D03*
+D12*
+X001250000Y-03000000D03*
+D12*
+X001750000Y-03000000D03*
+D13*
+X003000000Y-01750000D03*
+D13*
+X003000000Y-01250000D03*
+D13*
+X003000000Y-00750000D03*
+D13*
+X003000000Y-00250000D03*
+D13*
+X003000000Y000250000D03*
+D13*
+X003000000Y000750000D03*
+D13*
+X003000000Y001250000D03*
+D13*
+X003000000Y001750000D03*
+M02*

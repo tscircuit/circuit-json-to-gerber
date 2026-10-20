@@ -79,21 +79,34 @@ const getRoundedRectApertureConfig = (
   width: number,
   height: number,
   cornerRadius: number,
+  rotationDegrees = 0,
 ): ApertureTemplateConfig => {
   const halfWidth = width / 2
   const halfHeight = height / 2
 
+  // Bake the orientation into the macro coordinates. Some fabrication CAM
+  // readers ignore LR, which otherwise turns fine-pitch side pads into shorts.
+  const angle = (rotationDegrees * Math.PI) / 180
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const corners = [
+    [-halfWidth + cornerRadius, halfHeight - cornerRadius],
+    [halfWidth - cornerRadius, halfHeight - cornerRadius],
+    [halfWidth - cornerRadius, -halfHeight + cornerRadius],
+    [-halfWidth + cornerRadius, -halfHeight + cornerRadius],
+  ].map(([x, y]) => ({ x: x * cos - y * sin, y: x * sin + y * cos }))
+
   return {
     macro_name: "ROUNDRECT",
     corner_radius: cornerRadius,
-    corner_1_x: -halfWidth + cornerRadius,
-    corner_1_y: halfHeight - cornerRadius,
-    corner_2_x: halfWidth - cornerRadius,
-    corner_2_y: halfHeight - cornerRadius,
-    corner_3_x: halfWidth - cornerRadius,
-    corner_3_y: -halfHeight + cornerRadius,
-    corner_4_x: -halfWidth + cornerRadius,
-    corner_4_y: -halfHeight + cornerRadius,
+    corner_1_x: corners[0].x,
+    corner_1_y: corners[0].y,
+    corner_2_x: corners[1].x,
+    corner_2_y: corners[1].y,
+    corner_3_x: corners[2].x,
+    corner_3_y: corners[2].y,
+    corner_4_x: corners[3].x,
+    corner_4_y: corners[3].y,
   }
 }
 
@@ -196,6 +209,7 @@ export const REGION_APERTURE_CONFIG = {
 
 export const getApertureConfigFromPcbSmtpad = (
   elm: PCBSMTPad,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   if (elm.shape === "rect" || elm.shape === "rotated_rect") {
     const cornerRadius = getClampedRoundedRectCornerRadius(
@@ -205,7 +219,14 @@ export const getApertureConfigFromPcbSmtpad = (
     )
 
     if (cornerRadius > 0) {
-      return getRoundedRectApertureConfig(elm.width, elm.height, cornerRadius)
+      return getRoundedRectApertureConfig(
+        elm.width,
+        elm.height,
+        cornerRadius,
+        elm.shape === "rotated_rect"
+          ? elm.ccw_rotation * (flipYAxis ? -1 : 1)
+          : 0,
+      )
     }
   }
 
@@ -252,6 +273,7 @@ export const getApertureConfigFromPcbSmtpad = (
 
 export const getApertureConfigFromPcbSmtpadSoldermask = (
   elm: PCBSMTPad,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   let soldermaskMargin = 0
   if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
@@ -270,7 +292,14 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
     )
 
     if (cornerRadius > 0) {
-      return getRoundedRectApertureConfig(width, height, cornerRadius)
+      return getRoundedRectApertureConfig(
+        width,
+        height,
+        cornerRadius,
+        elm.shape === "rotated_rect"
+          ? elm.ccw_rotation * (flipYAxis ? -1 : 1)
+          : 0,
+      )
     }
   }
 
@@ -659,9 +688,11 @@ function getAllApertureTemplateConfigsForLayer({
           continue
         }
         if (isSoldermaskLayer) {
-          addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
+          addConfigIfNew(
+            getApertureConfigFromPcbSmtpadSoldermask(elm, flip_y_axis),
+          )
         } else {
-          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm, flip_y_axis))
         }
       }
     } else if (elm.type === "pcb_soldermask_opening") {
