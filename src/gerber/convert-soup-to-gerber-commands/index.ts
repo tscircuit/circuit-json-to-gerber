@@ -493,32 +493,37 @@ export const convertCircuitJsonToGerberCommands = (
       })() ||
       "center"
 
+    // (initialX, initialY) is the bottom-left corner of the text box in the
+    // board frame (mm, +Y up); glyphs are drawn up and to the right from it.
+    // Move it so the anchor lands on the requested point of the box, as in
+    // circuit-to-svg: top_* puts the anchor on the top edge, *_left on the
+    // left edge.
     switch (anchorAlignment) {
       case "top_left":
+        initialY -= textHeight
         break
       case "top_center":
         initialX -= textWidth / 2
+        initialY -= textHeight
         break
       case "top_right":
         initialX -= textWidth
-        break
-      case "center_right":
-        initialY -= textHeight / 2
+        initialY -= textHeight
         break
       case "center_left":
+        initialY -= textHeight / 2
+        break
+      case "center_right":
         initialX -= textWidth
         initialY -= textHeight / 2
         break
       case "bottom_left":
-        initialY -= textHeight
         break
       case "bottom_center":
         initialX -= textWidth / 2
-        initialY -= textHeight
         break
       case "bottom_right":
         initialX -= textWidth
-        initialY -= textHeight
         break
       default:
         initialX -= textWidth / 2
@@ -567,19 +572,21 @@ export const convertCircuitJsonToGerberCommands = (
         bottom: 0.2,
       }
 
+      // Same +Y-up box as above: bottom padding goes below initialY and top
+      // padding above the top edge
       const paddedRect = [
-        { x: initialX - padding.left, y: initialY - padding.top },
+        { x: initialX - padding.left, y: initialY - padding.bottom },
         {
           x: initialX + textWidth + padding.right,
-          y: initialY - padding.top,
+          y: initialY - padding.bottom,
         },
         {
           x: initialX + textWidth + padding.right,
-          y: initialY + textHeight + padding.bottom,
+          y: initialY + textHeight + padding.top,
         },
         {
           x: initialX - padding.left,
-          y: initialY + textHeight + padding.bottom,
+          y: initialY + textHeight + padding.top,
         },
       ].map(applyTransform)
 
