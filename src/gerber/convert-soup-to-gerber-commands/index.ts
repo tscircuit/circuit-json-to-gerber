@@ -530,8 +530,11 @@ export const convertCircuitJsonToGerberCommands = (
     const anchoredY = initialY
 
     let rotation = element.ccw_rotation || 0
-    const cx = anchoredX + textWidth / 2
-    const cy = anchoredY + textHeight / 2
+    // Rotate and mirror about the anchor, as circuit-to-svg does, so the
+    // anchor stays on the same point of the text (e.g. its bottom-left corner
+    // for bottom_left) for every rotation and on both board sides.
+    const pivotX = element.anchor_position.x
+    const pivotY = element.anchor_position.y
     const transforms: Matrix[] = []
 
     const shouldMirror =
@@ -541,16 +544,20 @@ export const convertCircuitJsonToGerberCommands = (
 
     if (shouldMirror) {
       transforms.push(
-        translate(cx, cy),
+        translate(pivotX, pivotY),
         { a: -1, b: 0, c: 0, d: 1, e: 0, f: 0 },
-        translate(-cx, -cy),
+        translate(-pivotX, -pivotY),
       )
       rotation = -rotation
     }
 
     if (rotation) {
       const rad = (rotation * Math.PI) / 180
-      transforms.push(translate(cx, cy), rotate(rad), translate(-cx, -cy))
+      transforms.push(
+        translate(pivotX, pivotY),
+        rotate(rad),
+        translate(-pivotX, -pivotY),
+      )
     }
 
     const transformMatrix =
