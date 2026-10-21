@@ -3,10 +3,9 @@
 import { program } from "commander"
 import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
-import { resolve } from "node:path"
+import { basename, dirname, join, resolve } from "node:path"
 import archiver from "archiver"
 import { convertCircuitJsonToGerberFiles } from "./"
-import { getDefaultOutputPath } from "./get-default-output-path"
 
 program
   .name("circuit-to-gerber")
@@ -18,7 +17,12 @@ program
   )
   .action(async (input, options) => {
     try {
-      const outputPath = options.output || getDefaultOutputPath(input)
+      const outputPath =
+        options.output ||
+        join(
+          dirname(input),
+          `${basename(input).replace(/(?:\.circuit)?\.json$/i, "")}.gerbers.zip`,
+        )
       if (resolve(outputPath) === resolve(input)) {
         throw new Error(
           "output path would overwrite the input file. Use --output to specify a different file.",
