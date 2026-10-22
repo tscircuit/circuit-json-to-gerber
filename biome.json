@@ -8,7 +8,8 @@
     "indentStyle": "space"
   },
   "files": {
-    "ignore": ["cosmos-export", "dist", "package.json"]
+    "maxSize": 5242880,
+    "ignore": ["cosmos-export", "dist", "package.json", "**/blinkByddy.json"]
   },
   "javascript": {
     "formatter": {
