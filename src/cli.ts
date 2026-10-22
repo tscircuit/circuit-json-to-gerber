@@ -5,6 +5,9 @@ import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
 import archiver from "archiver"
 import { convertCircuitJsonToGerberFiles } from "./"
+import { getDefaultGerberZipOutputPath } from "./getDefaultGerberZipOutputPath"
+
+export { getDefaultGerberZipOutputPath }
 
 program
   .name("circuit-to-gerber")
@@ -22,8 +25,7 @@ program
       const gerberFiles = convertCircuitJsonToGerberFiles(circuitJson)
 
       // Create output ZIP file
-      const outputPath =
-        options.output || input.replace(".circuit.json", ".gerbers.zip")
+      const outputPath = options.output || getDefaultGerberZipOutputPath(input)
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
