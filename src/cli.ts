@@ -3,6 +3,7 @@
 import { program } from "commander"
 import { readFile } from "node:fs/promises"
 import { createWriteStream } from "node:fs"
+import { basename, dirname, join, resolve } from "node:path"
 import archiver from "archiver"
 import { convertCircuitJsonToGerberFiles } from "./"
 
@@ -16,14 +17,24 @@ program
   )
   .action(async (input, options) => {
     try {
+      const outputPath =
+        options.output ||
+        join(
+          dirname(input),
+          `${basename(input).replace(/(?:\.circuit)?\.json$/i, "")}.gerbers.zip`,
+        )
+      if (resolve(outputPath) === resolve(input)) {
+        throw new Error(
+          "output path would overwrite the input file. Use --output to specify a different file.",
+        )
+      }
+
       // Read and parse input JSON
       const circuitJson = JSON.parse(await readFile(input, "utf8"))
 
       const gerberFiles = convertCircuitJsonToGerberFiles(circuitJson)
 
       // Create output ZIP file
-      const outputPath =
-        options.output || input.replace(".circuit.json", ".gerbers.zip")
       const output = createWriteStream(outputPath)
       const archive = archiver("zip", { zlib: { level: 9 } })
 
