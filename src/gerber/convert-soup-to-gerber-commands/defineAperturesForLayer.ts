@@ -1,6 +1,7 @@
+import { strokeWidthRatio } from "@tscircuit/alphabet"
 import type {
-  PCBHole,
   LayerRef,
+  PCBHole,
   PCBPlatedHole,
   PCBSMTPad,
   PcbCopperText,
@@ -9,20 +10,19 @@ import type {
   PcbFabricationNoteRect,
   PcbFabricationNoteText,
   PcbHole,
-  PcbSolderPaste,
   PcbSilkscreenPath,
   PcbSilkscreenText,
+  PcbSolderPaste,
 } from "circuit-json"
-import { strokeWidthRatio } from "@tscircuit/alphabet"
-import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
+import type { AnyCircuitElement } from "circuit-json"
 import stableStringify from "fast-json-stable-stringify"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
 import type { GerberLayerName } from "./GerberLayerName"
 import { getAllTraceWidths } from "./getAllTraceWidths"
-import type { AnyCircuitElement } from "circuit-json"
 import { isGeometryChangingRectRotation } from "./getRotatedRectPoints"
+import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 
 export type CopperApertureFunction =
   | "Conductor"
@@ -610,7 +610,7 @@ export const getApertureConfigFromCirclePcbHoleSoldermask = (
 }
 
 export const getApertureConfigFromRotatedPillPcbHole = (
-  elm: Extract<PcbHole, { hole_shape: "rotated_pill" | "oval" }>,
+  elm: Extract<PcbHole, { hole_shape: "rotated_pill" | "oval" | "pill" }>,
   soldermaskMargin = 0,
 ): ApertureTemplateConfig => {
   return {
@@ -773,7 +773,8 @@ function getAllApertureTemplateConfigsForLayer({
         }
       } else if (
         elm.hole_shape === "rotated_pill" ||
-        elm.hole_shape === "oval"
+        elm.hole_shape === "oval" ||
+        elm.hole_shape === "pill"
       ) {
         const soldermaskMargin = isSoldermaskLayer
           ? (elm.soldermask_margin ?? 0)
