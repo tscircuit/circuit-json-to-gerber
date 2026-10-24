@@ -1677,6 +1677,7 @@ export const convertCircuitJsonToGerberCommands = (
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
             if (
+              element.hole_shape === "pill" ||
               element.hole_shape === "rotated_pill" ||
               element.hole_shape === "oval"
             ) {
@@ -1882,6 +1883,7 @@ export const convertCircuitJsonToGerberCommands = (
       }
 
       if (
+        element.hole_shape === "pill" ||
         element.hole_shape === "rotated_pill" ||
         element.hole_shape === "oval"
       ) {

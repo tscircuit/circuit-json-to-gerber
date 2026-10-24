@@ -60,7 +60,7 @@ const circuitJson: AnyCircuitElement[] = [
   },
 ]
 
-test("repro: pill NPTH slots are drilled but omitted from Gerber openings", async () => {
+test("pill NPTH slots are included in drill and Gerber openings", async () => {
   const gerberLayers = convertSoupToGerberCommands(circuitJson)
   const gerberOutput = stringifyGerberCommandLayers(gerberLayers)
   const unplatedDrillCommands = convertSoupToExcellonDrillCommands({
@@ -85,10 +85,10 @@ test("repro: pill NPTH slots are drilled but omitted from Gerber openings", asyn
     (command) => command.command_code === "D03",
   ).length
 
-  // Only the circular control hole is cleared. Both pill mounting slots are
-  // present in the drill file but missing from copper and soldermask Gerbers.
-  expect(innerCopperClearPolarityCount).toBe(1)
-  expect(frontMaskFlashCount).toBe(1)
+  // The round control hole and both pill mounting slots are cleared from
+  // copper. Each pill uses two endpoint flashes in the soldermask Gerber.
+  expect(innerCopperClearPolarityCount).toBe(3)
+  expect(frontMaskFlashCount).toBe(5)
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
