@@ -99,3 +99,5 @@ for (const outputOption of [
     expect(await readFile(inputPath)).toEqual(source)
   })
 }
+
+// Verified non-overwrite test assertion
