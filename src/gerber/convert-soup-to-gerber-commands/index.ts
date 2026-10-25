@@ -1612,19 +1612,25 @@ export const convertCircuitJsonToGerberCommands = (
               })
             } else {
               // Non-pill shapes (rect, circle)
-              let apertureConfig = getApertureConfigFromPcbPlatedHole({
-                ...element,
-                ...(element.shape !== "circle"
-                  ? { outer_width: padW, outer_height: padH }
-                  : {}),
-              })
-              if (soldermaskGlayer && glayer === soldermaskGlayer) {
-                apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask({
+              let apertureConfig = getApertureConfigFromPcbPlatedHole(
+                {
                   ...element,
                   ...(element.shape !== "circle"
                     ? { outer_width: padW, outer_height: padH }
                     : {}),
-                })
+                },
+                opts.flip_y_axis,
+              )
+              if (soldermaskGlayer && glayer === soldermaskGlayer) {
+                apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask(
+                  {
+                    ...element,
+                    ...(element.shape !== "circle"
+                      ? { outer_width: padW, outer_height: padH }
+                      : {}),
+                  },
+                  opts.flip_y_axis,
+                )
               }
               const rectRotation =
                 "rect_ccw_rotation" in element &&
@@ -1632,6 +1638,8 @@ export const convertCircuitJsonToGerberCommands = (
                   ? element.rect_ccw_rotation
                   : undefined
               const renderAsRotatedRectRegion =
+                "standard_template_code" in apertureConfig &&
+                apertureConfig.standard_template_code === "R" &&
                 rectRotation !== undefined &&
                 isGeometryChangingRectRotation({
                   width: aperturePadW,
