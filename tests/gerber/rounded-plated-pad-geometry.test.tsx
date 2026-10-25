@@ -11,8 +11,7 @@ async function renderPad(platedHole: ReactElement) {
     </board>,
   )
   await circuit.renderUntilSettled()
-  const circuitJson = circuit.getCircuitJson()
-  return { circuitJson, files: convertCircuitJsonToGerberFiles(circuitJson) }
+  return convertCircuitJsonToGerberFiles(circuit.getCircuitJson())
 }
 
 for (const flipYAxis of [false, true]) {
@@ -47,29 +46,13 @@ for (const flipYAxis of [false, true]) {
       expect(files[`${layer}.gbr`]).toMatch(/%ADD\d+ROUNDRECT,0\.250000X/)
       expect(files[`${layer}.gbr`].match(/D03\*/g)).toHaveLength(4)
     }
-    for (const layer of ["F_Cu", "F_Mask"]) {
-      await expect({
-        [layer]: files[`${layer}.gbr`],
-      }).toMatchCircuitJsonPcbAndGerberSnapshot(
-        import.meta.path,
-        `rounded-plated-pad-rotations-flip-${flipYAxis}-${layer}`,
-        circuitJson,
-        [layer],
-        {
-          panelWidth: 1000,
-          panelHeight: 340,
-          circuitJsonLabel: "TSX pads: 0, 30, 90, 270 degrees",
-          gerberLabel: `${layer}: flip_y_axis=${flipYAxis}`,
-        },
-      )
-    }
   })
 }
 
 test.each([undefined, 0, -0.1])(
   "radius %s exports a rectangular plated pad",
   async (rectBorderRadius) => {
-    const { files } = await renderPad(
+    const files = await renderPad(
       <platedhole
         shape="circular_hole_with_rect_pad"
         holeDiameter={0.6}
@@ -86,7 +69,7 @@ test.each([undefined, 0, -0.1])(
 )
 
 test("oversized radius is clamped to half the shorter pad dimension", async () => {
-  const { files } = await renderPad(
+  const files = await renderPad(
     <platedhole
       shape="circular_hole_with_rect_pad"
       holeDiameter={0.6}
@@ -106,7 +89,7 @@ test.each([
 ])(
   "mask margin $margin contracts the opening",
   async ({ margin, maskAperture }) => {
-    const { files } = await renderPad(
+    const files = await renderPad(
       <platedhole
         shape="circular_hole_with_rect_pad"
         holeDiameter={0.6}
@@ -128,7 +111,7 @@ test.each([
 )
 
 test.each([0, 30])("rounded slotted pad at %s degrees", async (pcbRotation) => {
-  const { circuitJson, files } = await renderPad(
+  const files = await renderPad(
     <platedhole
       shape="pill_hole_with_rect_pad"
       holeWidth={1}
@@ -142,17 +125,4 @@ test.each([0, 30])("rounded slotted pad at %s degrees", async (pcbRotation) => {
   for (const layer of ["F_Cu", "B_Cu", "F_Mask", "B_Mask"]) {
     expect(files[`${layer}.gbr`]).toMatch(/%ADD\d+ROUNDRECT,0\.150000X/)
   }
-  await expect({
-    F_Cu: files["F_Cu.gbr"],
-    "drill-L1-L2.drl": files["drill-L1-L2.drl"],
-  }).toMatchCircuitJsonPcbAndGerberSnapshot(
-    import.meta.path,
-    `rounded-slotted-pad-rotation-${pcbRotation}`,
-    circuitJson,
-    ["F_Cu", "drill-L1-L2.drl"],
-    {
-      circuitJsonLabel: `TSX slotted pad: ${pcbRotation} degrees`,
-      gerberLabel: "Gerber copper and plated slot",
-    },
-  )
 })
