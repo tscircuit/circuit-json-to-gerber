@@ -583,6 +583,11 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
     }
     const width = elm.rect_pad_width + soldermaskMargin * 2
     const height = elm.rect_pad_height + soldermaskMargin * 2
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        `Invalid soldermask opening for plated hole ${elm.pcb_plated_hole_id}: soldermask_margin ${soldermaskMargin} must leave positive width and height`,
+      )
+    }
     const padRadius = getClampedRoundedRectCornerRadius(
       elm.rect_pad_width,
       elm.rect_pad_height,

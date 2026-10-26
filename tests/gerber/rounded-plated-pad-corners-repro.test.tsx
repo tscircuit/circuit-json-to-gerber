@@ -7,11 +7,16 @@ import {
 import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
-const createCircuitJson = (radius: number | undefined, margin: number) => {
+const createCircuitJson = (
+  radius: number | undefined,
+  margin: number,
+  width = 3.6,
+  height = 2.4,
+) => {
   const circuit = new Circuit()
   const padProps = {
-    rectPadWidth: 3.6,
-    rectPadHeight: 2.4,
+    rectPadWidth: width,
+    rectPadHeight: height,
     rectBorderRadius: radius,
     solderMaskMargin: margin,
   }
@@ -77,18 +82,15 @@ test("rounded plated-pad corners are preserved in Gerber", async () => {
       gerberLabel: "Gerber: rounded pad and mask corners",
     },
   )
-})
-
-for (const flip of [false, true]) {
-  for (const [radius, margin, copperRadius, maskRadius] of [
-    [0.6, 0.2, 0.6, 0.8],
-    [10, 0.2, 1.2, 1.4],
-    [0.6, -0.2, 0.6, 0.4],
-    [0.6, -0.6, 0.6, 0],
-    [0, 0.2, 0, 0],
-    [undefined, 0.2, 0, 0],
-  ] as const) {
-    test(`plated-pad radius=${radius} margin=${margin}, flip=${flip}`, () => {
+  for (const flip of [false, true]) {
+    for (const [radius, margin, copperRadius, maskRadius] of [
+      [0.6, 0.2, 0.6, 0.8],
+      [10, 0.2, 1.2, 1.4],
+      [0.6, -0.2, 0.6, 0.4],
+      [0.6, -0.6, 0.6, 0],
+      [0, 0.2, 0, 0],
+      [undefined, 0.2, 0, 0],
+    ] as const) {
       const commandLayers = convertCircuitJsonToGerberCommands(
         createCircuitJson(radius, margin),
         { flip_y_axis: flip },
@@ -135,6 +137,29 @@ for (const flip of [false, true]) {
           )
         }
       }
-    })
+    }
   }
-}
+
+  for (const radius of [0, 0.6]) {
+    for (const margin of [-1.2, -1.3]) {
+      for (const [width, height] of [
+        [3.6, 2.4],
+        [2.4, 3.6],
+      ]) {
+        const holes = createCircuitJson(radius, margin, width, height).filter(
+          (elm) => elm.type === "pcb_plated_hole",
+        )
+        for (const hole of holes) {
+          expect(() => convertCircuitJsonToGerberCommands([hole])).toThrow(
+            `Invalid soldermask opening for plated hole ${hole.pcb_plated_hole_id}: soldermask_margin ${margin} must leave positive width and height`,
+          )
+          expect(() =>
+            convertCircuitJsonToGerberCommands([
+              { ...hole, is_covered_with_solder_mask: true },
+            ]),
+          ).not.toThrow()
+        }
+      }
+    }
+  }
+})
