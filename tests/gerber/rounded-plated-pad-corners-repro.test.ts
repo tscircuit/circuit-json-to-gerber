@@ -1,5 +1,9 @@
 import { beforeAll, expect, test } from "bun:test"
 import { Resvg } from "@resvg/resvg-js"
+import {
+  convertCircuitJsonToExcellonDrillCommandLayers,
+  stringifyExcellonDrill,
+} from "src/excellon-drill"
 import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import {
@@ -80,6 +84,12 @@ for (const side of ["top", "bottom"] as const) {
     const gerberOutput = stringifyGerberCommandLayers(
       convertCircuitJsonToGerberCommands(circuitJson),
     )
+    const drillLayers = convertCircuitJsonToExcellonDrillCommandLayers({
+      circuitJson,
+    })
+    for (const [filename, commands] of Object.entries(drillLayers)) {
+      gerberOutput[filename] = stringifyExcellonDrill(commands)
+    }
     const layers = side === "top" ? ["F_Mask", "F_Cu"] : ["B_Mask", "B_Cu"]
 
     await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(

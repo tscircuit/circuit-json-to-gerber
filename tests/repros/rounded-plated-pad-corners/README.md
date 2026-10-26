@@ -19,7 +19,8 @@ soldermask openings also retain rounded corners.
 Actual: all three shapes have sharp copper and mask corners. The renderer
 produces exactly the same geometry when the corner radius is changed to zero.
 The top and bottom snapshots compare the Circuit JSON view with the current
-Gerber output.
+Gerber output, including the Excellon drill layers so the plated holes and slots
+remain visible.
 
 The twelve `test.failing` cases express the expected behavior for each shape
 on F_Cu, B_Cu, F_Mask, and B_Mask. They compare independently parsed and rasterized
