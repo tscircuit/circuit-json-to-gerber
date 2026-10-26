@@ -10,10 +10,6 @@ import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-g
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
 test("repro: Smartwatch variant loses rounded switch plated-pad corners", async () => {
-  // Unmodified dist/pcb/circuit.json from https://tscircuit.com/anil08607/Smartwatch
-  // v1.0.14, release 24553b2a-9ff8-40df-a1a5-6c519167a150.
-  // This variant replaces SW1/SW2's eight SMT pads with rounded plated holes.
-  // The published board's USB-C pads and existing mounting holes are unchanged.
   const original = (await Bun.file(
     new URL("./assets/smartwatch-v1.0.14.circuit.json", import.meta.url),
   ).json()) as AnyCircuitElement[]
