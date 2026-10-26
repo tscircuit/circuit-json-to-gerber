@@ -473,6 +473,7 @@ export const getApertureConfigFromPcbSolderPaste = (
 
 export const getApertureConfigFromPcbPlatedHole = (
   elm: PCBPlatedHole,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   if (elm.shape === "circle") {
     if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
@@ -509,6 +510,20 @@ export const getApertureConfigFromPcbPlatedHole = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHole: missing dimensions`,
       )
     }
+    const cornerRadius = getClampedRoundedRectCornerRadius(
+      elm.rect_pad_width,
+      elm.rect_pad_height,
+      elm.rect_border_radius,
+    )
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(
+        elm.rect_pad_width,
+        elm.rect_pad_height,
+        cornerRadius,
+        ("rect_ccw_rotation" in elm ? (elm.rect_ccw_rotation ?? 0) : 0) *
+          (flipYAxis ? -1 : 1),
+      )
+    }
     return {
       standard_template_code: "R",
       x_size: elm.rect_pad_width,
@@ -522,6 +537,7 @@ export const getApertureConfigFromPcbPlatedHole = (
 
 export const getApertureConfigFromPcbPlatedHoleSoldermask = (
   elm: PCBPlatedHole,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   let soldermaskMargin = 0
   if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
@@ -565,10 +581,34 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing dimensions`,
       )
     }
+    const width = elm.rect_pad_width + soldermaskMargin * 2
+    const height = elm.rect_pad_height + soldermaskMargin * 2
+    const padRadius = getClampedRoundedRectCornerRadius(
+      elm.rect_pad_width,
+      elm.rect_pad_height,
+      elm.rect_border_radius,
+    )
+    const cornerRadius =
+      padRadius > 0
+        ? getClampedRoundedRectCornerRadius(
+            width,
+            height,
+            padRadius + soldermaskMargin,
+          )
+        : 0
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(
+        width,
+        height,
+        cornerRadius,
+        ("rect_ccw_rotation" in elm ? (elm.rect_ccw_rotation ?? 0) : 0) *
+          (flipYAxis ? -1 : 1),
+      )
+    }
     return {
       standard_template_code: "R",
-      x_size: elm.rect_pad_width + soldermaskMargin * 2,
-      y_size: elm.rect_pad_height + soldermaskMargin * 2,
+      x_size: width,
+      y_size: height,
     }
   }
 
@@ -739,9 +779,11 @@ function getAllApertureTemplateConfigsForLayer({
           continue
         }
         if (isSoldermaskLayer) {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHoleSoldermask(elm))
+          addConfigIfNew(
+            getApertureConfigFromPcbPlatedHoleSoldermask(elm, flip_y_axis),
+          )
         } else {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm, flip_y_axis))
         }
         if (
           "rect_pad_width" in elm &&
