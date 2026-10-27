@@ -77,7 +77,7 @@ test("unrotated polygon plated hole keeps its pad outline", () => {
 })
 
 for (const layer of ["F_Cu", "B_Cu"]) {
-  test.failing(`polygon plated hole rotates pad_outline on ${layer}`, () => {
+  test(`polygon plated hole rotates pad_outline on ${layer}`, () => {
     const gerberOutput = getGerberOutput()
     // Rotate (-2, -1) by 90 degrees CCW, then translate by (3, 0): (4, -2).
     expect(gerberOutput[layer]).toContain("X004000000Y-02000000D02*")
@@ -88,17 +88,14 @@ for (const layer of ["F_Cu", "B_Cu"]) {
 }
 
 for (const layer of ["F_Mask", "B_Mask"]) {
-  test.failing(
-    `polygon plated hole rotates expanded soldermask on ${layer}`,
-    () => {
-      const gerberOutput = getGerberOutput()
-      // The 0.2mm margin expands (-2, -1) to (-2.2, -1.2), which maps to (4.2, -2.2).
-      expect(gerberOutput[layer]).toContain("X004200000Y-02200000D02*")
-      expect(gerberOutput[layer]).toContain("X004200000Y002200000D01*")
-      expect(gerberOutput[layer]).toContain("X001800000Y002200000D01*")
-      expect(gerberOutput[layer]).toContain("X001800000Y-02200000D01*")
-    },
-  )
+  test(`polygon plated hole rotates expanded soldermask on ${layer}`, () => {
+    const gerberOutput = getGerberOutput()
+    // The 0.2mm margin expands (-2, -1) to (-2.2, -1.2), which maps to (4.2, -2.2).
+    expect(gerberOutput[layer]).toContain("X004200000Y-02200000D02*")
+    expect(gerberOutput[layer]).toContain("X004200000Y002200000D01*")
+    expect(gerberOutput[layer]).toContain("X001800000Y002200000D01*")
+    expect(gerberOutput[layer]).toContain("X001800000Y-02200000D01*")
+  })
 }
 
 test("polygon plated hole PCB and Gerber snapshot", async () => {
