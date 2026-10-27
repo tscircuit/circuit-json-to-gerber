@@ -8,7 +8,7 @@ import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-g
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import fixture from "./assets/smartwatch-rounded-plated-pad-minimal.circuit.json"
 
-test("repro: a single switch-size plated pad loses its rounded corners", async () => {
+test("a single switch-size plated pad preserves its rounded corners", async () => {
   const circuitJson = fixture as AnyCircuitElement[]
   const gerberOutput = stringifyGerberCommandLayers(
     convertCircuitJsonToGerberCommands(circuitJson),
@@ -27,7 +27,7 @@ test("repro: a single switch-size plated pad loses its rounded corners", async (
     ["F_Mask", "F_Cu"],
     {
       circuitJsonLabel: "Input: 0.2 mm pad corner radius",
-      gerberLabel: "Current Gerber: sharp pad corners",
+      gerberLabel: "Gerber: rounded pad and mask corners",
       circuitJsonPcbSvgOptions: { drawPaddingOutsideBoard: false },
       panelWidth: 480,
       panelHeight: 320,
