@@ -7,7 +7,7 @@ import {
 import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
-test("repro: Smartwatch variant loses rounded switch plated-pad corners", async () => {
+test("Smartwatch switch plated-pad corners are preserved in Gerber", async () => {
   const circuitJson = (await Bun.file(
     new URL(
       "./assets/smartwatch-rounded-plated-pads.circuit.json",
@@ -49,7 +49,7 @@ test("repro: Smartwatch variant loses rounded switch plated-pad corners", async 
     {
       circuitJsonLabel:
         "Smartwatch variant: SW1/SW2 plated pads, radius 0.2 mm",
-      gerberLabel: "Current Gerber: SW1/SW2 pad corners become sharp",
+      gerberLabel: "Gerber: SW1/SW2 pad corners stay rounded",
       panelWidth: 1200,
       panelHeight: 1200,
     },
