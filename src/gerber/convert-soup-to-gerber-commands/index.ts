@@ -15,6 +15,7 @@ import {
   defineAperturesForLayer,
   REGION_APERTURE_CONFIG,
   getApertureConfigFromCirclePcbHole,
+  getApertureConfigFromRectPcbHole,
   getApertureConfigFromPcbPlatedHole,
   getApertureConfigFromPcbPlatedHoleSoldermask,
   getApertureConfigFromCirclePcbHoleSoldermask,
@@ -1706,6 +1707,27 @@ export const convertCircuitJsonToGerberCommands = (
               })
               continue
             }
+            if (
+              element.hole_shape === "rect" ||
+              element.hole_shape === "square"
+            ) {
+              const soldermaskMargin = element.soldermask_margin ?? 0
+              glayer.push(
+                ...gerberBuilder()
+                  .add("select_aperture", {
+                    aperture_number: findApertureNumber(
+                      glayer,
+                      getApertureConfigFromRectPcbHole(
+                        element,
+                        soldermaskMargin,
+                      ),
+                    ),
+                  })
+                  .add("flash_operation", { x: element.x, y: mfy(element.y) })
+                  .build(),
+              )
+              continue
+            }
             if (element.hole_shape !== "circle") {
               console.warn(
                 "NOT IMPLEMENTED: drawing gerber for non-round holes",
@@ -1914,6 +1936,23 @@ export const convertCircuitJsonToGerberCommands = (
         })
         copperGlayer.push(
           ...gerberBuilder()
+            .add("set_layer_polarity", { polarity: "D" })
+            .build(),
+        )
+        continue
+      }
+
+      if (element.hole_shape === "rect" || element.hole_shape === "square") {
+        copperGlayer.push(
+          ...gerberBuilder()
+            .add("set_layer_polarity", { polarity: "C" })
+            .add("select_aperture", {
+              aperture_number: findApertureNumber(
+                copperGlayer,
+                getApertureConfigFromRectPcbHole(element),
+              ),
+            })
+            .add("flash_operation", { x: element.x, y: mfy(element.y) })
             .add("set_layer_polarity", { polarity: "D" })
             .build(),
         )
