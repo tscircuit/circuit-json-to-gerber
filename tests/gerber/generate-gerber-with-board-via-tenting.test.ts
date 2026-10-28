@@ -7,6 +7,43 @@ import {
   stringifyExcellonDrill,
 } from "src/excellon-drill"
 
+function withoutDates(
+  commands: ReturnType<
+    typeof convertCircuitJsonToExcellonDrillCommandLayers
+  >[string],
+) {
+  return commands.filter(
+    (command) =>
+      command.command_code !== "header_comment" &&
+      !(
+        command.command_code === "header_attribute" &&
+        command.attribute_name === "TF.CreationDate"
+      ),
+  )
+}
+
+function addLabel(
+  circuit: AnyCircuitElement[],
+  {
+    text,
+    x,
+    y,
+    fontSize = 1,
+  }: { text: string; x: number; y: number; fontSize?: number },
+) {
+  circuit.push({
+    type: "pcb_silkscreen_text",
+    pcb_silkscreen_text_id: `label_${x}_${y}`,
+    pcb_component_id: "labels",
+    text,
+    layer: "top",
+    anchor_position: { x, y },
+    anchor_alignment: "center",
+    font: "tscircuit2024",
+    font_size: fontSize,
+  })
+}
+
 const board: PcbBoard = {
   type: "pcb_board",
   pcb_board_id: "board",
@@ -87,15 +124,6 @@ test("board defaults and per-side overrides control via mask, never copper or dr
           })
           expect(Object.keys(drills)).toEqual(Object.keys(bareDrills))
           for (const file of Object.keys(drills)) {
-            const withoutDates = (commands: (typeof drills)[string]) =>
-              commands.filter(
-                (command) =>
-                  command.command_code !== "header_comment" &&
-                  !(
-                    command.command_code === "header_attribute" &&
-                    command.attribute_name === "TF.CreationDate"
-                  ),
-              )
             expect(withoutDates(drills[file]!)).toEqual(
               withoutDates(bareDrills[file]!),
             )
@@ -163,25 +191,12 @@ test("snapshot exported mask openings and retained drills for inherited and over
       default_via_tented_on_bottom: false,
     },
   ]
-  const label = (text: string, x: number, y: number, font_size = 1) => {
-    circuit.push({
-      type: "pcb_silkscreen_text",
-      pcb_silkscreen_text_id: `label_${x}_${y}`,
-      pcb_component_id: "labels",
-      text,
-      layer: "top",
-      anchor_position: { x, y },
-      anchor_alignment: "center",
-      font: "tscircuit2024",
-      font_size,
-    })
-  }
-  label(
-    "default_via_tented_on_top = true / default_via_tented_on_bottom = false",
-    0,
-    25,
-    1.3,
-  )
+  addLabel(circuit, {
+    text: "default_via_tented_on_top = true / default_via_tented_on_bottom = false",
+    x: 0,
+    y: 25,
+    fontSize: 1.3,
+  })
   for (const [column, flags] of [
     {},
     { tented_on_top: false, tented_on_bottom: false },
@@ -189,8 +204,16 @@ test("snapshot exported mask openings and retained drills for inherited and over
     { tented_on_top: true, tented_on_bottom: true },
   ].entries()) {
     const x = -36 + column * 24
-    label(`tented_on_top = ${flags.tented_on_top ?? "unset"}`, x, 19)
-    label(`tented_on_bottom = ${flags.tented_on_bottom ?? "unset"}`, x, 16)
+    addLabel(circuit, {
+      text: `tented_on_top = ${flags.tented_on_top ?? "unset"}`,
+      x,
+      y: 19,
+    })
+    addLabel(circuit, {
+      text: `tented_on_bottom = ${flags.tented_on_bottom ?? "unset"}`,
+      x,
+      y: 16,
+    })
     circuit.push(
       {
         ...via,
@@ -217,8 +240,8 @@ test("snapshot exported mask openings and retained drills for inherited and over
       },
     )
   }
-  label("pcb_via", 0, 11, 1.8)
-  label("pcb_trace.route via", 0, -8, 1.8)
+  addLabel(circuit, { text: "pcb_via", x: 0, y: 11, fontSize: 1.8 })
+  addLabel(circuit, { text: "pcb_trace.route via", x: 0, y: -8, fontSize: 1.8 })
   const output = stringifyGerberCommandLayers(
     convertSoupToGerberCommands(circuit),
   )
