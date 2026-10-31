@@ -214,7 +214,9 @@ const emitRoundedRect = ({
     currentPoint = tEnd
   }
 
-  if (isClockwise) {
+  // Segment order is in source coordinates; only arc mode changes when Y is
+  // reflected. Reversing both selects a 270-degree arc at each rounded corner.
+  if (drawCw) {
     const cwSegments = [
       {
         lineTo: { x: w - r, y: h },
