@@ -1383,11 +1383,16 @@ export const convertCircuitJsonToGerberCommands = (
           for (const glayer of layers_to_add_to) {
             const { points } = element
             if (!points) continue
+            const regionPoints =
+              glayer === glayers[getGerberLayerName(layer, "soldermask")] &&
+              typeof element.soldermask_margin === "number"
+                ? offsetPolygonOutline(points, element.soldermask_margin)
+                : points
             addClosedRegionFromPoints({
               target: glayer,
               apertureSource: glayer,
               apertureFunction: "SMDPad,CuDef",
-              points,
+              points: regionPoints,
             })
           }
         }
