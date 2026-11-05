@@ -16,7 +16,13 @@ const layerTypeToGerberSuffix = {
 
 export const getGerberLayerName = (
   layer_ref: LayerRef | "edgecut",
-  layer_type: "copper" | "silkscreen" | "fabrication" | "soldermask" | "paste",
+  layer_type:
+    | "copper"
+    | "silkscreen"
+    | "fabrication"
+    | "soldermask"
+    | "mask"
+    | "paste",
 ): GerberLayerName => {
   if (layer_ref === "edgecut") return "Edge_Cuts"
   if (layer_ref.startsWith("inner") && layer_type !== "copper") {
