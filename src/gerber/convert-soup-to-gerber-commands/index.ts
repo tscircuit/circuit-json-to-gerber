@@ -1574,15 +1574,20 @@ export const convertCircuitJsonToGerberCommands = (
             }
 
             // --- Compute effective copper pad dimensions ---
+            const holeDiameter =
+              "hole_diameter" in element &&
+              typeof element.hole_diameter === "number"
+                ? element.hole_diameter
+                : 0
             const holeW =
               "hole_width" in element && typeof element.hole_width === "number"
                 ? element.hole_width
-                : 0
+                : holeDiameter
             const holeH =
               "hole_height" in element &&
               typeof element.hole_height === "number"
                 ? element.hole_height
-                : 0
+                : holeDiameter
 
             const padWidthCandidates: number[] = [holeW]
             if (
