@@ -48,7 +48,6 @@
   "peerDependencies": {
     "typescript": "^5.0.0",
     "@tscircuit/circuit-json-util": "*",
-    "tscircuit": "*",
     "circuit-json": "*"
   },
   "dependencies": {
