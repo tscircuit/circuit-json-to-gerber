@@ -1,40 +1,3 @@
-import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
-import {
-  getPillApertureConfig,
-  type CopperApertureFunction,
-} from "./defineAperturesForLayer"
-import type {
-  AnyCircuitElement,
-  PcbPlatedHole,
-  PcbViaInput,
-  PcbVia,
-} from "circuit-json"
-import { pairs } from "../utils/pairs"
-import { gerberBuilder } from "../gerber-builder"
-import type { LayerToGerberCommandsMap } from "./GerberLayerName"
-import { defineCommonMacros } from "./define-common-macros"
-import {
-  defineAperturesForLayer,
-  REGION_APERTURE_CONFIG,
-  getApertureConfigFromCirclePcbHole,
-  getApertureConfigFromPcbPlatedHole,
-  getApertureConfigFromPcbPlatedHoleSoldermask,
-  getApertureConfigFromCirclePcbHoleSoldermask,
-  getApertureConfigFromPcbCopperText,
-  getApertureConfigFromPcbFabricationNotePath,
-  getApertureConfigFromPcbFabricationNoteText,
-  getApertureConfigFromPcbSilkscreenPath,
-  getApertureConfigFromPcbSilkscreenText,
-  getApertureConfigFromPcbSmtpad,
-  getApertureConfigFromPcbSmtpadSoldermask,
-  getApertureConfigFromPcbSolderPaste,
-  getApertureConfigFromOuterDiameter,
-} from "./defineAperturesForLayer"
-import type { PcbCutout } from "circuit-json"
-import { findApertureNumber } from "./findApertureNumber"
-import { getCommandHeaders } from "./getCommandHeaders"
-import { getGerberLayerName } from "./getGerberLayerName"
-import { offsetPolygonOutline } from "./offsetPolygonOutline"
 import {
   glyphAdvanceRatio,
   glyphWidthRatio,
@@ -42,45 +5,83 @@ import {
   lineAlphabet,
   spaceWidthRatio,
 } from "@tscircuit/alphabet"
-import {
-  applyToPoint,
-  compose,
-  identity,
-  rotate,
-  translate,
-  type Matrix,
-} from "transformation-matrix"
-import type { AnyGerberCommand } from "../any_gerber_command"
+import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
+import type {
+  AnyCircuitElement,
+  PcbPlatedHole,
+  PcbVia,
+  PcbViaInput,
+} from "circuit-json"
+import type { PcbCutout } from "circuit-json"
 import type { LayerRef } from "circuit-json"
-import {
-  getFabricationLayerRefs,
-  isOuterLayerRef,
-  outerLayerRefs,
-} from "./fabricationLayerRefs"
-import { getFabRectPoints } from "./getFabRectPoints"
-import { renderFabricationDimension } from "./renderFabricationDimension"
-import { renderOpenPath } from "./renderOpenPath"
-import {
-  getSilkscreenShapeStroke,
-  isSilkscreenShape,
-} from "./getSilkscreenShapeStroke"
 import polygonClipping, {
   type MultiPolygon,
   type Polygon,
   type Ring,
 } from "polygon-clipping"
 import {
+  type Matrix,
+  applyToPoint,
+  compose,
+  identity,
+  rotate,
+  translate,
+} from "transformation-matrix"
+import type { AnyGerberCommand } from "../any_gerber_command"
+import { gerberBuilder } from "../gerber-builder"
+import {
   doesSolidCutoutOverlapBoardEdge,
   getBoardOutlinePolygons,
-  isCutoutFullyInternal,
   getSolidCutoutOutlinePolygon,
+  isCutoutFullyInternal,
 } from "../utils/boardCutoutGeometry"
 import { emitCutoutEdgeCuts } from "../utils/emitCutoutEdgeCuts"
+import { pairs } from "../utils/pairs"
+import type { LayerToGerberCommandsMap } from "./GerberLayerName"
+import { createCopperObjectAttributeResolver } from "./copperObjectAttributes"
+import { defineCommonMacros } from "./define-common-macros"
+import {
+  type CopperApertureFunction,
+  getPillApertureConfig,
+} from "./defineAperturesForLayer"
+import {
+  REGION_APERTURE_CONFIG,
+  defineAperturesForLayer,
+  getApertureConfigFromCirclePcbHole,
+  getApertureConfigFromCirclePcbHoleSoldermask,
+  getApertureConfigFromOuterDiameter,
+  getApertureConfigFromPcbCopperText,
+  getApertureConfigFromPcbFabricationNotePath,
+  getApertureConfigFromPcbFabricationNoteText,
+  getApertureConfigFromPcbPlatedHole,
+  getApertureConfigFromPcbPlatedHoleSoldermask,
+  getApertureConfigFromPcbSilkscreenPath,
+  getApertureConfigFromPcbSilkscreenText,
+  getApertureConfigFromPcbSmtpad,
+  getApertureConfigFromPcbSmtpadSoldermask,
+  getApertureConfigFromPcbSolderPaste,
+} from "./defineAperturesForLayer"
+import {
+  getFabricationLayerRefs,
+  isOuterLayerRef,
+  outerLayerRefs,
+} from "./fabricationLayerRefs"
+import { findApertureNumber } from "./findApertureNumber"
+import { getCommandHeaders } from "./getCommandHeaders"
+import { getFabRectPoints } from "./getFabRectPoints"
+import { getGerberLayerName } from "./getGerberLayerName"
 import {
   getRotatedRectPoints,
   isGeometryChangingRectRotation,
 } from "./getRotatedRectPoints"
+import {
+  getSilkscreenShapeStroke,
+  isSilkscreenShape,
+} from "./getSilkscreenShapeStroke"
+import { offsetPolygonOutline } from "./offsetPolygonOutline"
 import { renderStiffenerLayers } from "./render-stiffener-layers"
+import { renderFabricationDimension } from "./renderFabricationDimension"
+import { renderOpenPath } from "./renderOpenPath"
 
 type Point = { x: number; y: number }
 
@@ -305,6 +306,9 @@ export const convertCircuitJsonToGerberCommands = (
     )
     .map(getSolidCutoutOutlinePolygon)
     .filter((polygon): polygon is Polygon => polygon !== null)
+
+  const { getCopperObjectAttributes, syncCopperObjectAttributes } =
+    createCopperObjectAttributeResolver(circuitJson)
 
   const renderPillFlash = ({
     glayer,
@@ -885,6 +889,12 @@ export const convertCircuitJsonToGerberCommands = (
           })
         }
 
+        if (all_pour_commands.length > 0) {
+          syncCopperObjectAttributes(
+            copper_glayer,
+            getCopperObjectAttributes(element),
+          )
+        }
         copper_glayer.push(...all_pour_commands)
 
         if (element.covered_with_solder_mask === false) {
@@ -931,6 +941,10 @@ export const convertCircuitJsonToGerberCommands = (
               if (a.x === bPoint.x && a.y === bPoint.y) continue
 
               const glayer = glayers[getGerberLayerName(layer, "copper")]
+              syncCopperObjectAttributes(
+                glayer,
+                getCopperObjectAttributes(element),
+              )
               glayer.push(
                 ...gerberBuilder()
                   .add("select_aperture", {
@@ -947,6 +961,10 @@ export const convertCircuitJsonToGerberCommands = (
             if (b.layer === layer) {
               if (a.x === b.x && a.y === b.y) continue
               const glayer = glayers[getGerberLayerName(layer, "copper")]
+              syncCopperObjectAttributes(
+                glayer,
+                getCopperObjectAttributes(element),
+              )
               glayer.push(
                 ...gerberBuilder()
                   .add("select_aperture", {
@@ -973,6 +991,10 @@ export const convertCircuitJsonToGerberCommands = (
               if (!aPoint) continue
 
               const glayer = glayers[getGerberLayerName(layer, "copper")]
+              syncCopperObjectAttributes(
+                glayer,
+                getCopperObjectAttributes(element),
+              )
               glayer.push(
                 ...gerberBuilder()
                   .add("select_aperture", {
@@ -996,7 +1018,8 @@ export const convertCircuitJsonToGerberCommands = (
           )
             continue
 
-          const targetLayers = [glayers[getGerberLayerName(layer, "copper")]]
+          const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
+          const targetLayers = [copperGlayer]
           if (isOuterLayerRef(layer)) {
             const key = JSON.stringify([board?.pcb_board_id, point.x, point.y])
             const hasStandaloneVia = standaloneViasByPosition
@@ -1019,6 +1042,10 @@ export const convertCircuitJsonToGerberCommands = (
               )
             }
           }
+          syncCopperObjectAttributes(
+            copperGlayer,
+            getCopperObjectAttributes(element),
+          )
           for (const glayer of targetLayers) {
             glayer.push(
               ...gerberBuilder()
@@ -1230,6 +1257,12 @@ export const convertCircuitJsonToGerberCommands = (
           getApertureConfigFromPcbFabricationNoteText,
         )
       } else if (element.type === "pcb_copper_text" && layer !== "edgecut") {
+        if (element.layer === layer) {
+          syncCopperObjectAttributes(
+            glayers[getGerberLayerName(layer, "copper")],
+            {},
+          )
+        }
         renderVectorText(
           element,
           layer,
@@ -1238,6 +1271,10 @@ export const convertCircuitJsonToGerberCommands = (
         )
       } else if (element.type === "pcb_smtpad" && element.shape !== "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          syncCopperObjectAttributes(
+            glayers[getGerberLayerName(layer, "copper")],
+            getCopperObjectAttributes(element),
+          )
           if (element.shape === "pill" || element.shape === "rotated_pill") {
             const soldermaskMargin =
               typeof element.soldermask_margin === "number"
@@ -1370,9 +1407,8 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
-          const layers_to_add_to = [
-            glayers[getGerberLayerName(layer, "copper")],
-          ]
+          const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
+          const layers_to_add_to = [copperGlayer]
 
           if (element.is_covered_with_solder_mask !== true) {
             layers_to_add_to.push(
@@ -1380,6 +1416,12 @@ export const convertCircuitJsonToGerberCommands = (
             )
           }
 
+          if (element.points?.length) {
+            syncCopperObjectAttributes(
+              copperGlayer,
+              getCopperObjectAttributes(element),
+            )
+          }
           for (const glayer of layers_to_add_to) {
             const { points } = element
             if (!points) continue
@@ -1529,14 +1571,22 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_plated_hole") {
         if (element.layers.includes(layer as any)) {
-          const layersToAddTo = [
-            glayers[getGerberLayerName(layer, "copper")],
-          ] as AnyGerberCommand[][]
+          const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
+          const layersToAddTo = [copperGlayer] as AnyGerberCommand[][]
           if (
             isOuterLayerRef(layer) &&
             element.is_covered_with_solder_mask !== true
           ) {
             layersToAddTo.push(glayers[getGerberLayerName(layer, "soldermask")])
+          }
+          if (
+            element.shape !== "hole_with_polygon_pad" ||
+            Boolean(element.pad_outline?.length)
+          ) {
+            syncCopperObjectAttributes(
+              copperGlayer,
+              getCopperObjectAttributes(element),
+            )
           }
           for (const glayer of layersToAddTo) {
             if (element.shape === "hole_with_polygon_pad") {
@@ -1765,9 +1815,8 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_via") {
         if (element.layers.includes(layer as any)) {
-          const layersToAddTo = [
-            glayers[getGerberLayerName(layer, "copper")],
-          ] as AnyGerberCommand[][]
+          const copperGlayer = glayers[getGerberLayerName(layer, "copper")]
+          const layersToAddTo = [copperGlayer] as AnyGerberCommand[][]
           if (isOuterLayerRef(layer)) {
             const board = boardOwners.get(element.pcb_via_id)
             const tenting: PcbViaInput = element
@@ -1785,6 +1834,10 @@ export const convertCircuitJsonToGerberCommands = (
               )
             }
           }
+          syncCopperObjectAttributes(
+            copperGlayer,
+            getCopperObjectAttributes(element),
+          )
           for (const glayer of layersToAddTo) {
             glayer.push(
               ...gerberBuilder()
@@ -1919,6 +1972,10 @@ export const convertCircuitJsonToGerberCommands = (
         }
       }
     }
+  }
+
+  for (const layer of copperLayerRefs) {
+    syncCopperObjectAttributes(glayers[getGerberLayerName(layer, "copper")], {})
   }
 
   // Clear non-plated holes after all dark copper has been emitted so copper
