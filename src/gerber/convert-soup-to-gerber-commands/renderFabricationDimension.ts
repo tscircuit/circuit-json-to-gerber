@@ -9,6 +9,14 @@ type DimensionTextElement = PcbFabricationNoteDimension & {
   ccw_rotation: number
 }
 
+const normalizeReadableRotation = (rotation: number): number => {
+  let normalized = ((rotation % 360) + 360) % 360
+  if (normalized > 180) normalized -= 360
+  if (normalized > 90) normalized -= 180
+  if (normalized <= -90) normalized += 180
+  return normalized
+}
+
 export const renderFabricationDimension = ({
   element,
   glayer,
@@ -49,7 +57,10 @@ export const renderFabricationDimension = ({
     element,
     glayer,
     apertureConfig: lineConfig,
-    route: [from, dimStart, dimEnd, to],
+    route:
+      Math.abs(offsetDistance) <= 1e-9
+        ? [dimStart, dimEnd]
+        : [from, dimStart, dimEnd, to],
     mapY,
   })
 
@@ -92,13 +103,20 @@ export const renderFabricationDimension = ({
   if (element.text) {
     renderText({
       ...element,
+      font_size:
+        typeof element.font_size === "number" &&
+        Number.isFinite(element.font_size) &&
+        element.font_size > 0
+          ? element.font_size
+          : 1,
       anchor_position: {
         x: (dimStart.x + dimEnd.x) / 2,
         y: (dimStart.y + dimEnd.y) / 2,
       },
       anchor_alignment: "center",
       ccw_rotation:
-        element.text_ccw_rotation ?? (Math.atan2(dy, dx) * 180) / Math.PI,
+        element.text_ccw_rotation ??
+        normalizeReadableRotation((Math.atan2(dy, dx) * 180) / Math.PI),
     })
   }
 }
