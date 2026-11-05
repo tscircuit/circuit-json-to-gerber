@@ -81,6 +81,9 @@ const aperture_template_config = z.union([
   macro_aperture_template_config,
 ])
 
+const formatApertureNumber = (value: number): string =>
+  (Math.abs(value) < 1e-12 ? 0 : value).toFixed(6)
+
 export const define_aperture_template = defineGerberCommand({
   command_code: "ADD",
   schema: aperture_template_config.and(
@@ -95,10 +98,10 @@ export const define_aperture_template = defineGerberCommand({
       let commandString = `%ADD${aperture_number}${macro_name},`
 
       if (macro_name === "HORZPILL" || macro_name === "VERTPILL") {
-        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}X${props.circle_diameter.toFixed(6)}X${props.circle_center_offset.toFixed(6)}`
+        commandString += `${formatApertureNumber(props.x_size)}X${formatApertureNumber(props.y_size)}X${formatApertureNumber(props.circle_diameter)}X${formatApertureNumber(props.circle_center_offset)}`
       } else if (macro_name === "ROTATEDPILL") {
         commandString += [props.diameter, props.offset_x, props.offset_y]
-          .map((value) => value.toFixed(6))
+          .map((value) => formatApertureNumber(value))
           .join("X")
       } else if (macro_name === "ROUNDRECT") {
         commandString += [
@@ -112,7 +115,7 @@ export const define_aperture_template = defineGerberCommand({
           props.corner_4_x,
           props.corner_4_y,
         ]
-          .map((value) => value.toFixed(6))
+          .map((value) => formatApertureNumber(value))
           .join("X")
       }
 
@@ -124,20 +127,23 @@ export const define_aperture_template = defineGerberCommand({
       let commandString = `%ADD${aperture_number}${standard_template_code},`
 
       if (standard_template_code === "C") {
-        commandString += `${props.diameter.toFixed(6)}`
+        commandString += `${formatApertureNumber(props.diameter)}`
       } else if (
         standard_template_code === "R" ||
         standard_template_code === "O"
       ) {
-        commandString += `${props.x_size.toFixed(6)}X${props.y_size.toFixed(6)}`
+        commandString += `${formatApertureNumber(props.x_size)}X${formatApertureNumber(props.y_size)}`
       } else if (standard_template_code === "P") {
-        commandString += `${props.outer_diameter}X${props.number_of_vertices}X${
-          props.rotation ? `X${props.rotation}` : ""
-        }`
+        commandString += `${props.outer_diameter}X${props.number_of_vertices}`
+        if (props.rotation) {
+          commandString += `X${props.rotation}`
+        } else if (props.hole_diameter) {
+          commandString += "X0"
+        }
       }
 
       if (props.hole_diameter) {
-        commandString += `X${props.hole_diameter.toFixed(6)}`
+        commandString += `X${formatApertureNumber(props.hole_diameter)}`
       }
 
       commandString += "*%"

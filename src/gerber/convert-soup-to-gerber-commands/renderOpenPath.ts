@@ -25,31 +25,49 @@ export const renderOpenPath = ({
   route: Point[]
   mapY: (y: number) => number
 }) => {
-  if (route.length === 0) return
+  const cleanRoute: Point[] = []
+  for (const point of route) {
+    if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) {
+      continue
+    }
+    const prev = cleanRoute[cleanRoute.length - 1]
+    if (prev && Math.hypot(point.x - prev.x, point.y - prev.y) <= 1e-9) {
+      continue
+    }
+    cleanRoute.push(point)
+  }
+
+  if (cleanRoute.length < 2) return
   const gerber = gerberBuilder().add("select_aperture", {
     aperture_number: findApertureNumber(glayer, apertureConfig),
   })
 
   gerber.add("move_operation", {
-    x: route[0].x,
-    y: mapY(route[0].y),
+    x: cleanRoute[0].x,
+    y: mapY(cleanRoute[0].y),
   })
 
   const isDashed = element.is_stroke_dashed === true
   if (!isDashed) {
-    for (let i = 1; i < route.length; i++) {
+    for (let i = 1; i < cleanRoute.length; i++) {
       gerber.add("plot_operation", {
-        x: route[i].x,
-        y: mapY(route[i].y),
+        x: cleanRoute[i].x,
+        y: mapY(cleanRoute[i].y),
       })
     }
     glayer.push(...gerber.build())
     return
   }
 
-  const dashLength = Math.max(0.2, (element.stroke_width ?? 0.1) * 4)
+  const strokeWidth =
+    typeof element.stroke_width === "number" &&
+    Number.isFinite(element.stroke_width) &&
+    element.stroke_width > 0
+      ? element.stroke_width
+      : 0.1
+  const dashLength = Math.max(0.2, strokeWidth * 4)
   const gapLength = dashLength
-  for (const [start, end] of pairs(route)) {
+  for (const [start, end] of pairs(cleanRoute)) {
     const dx = end.x - start.x
     const dy = end.y - start.y
     const length = Math.hypot(dx, dy)
