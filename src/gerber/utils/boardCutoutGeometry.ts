@@ -24,19 +24,71 @@ type SolidCutoutInCircuitJson =
 const roundedRectCornerArcSegmentCount = 8
 const circleCutoutPolygonSegmentCount = 64
 
+const isFiniteNumber = (value: unknown): value is number =>
+  typeof value === "number" && Number.isFinite(value)
+
+const getSignedRingArea = (ring: Ring): number => {
+  let area = 0
+  for (let i = 0; i < ring.length; i++) {
+    const [x1, y1] = ring[i]!
+    const [x2, y2] = ring[(i + 1) % ring.length]!
+    area += x1 * y2 - x2 * y1
+  }
+  return area / 2
+}
+
+const sanitizePolygonRing = (
+  points: ReadonlyArray<{ x: number; y: number }> | undefined,
+): Ring | null => {
+  if (!Array.isArray(points)) return null
+  const filtered: Ring = []
+  for (const point of points) {
+    if (!point || !isFiniteNumber(point.x) || !isFiniteNumber(point.y)) continue
+    const prev = filtered[filtered.length - 1]
+    if (prev && Math.hypot(point.x - prev[0], point.y - prev[1]) <= 1e-9) {
+      continue
+    }
+    filtered.push([point.x, point.y])
+  }
+  if (filtered.length > 2) {
+    const first = filtered[0]!
+    const last = filtered[filtered.length - 1]!
+    if (Math.hypot(first[0] - last[0], first[1] - last[1]) <= 1e-9) {
+      filtered.pop()
+    }
+  }
+  if (filtered.length < 3 || Math.abs(getSignedRingArea(filtered)) <= 1e-10) {
+    return null
+  }
+  return filtered
+}
+
 /**
  * Use for one `pcb_board` element when polygon-clipping needs that board's outline.
  */
 export const getBoardOutlinePolygon = (board: PcbBoard): Polygon => {
-  if (board.outline && board.outline.length > 2) {
-    return [board.outline.map((point) => [point.x, point.y])]
+  const sanitizedOutline = sanitizePolygonRing(board.outline)
+  if (sanitizedOutline) {
+    return [sanitizedOutline]
+  }
+
+  if (
+    !board.center ||
+    !isFiniteNumber(board.center.x) ||
+    !isFiniteNumber(board.center.y) ||
+    !isFiniteNumber(board.width) ||
+    board.width <= 0 ||
+    !isFiniteNumber(board.height) ||
+    board.height <= 0
+  ) {
+    return []
   }
 
   // Boards without an explicit outline are represented by their bounding rectangle.
   const bounds = getBoundFromCenteredRect({
-    center: board.center!,
-    width: board.width!,
-    height: board.height!,
+    center: board.center,
+    width: board.width,
+    height: board.height,
   })
 
   return [
@@ -58,6 +110,7 @@ export const getBoardOutlinePolygons = (
   circuitJson
     .filter((element): element is PcbBoard => element.type === "pcb_board")
     .map(getBoardOutlinePolygon)
+    .filter((polygon) => polygon.length > 0 && polygon[0]!.length >= 3)
 
 const getRectCutoutOutlinePoints = (cutout: PcbCutoutRect): Point[] => {
   const { center, width, height, rotation, corner_radius } = cutout
@@ -124,15 +177,36 @@ export const getSolidCutoutOutlinePolygon = (
   cutout: PcbCutout,
 ): Polygon | null => {
   if (cutout.shape === "rect") {
+    if (
+      !cutout.center ||
+      !isFiniteNumber(cutout.center.x) ||
+      !isFiniteNumber(cutout.center.y) ||
+      !isFiniteNumber(cutout.width) ||
+      cutout.width <= 0 ||
+      !isFiniteNumber(cutout.height) ||
+      cutout.height <= 0
+    ) {
+      return null
+    }
     return [
       getRectCutoutOutlinePoints(cutout).map((point) => [point.x, point.y]),
     ]
   }
   if (cutout.shape === "circle") {
+    if (
+      !cutout.center ||
+      !isFiniteNumber(cutout.center.x) ||
+      !isFiniteNumber(cutout.center.y) ||
+      !isFiniteNumber(cutout.radius) ||
+      cutout.radius <= 0
+    ) {
+      return null
+    }
     return getCircleCutoutOutlinePolygon(cutout)
   }
   if (cutout.shape === "polygon") {
-    return [cutout.points.map((point) => [point.x, point.y])]
+    const ring = sanitizePolygonRing(cutout.points)
+    return ring ? [ring] : null
   }
   return null
 }
