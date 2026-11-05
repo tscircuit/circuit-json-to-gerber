@@ -22,17 +22,45 @@ const getLayerCount = (circuitJson: Array<AnyCircuitElement>) => {
   const board = circuitJson.find((element) => element.type === "pcb_board") as
     | { num_layers?: number }
     | undefined
-  if (!board || typeof board.num_layers !== "number") {
-    return 2
+  if (board && typeof board.num_layers === "number" && board.num_layers >= 2) {
+    return board.num_layers
   }
-  return Math.max(2, board.num_layers)
+
+  let maxInnerLayerNumber = 0
+  const inspectLayer = (layer: unknown) => {
+    if (typeof layer !== "string") return
+    const match = layer.match(/^inner([1-9]\d*)$/)
+    if (match) {
+      maxInnerLayerNumber = Math.max(maxInnerLayerNumber, Number(match[1]))
+    }
+  }
+  for (const element of circuitJson) {
+    if ("layer" in element) inspectLayer(element.layer)
+    if ("from_layer" in element) inspectLayer(element.from_layer)
+    if ("to_layer" in element) inspectLayer(element.to_layer)
+    if ("layers" in element && Array.isArray(element.layers)) {
+      for (const layer of element.layers) inspectLayer(layer)
+    }
+    if (element.type === "pcb_trace" && Array.isArray(element.route)) {
+      for (const point of element.route) {
+        if ("layer" in point) inspectLayer(point.layer)
+        if ("from_layer" in point) inspectLayer(point.from_layer)
+        if ("to_layer" in point) inspectLayer(point.to_layer)
+      }
+    }
+  }
+
+  if (maxInnerLayerNumber > 0) {
+    return Math.ceil((maxInnerLayerNumber + 2) / 2) * 2
+  }
+  return 2
 }
 
 const getLayerNumber = (layer: LayerRef, layerCount: number) => {
   if (layer === "top") return 1
   if (layer === "bottom") return layerCount
 
-  const innerLayerMatch = layer.match(/^inner([1-6])$/)
+  const innerLayerMatch = layer.match(/^inner([1-9]\d*)$/)
   if (innerLayerMatch) {
     const innerLayerNumber = Number(innerLayerMatch[1])
     if (innerLayerNumber >= 1 && innerLayerNumber <= layerCount - 2) {
@@ -292,10 +320,22 @@ const getBoardOutlinePolygons = (
       return [[element.outline.map((point) => [point.x, point.y])]]
     }
 
+    if (
+      !element.center ||
+      typeof element.width !== "number" ||
+      typeof element.height !== "number" ||
+      !Number.isFinite(element.center.x) ||
+      !Number.isFinite(element.center.y) ||
+      !Number.isFinite(element.width) ||
+      !Number.isFinite(element.height)
+    ) {
+      return []
+    }
+
     const bounds = getBoundFromCenteredRect({
-      center: element.center!,
-      width: element.width!,
-      height: element.height!,
+      center: element.center,
+      width: element.width,
+      height: element.height,
     })
 
     return [
@@ -392,19 +432,33 @@ const getDrillElements = ({
 }
 
 const getHoleDiameter = (element: DrillElement) => {
-  if ("hole_diameter" in element && typeof element.hole_diameter === "number") {
+  if (
+    "hole_diameter" in element &&
+    typeof element.hole_diameter === "number" &&
+    Number.isFinite(element.hole_diameter) &&
+    element.hole_diameter > 0
+  ) {
     return element.hole_diameter
   }
 
-  if (element.type === "pcb_cutout") {
+  if (
+    element.type === "pcb_cutout" &&
+    typeof element.radius === "number" &&
+    Number.isFinite(element.radius) &&
+    element.radius > 0
+  ) {
     return element.radius * 2
   }
 
   if (
     "hole_width" in element &&
     typeof element.hole_width === "number" &&
+    Number.isFinite(element.hole_width) &&
+    element.hole_width > 0 &&
     "hole_height" in element &&
-    typeof element.hole_height === "number"
+    typeof element.hole_height === "number" &&
+    Number.isFinite(element.hole_height) &&
+    element.hole_height > 0
   ) {
     return Math.min(element.hole_width, element.hole_height)
   }
@@ -701,15 +755,24 @@ const getDrillLayerSpanKey = (span: DrillLayerSpan, layerCount: number) => {
 }
 
 const hasDrillGeometry = (element: AnyCircuitElement) => {
-  if ("hole_diameter" in element && typeof element.hole_diameter === "number") {
+  if (
+    "hole_diameter" in element &&
+    typeof element.hole_diameter === "number" &&
+    Number.isFinite(element.hole_diameter) &&
+    element.hole_diameter > 0
+  ) {
     return true
   }
 
   return (
     "hole_width" in element &&
     typeof element.hole_width === "number" &&
+    Number.isFinite(element.hole_width) &&
+    element.hole_width > 0 &&
     "hole_height" in element &&
-    typeof element.hole_height === "number"
+    typeof element.hole_height === "number" &&
+    Number.isFinite(element.hole_height) &&
+    element.hole_height > 0
   )
 }
 
@@ -724,6 +787,9 @@ export const convertCircuitJsonToExcellonDrillCommandLayers = ({
   const platedSpans = new Map(
     getDrillableElements(circuitJson).flatMap(
       (element): Array<[string, DrillLayerSpan]> => {
+        if (!hasDrillGeometry(element)) {
+          return []
+        }
         const span = getPlatedElementLayerSpan(element, layerCount)
         if (!span) {
           return []
