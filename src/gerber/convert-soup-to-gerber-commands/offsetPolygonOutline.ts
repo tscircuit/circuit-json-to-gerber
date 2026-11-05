@@ -42,7 +42,12 @@ export const offsetPolygonOutline = (
     return points
   }
 
-  const isCounterClockwise = getSignedPolygonArea(points) > 0
+  const signedArea = getSignedPolygonArea(points)
+  if (Math.abs(signedArea) < 1e-9) {
+    return offset < 0 ? [] : points
+  }
+
+  const isCounterClockwise = signedArea > 0
   const shiftedEdges: Array<{ start: Point; end: Point }> = []
 
   for (let i = 0; i < points.length; i++) {
@@ -76,7 +81,7 @@ export const offsetPolygonOutline = (
   }
 
   if (shiftedEdges.length < 3) {
-    return points
+    return offset < 0 ? [] : points
   }
 
   const offsetPoints: Point[] = []
@@ -89,6 +94,23 @@ export const offsetPolygonOutline = (
       offsetPoints.push(intersection)
     } else {
       offsetPoints.push(currentEdge.start)
+    }
+  }
+
+  if (offset < 0) {
+    if (getSignedPolygonArea(offsetPoints) * signedArea <= 1e-9) {
+      return []
+    }
+    for (let i = 0; i < offsetPoints.length; i++) {
+      const start = offsetPoints[i]
+      const end = offsetPoints[(i + 1) % offsetPoints.length]
+      const edge = shiftedEdges[i]
+      const dot =
+        (end.x - start.x) * (edge.end.x - edge.start.x) +
+        (end.y - start.y) * (edge.end.y - edge.start.y)
+      if (dot <= 1e-9) {
+        return []
+      }
     }
   }
 
