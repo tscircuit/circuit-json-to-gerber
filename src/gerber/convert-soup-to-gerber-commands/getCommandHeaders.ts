@@ -20,7 +20,7 @@ const layerAndTypeToFileFunction = {
 
 const getCopperLayerNumber = (layer: LayerRef, total_layer_count: number) => {
   if (layer === "top") return 1
-  if (layer === "bottom") return total_layer_count
+  if (layer === "bottom") return Math.max(2, total_layer_count)
   return Number(layer.replace("inner", "")) + 1
 }
 
@@ -52,7 +52,9 @@ export const getCommandHeaders = (opts: {
 }): AnyGerberCommand[] => {
   const total_layer_count = opts.total_layer_count ?? 2
   let file_function: string | undefined
-  if (opts.layer_type === "copper" && opts.layer !== "edgecut") {
+  if (opts.layer === "edgecut") {
+    file_function = layerAndTypeToFileFunction.edgecut
+  } else if (opts.layer_type === "copper") {
     const layerNumber = getCopperLayerNumber(opts.layer, total_layer_count)
     const layerPosition =
       opts.layer === "top" ? "Top" : opts.layer === "bottom" ? "Bot" : "Inr"

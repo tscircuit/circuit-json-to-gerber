@@ -19,9 +19,9 @@ export const plot_operation = defineGerberCommand({
     const gx = getGerberCoordinateWithPadding(x)
     const gy = getGerberCoordinateWithPadding(y)
     let cmd = `X${gx}Y${gy}`
-    if (i !== undefined && j !== undefined) {
-      const gi = getGerberCoordinateWithPadding(i)
-      const gj = getGerberCoordinateWithPadding(j)
+    if (i !== undefined || j !== undefined) {
+      const gi = getGerberCoordinateWithPadding(i ?? 0)
+      const gj = getGerberCoordinateWithPadding(j ?? 0)
       cmd += `I${gi}J${gj}`
     }
     return `${cmd}D01*`
