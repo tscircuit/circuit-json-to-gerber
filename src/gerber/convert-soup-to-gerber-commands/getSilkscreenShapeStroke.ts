@@ -66,7 +66,7 @@ const ellipseRoute = (
  * rounded (a pill when the radius fills the shorter side). Optionally rotated
  * about its center.
  */
-const rectangleRoute = (
+export const rectangleRoute = (
   center: Point,
   width: number,
   height: number,
@@ -112,7 +112,7 @@ const rectangleRoute = (
 }
 
 /** Corner radius clamped to fit the rectangle, or 0 when unset/non-positive. */
-const clampCornerRadius = (
+export const clampCornerRadius = (
   width: number,
   height: number,
   cornerRadius: unknown,
@@ -171,14 +171,13 @@ export const getSilkscreenShapeStroke = (
         strokeWidth,
       }
     case "pcb_silkscreen_pill":
-      // A pill is a rectangle whose corner radius fills the shorter side. The
-      // renderer does not rotate pills, so neither do we.
       return {
         route: rectangleRoute(
           element.center,
           element.width,
           element.height,
           Math.min(element.width, element.height) / 2,
+          element.ccw_rotation ?? 0,
         ),
         strokeWidth,
       }
