@@ -387,13 +387,17 @@ type FabricationTextApertureElement =
 export const getApertureConfigFromPcbFabricationNoteText = (
   elm: FabricationTextApertureElement,
 ): ApertureTemplateConfig => {
-  if ("font_size" in elm) {
-    return {
-      standard_template_code: "C",
-      diameter: elm.font_size * strokeWidthRatio,
-    }
+  const fontSize =
+    "font_size" in elm &&
+    typeof elm.font_size === "number" &&
+    Number.isFinite(elm.font_size) &&
+    elm.font_size > 0
+      ? elm.font_size
+      : 1
+  return {
+    standard_template_code: "C",
+    diameter: fontSize * strokeWidthRatio,
   }
-  throw new Error(`Provide font_size for: ${elm as any}`)
 }
 
 export const getApertureConfigFromPcbFabricationNotePath = (
@@ -414,9 +418,15 @@ export const getApertureConfigFromPcbFabricationNotePath = (
 export const getApertureConfigFromPcbFabricationNoteDimension = (
   elm: PcbFabricationNoteDimension,
 ): ApertureTemplateConfig => {
+  const fontSize =
+    typeof elm.font_size === "number" &&
+    Number.isFinite(elm.font_size) &&
+    elm.font_size > 0
+      ? elm.font_size
+      : 1
   return {
     standard_template_code: "C",
-    diameter: Math.max(0.05, elm.font_size / 10),
+    diameter: Math.max(0.05, fontSize / 10),
   }
 }
 
@@ -866,19 +876,19 @@ function getAllApertureTemplateConfigsForLayer({
       if (!isFabricationLayer)
         addConfigIfNew(getApertureConfigFromPcbSilkscreenText(elm))
     } else if (elm.type === "pcb_fabrication_note_text") {
-      if (isFabricationLayer && elm.layer === layer)
+      if (isFabricationLayer && (elm.layer ?? "top") === layer)
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
     } else if (elm.type === "pcb_fabrication_note_path") {
-      if (isFabricationLayer && elm.layer === layer)
+      if (isFabricationLayer && (elm.layer ?? "top") === layer)
         addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
     } else if (elm.type === "pcb_fabrication_note_rect") {
-      if (isFabricationLayer && elm.layer === layer) {
+      if (isFabricationLayer && (elm.layer ?? "top") === layer) {
         if (elm.has_stroke !== false)
           addConfigIfNew(getApertureConfigFromPcbFabricationNotePath(elm))
         if (elm.is_filled === true) addConfigIfNew(REGION_APERTURE_CONFIG)
       }
     } else if (elm.type === "pcb_fabrication_note_dimension") {
-      if (isFabricationLayer && elm.layer === layer) {
+      if (isFabricationLayer && (elm.layer ?? "top") === layer) {
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteDimension(elm))
         addConfigIfNew(getApertureConfigFromPcbFabricationNoteText(elm))
       }

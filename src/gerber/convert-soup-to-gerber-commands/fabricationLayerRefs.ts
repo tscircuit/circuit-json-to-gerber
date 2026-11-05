@@ -16,7 +16,7 @@ const isFabricationElementOnLayer = (
     element.type === "pcb_fabrication_note_path" ||
     element.type === "pcb_fabrication_note_rect" ||
     element.type === "pcb_fabrication_note_dimension") &&
-  element.layer === layerRef
+  (element.layer ?? "top") === layerRef
 
 export const getFabricationLayerRefs = (
   circuitJson: AnyCircuitElement[],

@@ -451,7 +451,9 @@ export const convertCircuitJsonToGerberCommands = (
     layerType: "copper" | "silkscreen" | "fabrication",
     getApertureConfig: (elm: any) => any,
   ) => {
-    if (element.layer !== layer) return
+    const elementLayer =
+      layerType === "fabrication" ? (element.layer ?? "top") : element.layer
+    if (elementLayer !== layer) return
     // The acctual Uppercase letters are 70% of the font size
     // sources: https://forum.generic-mapping-tools.org/t/what-exactly-is-the-custom-font-s-height-point-size-ratio/1265/2
     const CAP_HEIGHT_SCALE = 0.7 // Adjust based on your font's metrics
@@ -463,14 +465,20 @@ export const convertCircuitJsonToGerberCommands = (
 
     let initialX = element.anchor_position.x
     let initialY = element.anchor_position.y
-    const fontSize = element.font_size * CAP_HEIGHT_SCALE
-    const letterSpacing = element.font_size * letterSpacingRatio
+    const rawFontSize =
+      typeof element.font_size === "number" &&
+      Number.isFinite(element.font_size) &&
+      element.font_size > 0
+        ? element.font_size
+        : 1
+    const fontSize = rawFontSize * CAP_HEIGHT_SCALE
+    const letterSpacing = rawFontSize * letterSpacingRatio
     const textWidth =
       element.text
         .split("")
         .reduce(
           (width: number, char: string) =>
-            width + getAlphabetCharacterAdvance(char, element.font_size),
+            width + getAlphabetCharacterAdvance(char, rawFontSize),
           0,
         ) +
       Math.max(0, element.text.length - 1) * letterSpacing
@@ -633,7 +641,7 @@ export const convertCircuitJsonToGerberCommands = (
     for (const char of element.text) {
       if (char === " ") {
         anchoredX +=
-          getAlphabetCharacterAdvance(char, element.font_size) + letterSpacing
+          getAlphabetCharacterAdvance(char, rawFontSize) + letterSpacing
         continue
       }
 
@@ -652,7 +660,7 @@ export const convertCircuitJsonToGerberCommands = (
       }
 
       anchoredX +=
-        getAlphabetCharacterAdvance(char, element.font_size) + letterSpacing
+        getAlphabetCharacterAdvance(char, rawFontSize) + letterSpacing
     }
 
     glayer.push(...gerber.build())
@@ -1161,7 +1169,7 @@ export const convertCircuitJsonToGerberCommands = (
         element.type === "pcb_fabrication_note_path" &&
         isOuterLayerRef(layer)
       ) {
-        if (element.layer === layer) {
+        if ((element.layer ?? "top") === layer) {
           renderOpenPath({
             element,
             glayer:
@@ -1176,7 +1184,7 @@ export const convertCircuitJsonToGerberCommands = (
         element.type === "pcb_fabrication_note_rect" &&
         isOuterLayerRef(layer)
       ) {
-        if (element.layer === layer) {
+        if ((element.layer ?? "top") === layer) {
           const glayer =
             glayers[getGerberLayerName(layer as LayerRef, "fabrication")]
           const points = getFabRectPoints(element)
@@ -1204,7 +1212,7 @@ export const convertCircuitJsonToGerberCommands = (
         element.type === "pcb_fabrication_note_dimension" &&
         isOuterLayerRef(layer)
       ) {
-        if (element.layer === layer) {
+        if ((element.layer ?? "top") === layer) {
           renderFabricationDimension({
             element,
             glayer:
