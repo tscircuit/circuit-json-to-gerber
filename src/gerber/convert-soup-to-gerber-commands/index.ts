@@ -1041,26 +1041,13 @@ export const convertCircuitJsonToGerberCommands = (
         if (element.layer === layer) {
           const glayer = glayers[getGerberLayerName(layer, "silkscreen")]
           const apertureConfig = getApertureConfigFromPcbSilkscreenPath(element)
-          const gerber = gerberBuilder().add("select_aperture", {
-            aperture_number: findApertureNumber(glayer, apertureConfig),
+          renderOpenPath({
+            element,
+            glayer,
+            apertureConfig,
+            route: element.route,
+            mapY: mfy,
           })
-          // Move to the first point
-          if (element.route.length > 0) {
-            gerber.add("move_operation", {
-              x: element.route[0].x,
-              y: mfy(element.route[0].y),
-            })
-          }
-
-          // Plot lines to subsequent points
-          for (let i = 1; i < element.route.length; i++) {
-            gerber.add("plot_operation", {
-              x: element.route[i].x,
-              y: mfy(element.route[i].y),
-            })
-          }
-
-          glayer.push(...gerber.build())
         }
       } else if (isSilkscreenShape(element) && isOuterLayerRef(layer)) {
         if (element.layer === layer) {
@@ -1461,6 +1448,11 @@ export const convertCircuitJsonToGerberCommands = (
           }
           if (element.shape === "oval") {
             const glayer = glayers[getGerberLayerName(layer, "paste")]
+            const ovalRotation =
+              "ccw_rotation" in element &&
+              typeof element.ccw_rotation === "number"
+                ? element.ccw_rotation
+                : 0
             addClosedRegionFromPoints({
               target: glayer,
               apertureSource: glayer,
@@ -1469,6 +1461,7 @@ export const convertCircuitJsonToGerberCommands = (
                 y: element.y,
                 width: element.width,
                 height: element.height,
+                rotationDegrees: ovalRotation,
               }),
             })
             continue
@@ -1518,7 +1511,7 @@ export const convertCircuitJsonToGerberCommands = (
           })
           if (rotation) {
             gb.add("load_rotation", {
-              rotation_degrees: rotation,
+              rotation_degrees: opts.flip_y_axis ? -rotation : rotation,
             })
           }
           gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
