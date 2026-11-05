@@ -471,6 +471,35 @@ export const getApertureConfigFromPcbSolderPaste = (
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
+const getEffectivePlatedHoleRectPadDimensions = (
+  elm: Extract<
+    PCBPlatedHole,
+    {
+      shape:
+        | "circular_hole_with_rect_pad"
+        | "pill_hole_with_rect_pad"
+        | "rotated_pill_hole_with_rect_pad"
+    }
+  >,
+) => {
+  const holeDiameter =
+    "hole_diameter" in elm && typeof elm.hole_diameter === "number"
+      ? elm.hole_diameter
+      : 0
+  const holeWidth =
+    "hole_width" in elm && typeof elm.hole_width === "number"
+      ? elm.hole_width
+      : holeDiameter
+  const holeHeight =
+    "hole_height" in elm && typeof elm.hole_height === "number"
+      ? elm.hole_height
+      : holeDiameter
+  return {
+    rectPadWidth: Math.max(elm.rect_pad_width, holeWidth),
+    rectPadHeight: Math.max(elm.rect_pad_height, holeHeight),
+  }
+}
+
 export const getApertureConfigFromPcbPlatedHole = (
   elm: PCBPlatedHole,
   flipYAxis = false,
@@ -483,7 +512,7 @@ export const getApertureConfigFromPcbPlatedHole = (
     }
     return {
       standard_template_code: "C",
-      diameter: elm.outer_diameter,
+      diameter: Math.max(elm.outer_diameter, elm.hole_diameter),
     }
   }
   if (elm.shape === "pill") {
@@ -510,15 +539,17 @@ export const getApertureConfigFromPcbPlatedHole = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHole: missing dimensions`,
       )
     }
+    const { rectPadWidth, rectPadHeight } =
+      getEffectivePlatedHoleRectPadDimensions(elm)
     const cornerRadius = getClampedRoundedRectCornerRadius(
-      elm.rect_pad_width,
-      elm.rect_pad_height,
+      rectPadWidth,
+      rectPadHeight,
       elm.rect_border_radius,
     )
     if (cornerRadius > 0) {
       return getRoundedRectApertureConfig(
-        elm.rect_pad_width,
-        elm.rect_pad_height,
+        rectPadWidth,
+        rectPadHeight,
         cornerRadius,
         ("rect_ccw_rotation" in elm ? (elm.rect_ccw_rotation ?? 0) : 0) *
           (flipYAxis ? -1 : 1),
@@ -526,8 +557,8 @@ export const getApertureConfigFromPcbPlatedHole = (
     }
     return {
       standard_template_code: "R",
-      x_size: elm.rect_pad_width,
-      y_size: elm.rect_pad_height,
+      x_size: rectPadWidth,
+      y_size: rectPadHeight,
     }
   }
   throw new Error(
@@ -552,7 +583,8 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
     }
     return {
       standard_template_code: "C",
-      diameter: elm.outer_diameter + soldermaskMargin * 2,
+      diameter:
+        Math.max(elm.outer_diameter, elm.hole_diameter) + soldermaskMargin * 2,
     }
   }
 
@@ -581,16 +613,18 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing dimensions`,
       )
     }
-    const width = elm.rect_pad_width + soldermaskMargin * 2
-    const height = elm.rect_pad_height + soldermaskMargin * 2
+    const { rectPadWidth, rectPadHeight } =
+      getEffectivePlatedHoleRectPadDimensions(elm)
+    const width = rectPadWidth + soldermaskMargin * 2
+    const height = rectPadHeight + soldermaskMargin * 2
     if (width <= 0 || height <= 0) {
       throw new Error(
         `Invalid soldermask opening for plated hole ${elm.pcb_plated_hole_id}: soldermask_margin ${soldermaskMargin} must leave positive width and height`,
       )
     }
     const padRadius = getClampedRoundedRectCornerRadius(
-      elm.rect_pad_width,
-      elm.rect_pad_height,
+      rectPadWidth,
+      rectPadHeight,
       elm.rect_border_radius,
     )
     const cornerRadius =
@@ -791,19 +825,23 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm, flip_y_axis))
         }
         if (
-          "rect_pad_width" in elm &&
-          typeof elm.rect_pad_width === "number" &&
-          "rect_pad_height" in elm &&
-          typeof elm.rect_pad_height === "number" &&
+          (elm.shape === "circular_hole_with_rect_pad" ||
+            elm.shape === "pill_hole_with_rect_pad" ||
+            elm.shape === "rotated_pill_hole_with_rect_pad") &&
           "rect_ccw_rotation" in elm &&
-          typeof elm.rect_ccw_rotation === "number" &&
-          isGeometryChangingRectRotation({
-            width: elm.rect_pad_width,
-            height: elm.rect_pad_height,
-            ccwRotationDegrees: elm.rect_ccw_rotation,
-          })
+          typeof elm.rect_ccw_rotation === "number"
         ) {
-          addConfigIfNew(REGION_APERTURE_CONFIG)
+          const { rectPadWidth, rectPadHeight } =
+            getEffectivePlatedHoleRectPadDimensions(elm)
+          if (
+            isGeometryChangingRectRotation({
+              width: rectPadWidth,
+              height: rectPadHeight,
+              ccwRotationDegrees: elm.rect_ccw_rotation,
+            })
+          ) {
+            addConfigIfNew(REGION_APERTURE_CONFIG)
+          }
         }
       }
     } else if (elm.type === "pcb_hole") {
