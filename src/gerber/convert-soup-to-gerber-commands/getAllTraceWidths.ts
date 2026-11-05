@@ -10,13 +10,26 @@ export function getAllTraceWidths(
   const widths: Record<LayerRef, Set<number>> = {} as any
 
   for (const trace of pcb_traces) {
+    if (!Array.isArray(trace.route)) continue
     for (const segment of trace.route) {
       if (segment.route_type === "wire") {
-        widths[segment.layer] = widths[segment.layer] || new Set<number>()
-        widths[segment.layer].add(segment.width)
+        if (
+          typeof segment.layer === "string" &&
+          typeof segment.width === "number" &&
+          Number.isFinite(segment.width) &&
+          segment.width > 0
+        ) {
+          widths[segment.layer] = widths[segment.layer] || new Set<number>()
+          widths[segment.layer].add(segment.width)
+        }
       } else if (segment.route_type === "through_pad") {
         for (const layer of [segment.start_layer, segment.end_layer]) {
-          if (typeof layer === "string" && typeof segment.width === "number") {
+          if (
+            typeof layer === "string" &&
+            typeof segment.width === "number" &&
+            Number.isFinite(segment.width) &&
+            segment.width > 0
+          ) {
             widths[layer as LayerRef] =
               widths[layer as LayerRef] || new Set<number>()
             widths[layer as LayerRef].add(segment.width)
