@@ -34,6 +34,8 @@ export const emitCutoutEdgeCuts = ({
     emitRect({ cutout, builder, mfy, drawCw })
   } else if (cutout.shape === "polygon") {
     emitPolygon({ cutout, builder, mfy, drawCw })
+  } else if (cutout.shape === "path") {
+    emitPath({ cutout, builder, mfy })
   }
 }
 
@@ -301,5 +303,26 @@ const emitPolygon = ({
   for (let i = 1; i < ordered.length; i++) {
     builder.add("plot_operation", { x: ordered[i].x, y: mfy(ordered[i].y) })
   }
-  builder.add("plot_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
+  const last = ordered[ordered.length - 1]
+  if (last.x !== ordered[0].x || last.y !== ordered[0].y) {
+    builder.add("plot_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
+  }
+}
+
+const emitPath = ({
+  cutout,
+  builder,
+  mfy,
+}: {
+  cutout: Extract<PcbCutout, { shape: "path" }>
+  builder: GerberBuilder
+  mfy: (y: number) => number
+}) => {
+  const route = cutout.route
+  if (route.length < 2) return
+
+  builder.add("move_operation", { x: route[0].x, y: mfy(route[0].y) })
+  for (let i = 1; i < route.length; i++) {
+    builder.add("plot_operation", { x: route[i].x, y: mfy(route[i].y) })
+  }
 }
