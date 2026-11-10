@@ -173,12 +173,42 @@ export const doesSolidCutoutOverlapBoardEdge = ({
     const overlapsBoard =
       polygonClipping.intersection(boardOutlinePolygon, cutoutOutlinePolygon)
         .length > 0
+    if (!overlapsBoard) return false
+
     const extendsOutsideBoard =
       polygonClipping.difference(cutoutOutlinePolygon, boardOutlinePolygon)
         .length > 0
-    return overlapsBoard && extendsOutsideBoard
+    if (extendsOutsideBoard) return true
+
+    // A cutout that ends exactly on the board edge (flush with it) does not
+    // extend outside the board, but it still opens the outline: subtracting it
+    // changes the outer boundary instead of adding a hole. Emitting it as a
+    // standalone loop would put a closed contour on top of the board edge,
+    // which fab CAM tools read as solid board.
+    return !doesSubtractingCutoutAddHole({
+      boardOutlinePolygon,
+      cutoutOutlinePolygon,
+    })
   })
 }
+
+const countHoles = (polygons: Polygon[]) =>
+  polygons.reduce((holeCount, polygon) => holeCount + polygon.length - 1, 0)
+
+/**
+ * Use to tell an internal cutout (becomes a hole in the board) from one that
+ * touches the board edge (becomes a notch in the outer boundary).
+ */
+const doesSubtractingCutoutAddHole = ({
+  boardOutlinePolygon,
+  cutoutOutlinePolygon,
+}: {
+  boardOutlinePolygon: Polygon
+  cutoutOutlinePolygon: Polygon
+}) =>
+  countHoles(
+    polygonClipping.difference(boardOutlinePolygon, cutoutOutlinePolygon),
+  ) > countHoles([boardOutlinePolygon])
 
 /**
  * Use before Edge.Cuts emission to collect only the cutout polygons that merge
