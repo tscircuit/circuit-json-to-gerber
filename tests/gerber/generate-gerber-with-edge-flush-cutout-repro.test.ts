@@ -46,14 +46,13 @@ const circuitJson: AnyCircuitElement[] = [
   } as AnyCircuitElement,
 ]
 
-const getEdgeCutsContours = () => {
-  const gerberLayers = stringifyGerberCommandLayers(
-    convertSoupToGerberCommands(circuitJson),
-  )
-  const contours: Array<Array<{ x: number; y: number }>> = []
+type Contour = Array<{ x: number; y: number }>
+
+const getEdgeCutsContours = (edgeCutsGerber: string): Contour[] => {
+  const contours: Contour[] = []
   let x = 0
   let y = 0
-  for (const match of gerberLayers.Edge_Cuts.matchAll(
+  for (const match of edgeCutsGerber.matchAll(
     /^(?:X(-?\d+))?(?:Y(-?\d+))?D0([12])\*$/gm,
   )) {
     if (match[1] !== undefined) x = Number(match[1]) / 1e6
@@ -64,26 +63,77 @@ const getEdgeCutsContours = () => {
   return contours
 }
 
-test("cutout flush with the board edge is merged into the board outline", () => {
-  const contours = getEdgeCutsContours()
+/**
+ * Draws every Edge.Cuts contour as its own stroked path so a contour that lies
+ * on top of the board edge is visible:
+ * - blue: board outline
+ * - green: internal cutout loop (correct)
+ * - red: standalone loop touching the board edge (the bug)
+ */
+const renderEdgeCutsContoursSvg = (contours: Contour[]) => {
+  const scale = 10
+  const margin = 40
+  const boardHalfWidth = 25
+  const boardHalfHeight = 20
+  const toSvgX = (x: number) => margin + (x + boardHalfWidth) * scale
+  const toSvgY = (y: number) => margin + (boardHalfHeight - y) * scale
+  const isOnBoardEdge = (point: { x: number; y: number }) =>
+    Math.abs(Math.abs(point.x) - boardHalfWidth) < 1e-6 ||
+    Math.abs(Math.abs(point.y) - boardHalfHeight) < 1e-6
+  const isBoardOutline = (contour: Contour) =>
+    contour.some((point) => Math.abs(point.x) === boardHalfWidth) &&
+    contour.some((point) => Math.abs(point.y) === boardHalfHeight) &&
+    contour.some((point) => point.x === -boardHalfWidth) &&
+    contour.some((point) => point.x === boardHalfWidth)
 
-  // One contour for the board outline (with the notch) and one for the internal cutout
-  expect(contours.length).toBe(2)
+  const paths = contours.map((contour) => {
+    const kind = isBoardOutline(contour)
+      ? "outline"
+      : contour.some(isOnBoardEdge)
+        ? "standalone-loop-on-board-edge"
+        : "internal-cutout"
+    const color = {
+      outline: "#2563eb",
+      "internal-cutout": "#16a34a",
+      "standalone-loop-on-board-edge": "#dc2626",
+    }[kind]
+    const d = contour
+      .map(
+        (point, index) =>
+          `${index === 0 ? "M" : "L"}${toSvgX(point.x).toFixed(1)} ${toSvgY(point.y).toFixed(1)}`,
+      )
+      .join(" ")
+    return {
+      kind,
+      svg: `<path d="${d}" fill="none" stroke="${color}" stroke-width="${kind === "outline" ? 6 : 3}" stroke-linejoin="round"/>`,
+    }
+  })
 
-  const outline = contours.find((contour) =>
-    contour.some((point) => Math.abs(point.x) === 25),
-  )!
-  expect(outline).toBeDefined()
+  const countOf = (kind: string) =>
+    paths.filter((path) => path.kind === kind).length
+  const width = 2 * margin + 2 * boardHalfWidth * scale
+  const height = 2 * margin + 2 * boardHalfHeight * scale + 70
+  const legendY = height - 62
 
-  // The outline itself goes up into the notch
-  expect(
-    outline.some((point) => Math.abs(point.x) === 1 && point.y === -10),
-  ).toBe(true)
+  return [
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">`,
+    `<rect width="${width}" height="${height}" fill="#ffffff"/>`,
+    ...paths.map((path) => path.svg),
+    `<g font-family="monospace" font-size="14">`,
+    `<text x="${margin}" y="${legendY}" fill="#2563eb">board outline contours: ${countOf("outline")}</text>`,
+    `<text x="${margin}" y="${legendY + 20}" fill="#16a34a">internal cutout loops: ${countOf("internal-cutout")}</text>`,
+    `<text x="${margin}" y="${legendY + 40}" fill="#dc2626">standalone loops lying on the board edge: ${countOf("standalone-loop-on-board-edge")}</text>`,
+    `</g>`,
+    `</svg>`,
+  ].join("\n")
+}
 
-  // No contour may be a standalone slot loop lying on the board edge
-  const standaloneEdgeLoops = contours.filter(
-    (contour) =>
-      contour !== outline && contour.some((point) => Math.abs(point.y) === 20),
+test("cutout flush with the board edge is merged into the board outline", async () => {
+  const gerberOutput = stringifyGerberCommandLayers(
+    convertSoupToGerberCommands(circuitJson),
   )
-  expect(standaloneEdgeLoops).toEqual([])
+
+  await expect(
+    renderEdgeCutsContoursSvg(getEdgeCutsContours(gerberOutput.Edge_Cuts)),
+  ).toMatchSvgSnapshot(import.meta.path, "edge-flush-cutout-edge-cuts-contours")
 })
