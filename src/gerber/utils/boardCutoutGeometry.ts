@@ -180,11 +180,7 @@ export const doesSolidCutoutOverlapBoardEdge = ({
         .length > 0
     if (extendsOutsideBoard) return true
 
-    // A cutout that ends exactly on the board edge (flush with it) does not
-    // extend outside the board, but it still opens the outline: subtracting it
-    // changes the outer boundary instead of adding a hole. Emitting it as a
-    // standalone loop would put a closed contour on top of the board edge,
-    // which fab CAM tools read as solid board.
+    // Flush with the board edge: it notches the outline instead of adding a hole.
     return !doesSubtractingCutoutAddHole({
       boardOutlinePolygon,
       cutoutOutlinePolygon,
@@ -195,10 +191,7 @@ export const doesSolidCutoutOverlapBoardEdge = ({
 const countHoles = (polygons: Polygon[]) =>
   polygons.reduce((holeCount, polygon) => holeCount + polygon.length - 1, 0)
 
-/**
- * Use to tell an internal cutout (becomes a hole in the board) from one that
- * touches the board edge (becomes a notch in the outer boundary).
- */
+/** True when the cutout is fully internal, i.e. subtracting it adds a hole. */
 const doesSubtractingCutoutAddHole = ({
   boardOutlinePolygon,
   cutoutOutlinePolygon,
