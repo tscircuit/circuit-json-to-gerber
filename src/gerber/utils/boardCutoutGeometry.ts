@@ -173,12 +173,35 @@ export const doesSolidCutoutOverlapBoardEdge = ({
     const overlapsBoard =
       polygonClipping.intersection(boardOutlinePolygon, cutoutOutlinePolygon)
         .length > 0
+    if (!overlapsBoard) return false
+
     const extendsOutsideBoard =
       polygonClipping.difference(cutoutOutlinePolygon, boardOutlinePolygon)
         .length > 0
-    return overlapsBoard && extendsOutsideBoard
+    if (extendsOutsideBoard) return true
+
+    // Flush with the board edge: it notches the outline instead of adding a hole.
+    return !doesSubtractingCutoutAddHole({
+      boardOutlinePolygon,
+      cutoutOutlinePolygon,
+    })
   })
 }
+
+const countHoles = (polygons: Polygon[]) =>
+  polygons.reduce((holeCount, polygon) => holeCount + polygon.length - 1, 0)
+
+/** True when the cutout is fully internal, i.e. subtracting it adds a hole. */
+const doesSubtractingCutoutAddHole = ({
+  boardOutlinePolygon,
+  cutoutOutlinePolygon,
+}: {
+  boardOutlinePolygon: Polygon
+  cutoutOutlinePolygon: Polygon
+}) =>
+  countHoles(
+    polygonClipping.difference(boardOutlinePolygon, cutoutOutlinePolygon),
+  ) > countHoles([boardOutlinePolygon])
 
 /**
  * Use before Edge.Cuts emission to collect only the cutout polygons that merge
