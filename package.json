@@ -10,6 +10,7 @@
   "type": "module",
   "scripts": {
     "build": "tsup-node src/index.ts src/cli.ts --format esm --dts --sourcemap",
+    "prepublishOnly": "bun run build",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "start": "bun --bun site/index.html",
