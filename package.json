@@ -9,6 +9,7 @@
   "main": "dist/index.js",
   "type": "module",
   "scripts": {
+    "prepublishOnly": "bun run build && bun scripts/check-published-gerber-version.ts",
     "build": "tsup-node src/index.ts src/cli.ts --format esm --dts --sourcemap",
     "format": "biome format --write .",
     "format:check": "biome format .",
