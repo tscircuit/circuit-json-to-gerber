@@ -6,12 +6,6 @@ import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
 import { Readable } from "stream"
 
-type Slot = {
-  start: { x: number; y: number }
-  end: { x: number; y: number }
-  diameter: number
-}
-
 type PasteRotationQueues = Map<string, number[]>
 
 type GerberLayerSnapshotOptions = {
@@ -69,140 +63,6 @@ const toMicrons = (valueMm: number) => valueMm * 1000
 const toFixedKey = (value: number) => value.toFixed(3)
 
 const parseGerberNumber = (value: string) => Number(value) / 1_000_000
-
-const parseDrillSlots = (drill?: string): Slot[] => {
-  if (!drill) return []
-
-  const slots: Slot[] = []
-  const toolDiameters: Record<string, number> = {}
-  let currentToolDiameter: number | undefined
-  let lastPoint: { x: number; y: number } | undefined
-
-  const toolDefineRegex = /^T(\d+)C([\d.]+)/
-  const toolSelectRegex = /^T(\d+)$/
-  const moveRegex = /^X(-?[\d.]+)Y(-?[\d.]+)/
-  const slotRegex = /^G85X(-?[\d.]+)Y(-?[\d.]+)/
-
-  for (const rawLine of drill.split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line) continue
-
-    const toolDefineMatch = line.match(toolDefineRegex)
-    if (toolDefineMatch) {
-      const [, toolId, diameterStr] = toolDefineMatch
-      const diameter = Number(diameterStr)
-      if (Number.isFinite(diameter)) {
-        toolDiameters[toolId] = diameter
-        currentToolDiameter = diameter
-      }
-      continue
-    }
-
-    const toolSelectMatch = line.match(toolSelectRegex)
-    if (toolSelectMatch) {
-      const [, toolId] = toolSelectMatch
-      const diameter = toolDiameters[toolId]
-      currentToolDiameter = diameter
-      continue
-    }
-
-    const moveMatch = line.match(moveRegex)
-    if (moveMatch) {
-      lastPoint = {
-        x: Number(moveMatch[1]),
-        y: Number(moveMatch[2]),
-      }
-      continue
-    }
-
-    const slotMatch = line.match(slotRegex)
-    if (slotMatch && lastPoint && currentToolDiameter) {
-      slots.push({
-        start: { ...lastPoint },
-        end: { x: Number(slotMatch[1]), y: Number(slotMatch[2]) },
-        diameter: currentToolDiameter,
-      })
-      lastPoint = {
-        x: Number(slotMatch[1]),
-        y: Number(slotMatch[2]),
-      }
-    }
-  }
-
-  return slots
-}
-
-const buildCapsulePath = ({ start, end, diameter }: Slot) => {
-  const sx = toMicrons(start.x)
-  const sy = toMicrons(start.y)
-  const ex = toMicrons(end.x)
-  const ey = toMicrons(end.y)
-
-  const dx = ex - sx
-  const dy = ey - sy
-  const length = Math.hypot(dx, dy)
-  if (!isFinite(length) || length === 0) return undefined
-
-  const px = -dy / length
-  const py = dx / length
-  const radius = toMicrons(diameter / 2)
-
-  const offset = (v: { x: number; y: number }, nx: number, ny: number) => ({
-    x: v.x + nx * radius,
-    y: v.y + ny * radius,
-  })
-
-  const startPoint = { x: sx, y: sy }
-  const endPoint = { x: ex, y: ey }
-
-  const startOuter = offset(startPoint, px, py)
-  const endOuter = offset(endPoint, px, py)
-  const startInner = offset(startPoint, -px, -py)
-  const endInner = offset(endPoint, -px, -py)
-
-  const arc = `${radius.toFixed(3)} ${radius.toFixed(3)} 0 0 0`
-
-  return [
-    `M ${startOuter.x.toFixed(3)} ${startOuter.y.toFixed(3)}`,
-    `L ${endOuter.x.toFixed(3)} ${endOuter.y.toFixed(3)}`,
-    `A ${arc} ${endInner.x.toFixed(3)} ${endInner.y.toFixed(3)}`,
-    `L ${startInner.x.toFixed(3)} ${startInner.y.toFixed(3)}`,
-    `A ${arc} ${startOuter.x.toFixed(3)} ${startOuter.y.toFixed(3)}`,
-    "Z",
-  ].join(" ")
-}
-
-const injectSlotSvg = (svg: string, slots: Slot[], svgId: string) => {
-  if (!slots.length) return svg
-
-  const defsCloseIndex = svg.indexOf("</defs>")
-  if (defsCloseIndex === -1) return svg
-
-  let slotIndex = 0
-  const slotDefs: string[] = []
-  const slotUses: string[] = []
-
-  for (const slot of slots) {
-    const path = buildCapsulePath(slot)
-    if (!path) continue
-    const slotId = `${svgId}_slot-${slotIndex++}`
-    slotDefs.push(`<path id="${slotId}" d="${path}" fill="#000"/>`)
-    slotUses.push(`<use xlink:href="#${slotId}"/>`)
-  }
-
-  if (!slotDefs.length) return svg
-
-  const defsInsertion = slotDefs.join("")
-  const withDefs =
-    svg.slice(0, defsCloseIndex) + defsInsertion + svg.slice(defsCloseIndex)
-
-  const drillGroupRegex = /(<g id="[^"]*_drill[^"]*">)([\s\S]*?)(<\/g>)/g
-
-  return withDefs.replace(drillGroupRegex, (match, open, content, close) => {
-    if (content.includes("_slot-")) return match
-    return `${open}${content}${slotUses.join("")}${close}`
-  })
-}
 
 const parsePastePillRotations = (gerber?: string): PasteRotationQueues => {
   if (!gerber) return new Map()
@@ -592,10 +452,6 @@ const getGerberStackupSvg = async (
     gerber: Readable.from(gerberOutput[filename]),
   }))
 
-  const slots = Object.entries(gerberOutput)
-    .filter(([filename]) => isDrillLayerName(filename))
-    .flatMap(([, drill]) => parseDrillSlots(drill))
-
   const pasteRotations = {
     top: parsePastePillRotations(gerberOutput["F_Paste"]),
     bottom: parsePastePillRotations(gerberOutput["B_Paste"]),
@@ -617,7 +473,7 @@ const getGerberStackupSvg = async (
   const svgIdMatch = stackupView.svg.match(/id="([^"]+)"/)
   if (!svgIdMatch) return stackupView.svg
 
-  let enhancedSvg = injectSlotSvg(stackupView.svg, slots, svgIdMatch[1])
+  let enhancedSvg = stackupView.svg
   if (prefersBottomView) {
     enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.bottom)
   } else {
@@ -864,10 +720,6 @@ async function toMatchGerberSnapshot(
   testPathOriginal: string,
   svgName?: string,
 ) {
-  const slots = Object.entries(gerberOutput)
-    .filter(([filename]) => filename.endsWith(".drl"))
-    .flatMap(([, drill]) => parseDrillSlots(drill))
-
   const pasteRotations = {
     top: parsePastePillRotations(gerberOutput["F_Paste"]),
     bottom: parsePastePillRotations(gerberOutput["B_Paste"]),
@@ -890,7 +742,6 @@ async function toMatchGerberSnapshot(
         const svgIdMatch = layer.svg.match(/id="([^"]+)"/)
         let enhancedSvg = layer.svg
         if (svgIdMatch) {
-          enhancedSvg = injectSlotSvg(enhancedSvg, slots, svgIdMatch[1])
           const id = svgIdMatch[1]
           if (/_top$/.test(id)) {
             enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.top)
