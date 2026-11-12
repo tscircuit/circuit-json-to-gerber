@@ -46,7 +46,6 @@ test("the stencil flash stays inside its copper land after reflecting the Gerber
             {
               circuitJsonLabel: "PCB: centered stencil inside the copper land",
               gerberLabel: "Mirrored Gerber: stencil should stay inside copper",
-              circuitJsonPcbSvgOptions: { showSolderPaste: true },
               colors: { F_Cu: "#c83434", F_Paste: "#34c8c8" },
               backgroundColor: "#111111",
             },
