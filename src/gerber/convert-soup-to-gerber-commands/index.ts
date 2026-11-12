@@ -1518,7 +1518,7 @@ export const convertCircuitJsonToGerberCommands = (
           })
           if (rotation) {
             gb.add("load_rotation", {
-              rotation_degrees: rotation,
+              rotation_degrees: opts.flip_y_axis ? -rotation : rotation,
             })
           }
           gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
