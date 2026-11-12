@@ -36,6 +36,7 @@
     "circuit-json": "^0.0.513",
     "commander": "^12.1.0",
     "format-si-unit": "^0.0.7",
+    "gerber-parser": "4.2.7",
     "gerber-to-svg": "^4.2.8",
     "gerberts": "^0.0.3",
     "jszip": "^3.10.1",
