@@ -36,7 +36,10 @@ test("the stencil flash stays inside its copper land after reflecting the Gerber
           convertCircuitJsonToGerberCommands(boardJson, { flip_y_axis }),
         )
         const flashes = output[pasteLayer]
-        expect(flashes.match(/%LR[^*]+\*%/g)).toEqual(["%LR35*%", "%LR0*%"])
+        expect(flashes.match(/%LR[^*]+\*%/g)).toEqual([
+          flip_y_axis ? "%LR-35*%" : "%LR35*%",
+          "%LR0*%",
+        ])
         if (layer === "top" && shape === "rotated_pill" && flip_y_axis) {
           await expect(output).toMatchCircuitJsonPcbAndGerberSnapshot(
             import.meta.path,
