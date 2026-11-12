@@ -51,6 +51,11 @@
     "tscircuit": "*",
     "circuit-json": "*"
   },
+  "peerDependenciesMeta": {
+    "tscircuit": {
+      "optional": true
+    }
+  },
   "dependencies": {
     "@tscircuit/alphabet": "^0.0.25",
     "fast-json-stable-stringify": "^2.1.0",
