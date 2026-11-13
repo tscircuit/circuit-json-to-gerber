@@ -149,11 +149,66 @@ const emitEdgeCutRing = (
   }
 }
 
+const getInnerLayerIndex = (layer: unknown): number => {
+  if (typeof layer !== "string" || !layer.startsWith("inner")) return 0
+  const index = Number(layer.slice("inner".length))
+  return Number.isInteger(index) && index > 0 ? index : 0
+}
+
 const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
-  const board = circuitJson.find((element) => element.type === "pcb_board") as
-    | { num_layers?: number }
-    | undefined
-  const numLayers = board?.num_layers ?? 2
+  let maxBoardLayers = 0
+  let maxInnerLayerIndex = 0
+
+  const recordLayer = (layer: unknown) => {
+    maxInnerLayerIndex = Math.max(maxInnerLayerIndex, getInnerLayerIndex(layer))
+  }
+
+  for (const element of circuitJson) {
+    if (element.type === "pcb_board") {
+      const board = element as { num_layers?: number; layers?: number }
+      const boardLayers =
+        typeof board.num_layers === "number"
+          ? board.num_layers
+          : typeof board.layers === "number"
+            ? board.layers
+            : 0
+      maxBoardLayers = Math.max(maxBoardLayers, boardLayers)
+      continue
+    }
+
+    if ("layer" in element) {
+      recordLayer(element.layer)
+    }
+    if ("layers" in element && Array.isArray(element.layers)) {
+      for (const layer of element.layers) {
+        recordLayer(layer)
+      }
+    }
+    if ("from_layer" in element) {
+      recordLayer(element.from_layer)
+    }
+    if ("to_layer" in element) {
+      recordLayer(element.to_layer)
+    }
+    if (element.type === "pcb_trace" && Array.isArray(element.route)) {
+      for (const point of element.route) {
+        if ("layer" in point) recordLayer(point.layer)
+        if ("from_layer" in point) recordLayer(point.from_layer)
+        if ("to_layer" in point) recordLayer(point.to_layer)
+        if ("start_layer" in point) recordLayer(point.start_layer)
+        if ("end_layer" in point) recordLayer(point.end_layer)
+      }
+    }
+  }
+
+  const minLayersForInner =
+    maxInnerLayerIndex > 0
+      ? maxInnerLayerIndex + 2 + (maxInnerLayerIndex % 2)
+      : 2
+  const numLayers =
+    maxBoardLayers >= maxInnerLayerIndex + 2
+      ? maxBoardLayers
+      : Math.max(maxBoardLayers, minLayersForInner)
   return Math.max(2, Math.min(10, numLayers))
 }
 
@@ -887,7 +942,10 @@ export const convertCircuitJsonToGerberCommands = (
 
         copper_glayer.push(...all_pour_commands)
 
-        if (element.covered_with_solder_mask === false) {
+        if (
+          element.covered_with_solder_mask === false &&
+          isOuterLayerRef(layer)
+        ) {
           const mask_layer = glayers[getGerberLayerName(layer, "soldermask")]
           // D-codes are local to each file; copper functions can split apertures
           // that the mask layer shares. Remap the region aperture when copying.
