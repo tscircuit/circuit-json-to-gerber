@@ -715,10 +715,13 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
 const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
   circuitJson,
   message,
+  outputSvg,
   opts = {},
 }: {
   circuitJson: AnyCircuitElement[]
   message: string | string[]
+  /** Rendered in the output card instead of the message when given. */
+  outputSvg?: string
   opts?: CircuitJsonPcbMessageSnapshotOptions
 }) => {
   const circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
@@ -773,10 +776,20 @@ const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
       height: panelHeight,
     }),
     `<rect x="${rightCardX + contentXOffset}" y="${contentY}" width="${panelWidth}" height="${panelHeight}" rx="14" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>`,
-    ...messageLines.map(
-      (line, index) =>
-        `<text x="${rightCardX + contentXOffset + 24}" y="${contentY + 56 + index * 30}" class="snapshot-message" fill="${opts.messageColor ?? "#fca5a5"}">${escapeXml(line)}</text>`,
-    ),
+    ...(outputSvg
+      ? [
+          positionSvg({
+            svg: outputSvg,
+            x: rightCardX + contentXOffset,
+            y: contentY,
+            width: panelWidth,
+            height: panelHeight,
+          }),
+        ]
+      : messageLines.map(
+          (line, index) =>
+            `<text x="${rightCardX + contentXOffset + 24}" y="${contentY + 56 + index * 30}" class="snapshot-message" fill="${opts.messageColor ?? "#fca5a5"}">${escapeXml(line)}</text>`,
+        )),
     "</svg>",
   ].join("")
 }
@@ -861,8 +874,8 @@ async function toMatchCircuitJsonPcbAndMessageSnapshot(
 }
 
 /**
- * Snapshots the Gerber layers converted from circuitJson, or the circuit JSON
- * PCB beside "GERBER ERROR: <message>" when the conversion throws, so a repro
+ * Snapshots the circuit JSON PCB beside the Gerber layers converted from it,
+ * or beside "GERBER ERROR: <message>" when the conversion throws, so a repro
  * test stays unchanged while its fix updates the snapshot.
  */
 async function toMatchGerberLayersOrErrorSnapshot(
@@ -877,8 +890,17 @@ async function toMatchGerberLayersOrErrorSnapshot(
       stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson)),
     )
     .then(
-      (gerberOutput) =>
-        renderGerberLayerOverlaySvg(gerberOutput, svgName, layerNames),
+      async (gerberOutput) =>
+        renderCircuitJsonPcbAndMessageSnapshotSvg({
+          circuitJson,
+          message: [],
+          outputSvg: await renderGerberLayerOverlaySvg(
+            gerberOutput,
+            svgName,
+            layerNames,
+          ),
+          opts: { messageLabel: `Gerber view: ${layerNames.join(" + ")}` },
+        }),
       (error: Error) =>
         renderCircuitJsonPcbAndMessageSnapshotSvg({
           circuitJson,
