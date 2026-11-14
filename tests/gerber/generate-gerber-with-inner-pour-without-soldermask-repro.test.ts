@@ -30,6 +30,6 @@ test("repro: inner-layer copper pour without soldermask exports gerbers", async 
   await expect(circuitJson).toMatchGerberLayersOrErrorSnapshot(
     import.meta.path,
     "inner-pour-without-soldermask-repro",
-    ["In1_Cu"],
+    ["Edge_Cuts", "In1_Cu"],
   )
 })
