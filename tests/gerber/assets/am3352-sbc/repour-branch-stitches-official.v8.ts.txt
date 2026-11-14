@@ -1,0 +1,63 @@
+/** Official pour regeneration only; converter annotation fixes never alter saved traces. */
+import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {CopperPourPipelineSolver,convertCircuitJsonToInputProblem,initializeManifoldGeometry} from '@tscircuit/copper-pour-solver';
+import {nativeElectricalOwnership} from '../scripts/native-electrical-ownership';
+import regions from '../design/power-pour-regions.json';
+
+const [originalPath,originalSha,selectionDir,provisionalSha,out]=process.argv.slice(2);
+if(process.argv.length!==7||!originalPath||!selectionDir||!out||existsSync(out)||![originalSha,provisionalSha].every(s=>/^[a-f0-9]{64}$/.test(s??'')))throw Error('Usage: ORIGINAL_NATIVE ORIGINAL_SHA SELECTION_DIR PROVISIONAL_SHA NEW_OUT');
+const hash=(v:string|Uint8Array)=>createHash('sha256').update(v).digest('hex');
+const read=(path:string)=>({path,sha256:hash(readFileSync(path))});
+const originalPin=read(originalPath),provisionalPin=read(selectionDir+'/candidate.provisional.circuit.json');
+if(originalPin.sha256!==originalSha||provisionalPin.sha256!==provisionalSha)throw Error('Exact original/provisional native required');
+const original:any[]=JSON.parse(readFileSync(originalPath,'utf8')),provisional:any[]=JSON.parse(readFileSync(provisionalPin.path,'utf8'));
+const selectionPin=read(selectionDir+'/selection.provisional.json'),selection=JSON.parse(readFileSync(selectionPin.path,'utf8'));
+const addedPin=read(selectionDir+'/generated-vias.provisional.json'),added:any[]=JSON.parse(readFileSync(addedPin.path,'utf8'));
+const derivationPin=read(selectionDir+'/official-derivations.provisional.json'),derivations:any[]=JSON.parse(readFileSync(derivationPin.path,'utf8'));
+if(selection.inputSha256!==originalSha||selection.pass!==false||selection.nativePourRegenerationRequired!==true||selection.foreignPourDrillClearanceDeferredToOfficialRepour!==true||!added.length||selection.provisionalAddedViaCount!==added.length||derivations.length!==added.length)throw Error('Nonempty provisional selection and explicit pending repour required');
+if(JSON.stringify(provisional)!==JSON.stringify([...original,...added]))throw Error('Provisional native must be exact original rows plus selected vias');
+const grounds=original.filter(r=>r.type==='source_net'&&r.name==='GND');
+if(grounds.length!==1)throw Error('One actual declared GND owner required');
+const ground=grounds[0],stack=['top','inner1','inner2','bottom'];
+const board=original.find(r=>r.type==='pcb_board');if(board?.num_layers!==4)throw Error('This official preview repour is for the exact four-layer board');
+const originalIds=new Set(original.map(r=>r.pcb_via_id).filter(Boolean)),newIds=new Set<string>(),producerPins:any[]=[];
+for(const [i,via] of added.entries()){
+ if(via.type!=='pcb_via'||!/^pcb_via_branch_stitch_/.test(via.pcb_via_id)||originalIds.has(via.pcb_via_id)||newIds.has(via.pcb_via_id)||via.source_net_id!==ground.source_net_id||via.outer_diameter!==.3||via.hole_diameter!==.15||via.layers?.length!==4||!stack.every(layer=>via.layers.includes(layer))||![via.x,via.y].every(Number.isFinite))throw Error('Only authenticated full-stack selected GND vias may be added');
+ newIds.add(via.pcb_via_id);
+ const d=derivations[i];if(d.id!==via.pcb_via_id)throw Error('One exact corresponding derivation per via required');
+ for(const pin of [d.input,d.officialOutput]){if(hash(readFileSync(pin.path))!==pin.sha256)throw Error('Official phase evidence changed');producerPins.push(pin);}
+ const output=JSON.parse(readFileSync(d.officialOutput.path,'utf8')),raw=output.pcbVias?.[d.officialOutputIndex];
+ if(!raw||hash(JSON.stringify(raw))!==d.officialViaSha256||raw.x!==via.x||raw.y!==via.y||raw.outer_diameter!==via.outer_diameter||raw.hole_diameter!==via.hole_diameter||raw.source_net_id!==ground.source_net_id)throw Error('Selected coordinate/drill tuple must be an exact official phase output');
+}
+mkdirSync(out,{recursive:true});
+const write=(name:string,value:any)=>{const path=out+'/'+name;writeFileSync(path,JSON.stringify(value)+'\n');return read(path);};
+const started=performance.now(),checkpoint=(stage:string)=>{Bun.gc(true);console.log(JSON.stringify({stage,rssMiB:process.memoryUsage().rss/1048576,seconds:(performance.now()-started)/1000}));};
+const retained=provisional.filter(r=>r.type!=='pcb_copper_pour'),view=structuredClone(retained);
+const own=nativeElectricalOwnership(view),ports=new Map(view.filter(r=>r.type==='pcb_port').map(r=>[r.pcb_port_id,r]));
+const vias=view.filter(r=>r.type==='pcb_via');let removedLabels=0,updatedLabels=0;
+const contact=(p:any,target:any)=>target&&own.getNetConnectedToId(target.pcb_port_id)===own.getNetConnectedToId(p.owner)&&Math.hypot(target.x-p.x,target.y-p.y)<1e-5&&(target.layers.includes(p.layer)||vias.some(v=>v.pcb_port_ids?.includes(target.pcb_port_id)&&v.layers.includes(p.layer)&&Math.hypot(v.x-p.x,v.y-p.y)<1e-5));
+for(const trace of view.filter(r=>r.type==='pcb_trace'))for(const p of trace.route)if(p.route_type==='wire'){
+ const q={...p,owner:trace.source_trace_id};
+ for(const attr of ['start_pcb_port_id','end_pcb_port_id'])if(p[attr]&&!contact(q,ports.get(p[attr]))){delete p[attr];removedLabels++;}
+ const source=view.find(r=>r.type==='source_trace'&&r.source_trace_id===trace.source_trace_id);
+ const target=[...ports.values()].filter(port=>contact(q,port)).sort((a:any,b:any)=>Number(source?.connected_source_port_ids?.includes(b.source_port_id))-Number(source?.connected_source_port_ids?.includes(a.source_port_id)))[0];
+ if(target){const attr=p===trace.route.at(-1)?'end_pcb_port_id':'start_pcb_port_id';if(p[attr]!==target.pcb_port_id)updatedLabels++;p[attr]=target.pcb_port_id;}
+}
+checkpoint('cloned-converter-annotations-prepared');
+const outline=board.outline?.length?board.outline:[{x:board.center.x-board.width/2,y:board.center.y-board.height/2},{x:board.center.x+board.width/2,y:board.center.y-board.height/2},{x:board.center.x+board.width/2,y:board.center.y+board.height/2},{x:board.center.x-board.width/2,y:board.center.y+board.height/2}];
+const definitions=[...regions.map(r=>({layer:'top',net:r.net,outline:r.outline,margin:0})),...['bottom','inner1','inner2'].map(layer=>({layer,net:'GND',outline,margin:.4}))];
+const sourceNet=(name:string)=>{const matches=original.filter(r=>r.type==='source_net'&&r.name===name);if(matches.length!==1)throw Error('One actual net required: '+name);return matches[0].source_net_id;};
+const inputs=definitions.map(d=>({layer:d.layer,subcircuit_id:board.subcircuit_id,source_net_id:sourceNet(d.net),pad_margin:.13,trace_margin:.13,pour_margin:.13,board_edge_margin:d.margin,cutout_margin:.13,outline:d.outline}));
+const problem=convertCircuitJsonToInputProblem(view as any,inputs as any),problemPin=write('official-pour.input.json',problem);checkpoint('official-pour-input-built');
+await initializeManifoldGeometry();const solver=new CopperPourPipelineSolver(problem),output=solver.getOutput(),outputPin=write('official-pour.output.json',output);checkpoint('official-pour-output-built');
+if(!Array.isArray(output.brep_shapes_by_region)||output.brep_shapes_by_region.length!==definitions.length)throw Error('Complete official pour output required');
+const generated:any[]=[];
+for(const [i,def] of definitions.entries())for(const [j,shape] of (output.brep_shapes_by_region[i]??[]).entries())generated.push({type:'pcb_copper_pour',pcb_copper_pour_id:`branch-repour:${i}:${j}`,shape:'brep',layer:def.layer,brep_shape:shape,source_net_id:sourceNet(def.net),subcircuit_id:board.subcircuit_id,covered_with_solder_mask:def.layer.startsWith('inner')});
+if(!generated.length)throw Error('No officially generated copper pours');
+const candidate=[...retained,...generated];
+if(JSON.stringify(candidate.filter(r=>r.type!=='pcb_copper_pour'))!==JSON.stringify(retained))throw Error('Repour altered an original non-pour row');
+for(const pin of [originalPin,provisionalPin,selectionPin,addedPin,derivationPin,...producerPins])if(hash(readFileSync(pin.path))!==pin.sha256)throw Error('Pinned native/producer changed during official repour');
+const candidatePin=write('candidate.repoured.circuit.json',candidate),generatedPin=write('official-generated-pours.json',generated);
+write('repour.provisional.json',{schema:'official_ground_branch_stitch_repour_v1',pass:false,original:originalPin,provisional:provisionalPin,selection:selectionPin,added:addedPin,derivations:derivationPin,producerPins,officialInput:problemPin,officialOutput:outputPin,candidate:candidatePin,generatedPours:generatedPin,definitions,addedViaCount:added.length,removedOriginalPourCount:original.filter(r=>r.type==='pcb_copper_pour').length,generatedPourCount:generated.length,allOriginalNonPourRowsAndSelectedViasExact:true,converterOnlyAnnotationChanges:{removedLabels,updatedLabels},padMarginMm:.13,nominalNewViaDrillToForeignPourGapMm:.205,actualAllCopperDrillAuditRequired:true,freshAllNetPhysicalAndManufacturingAcceptanceRequired:true,draftPreviewOnly:true,siteAcceptanceGranted:false,fabricationReady:false});
+console.log(JSON.stringify({repouredCandidate:candidatePin,generatedPours:generated.length,actualAcceptancePending:true}));
