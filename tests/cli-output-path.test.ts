@@ -1,5 +1,12 @@
 import { afterEach, expect, test } from "bun:test"
-import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import {
+  mkdir,
+  mkdtemp,
+  readFile,
+  rm,
+  symlink,
+  writeFile,
+} from "node:fs/promises"
 import { tmpdir } from "node:os"
 import { dirname, join, resolve } from "node:path"
 import JSZip from "jszip"
@@ -99,3 +106,51 @@ for (const outputOption of [
     expect(await readFile(inputPath)).toEqual(source)
   })
 }
+
+test("CLI rejects an output traversing a symlinked directory to the input", async () => {
+  const { cwd, inputPath } = await prepareBoard("real/board.circuit.json")
+  const aliasDir = join(cwd, "alias")
+  await symlink(join(cwd, "real"), aliasDir, "dir")
+
+  const { exitCode, stdout, stderr } = await runCli(
+    aliasDir,
+    "board.circuit.json",
+    "--output",
+    inputPath,
+  )
+
+  expect(exitCode).toBe(1)
+  expect(stderr).toContain("output path would overwrite the input file")
+  expect(stdout).not.toContain("Created")
+  expect(await readFile(inputPath)).toEqual(source)
+})
+
+test("CLI rejects a symlinked output file pointing to the input", async () => {
+  const { cwd, inputPath } = await prepareBoard("board.circuit.json")
+  const symlinkOutput = join(cwd, "linked.circuit.json")
+  await symlink(inputPath, symlinkOutput)
+
+  const { exitCode, stdout, stderr } = await runCli(
+    cwd,
+    "board.circuit.json",
+    "--output",
+    "linked.circuit.json",
+  )
+
+  expect(exitCode).toBe(1)
+  expect(stderr).toContain("output path would overwrite the input file")
+  expect(stdout).not.toContain("Created")
+  expect(await readFile(inputPath)).toEqual(source)
+})
+
+test("CLI exports default zip cleanly when input is a symlink", async () => {
+  const { cwd, inputPath } = await prepareBoard("real/board.circuit.json")
+  const symlinkInput = join(cwd, "linked.circuit.json")
+  await symlink(inputPath, symlinkInput)
+
+  const { exitCode, stdout, stderr } = await runCli(cwd, "linked.circuit.json")
+
+  expect({ exitCode, stderr }).toEqual({ exitCode: 0, stderr: "" })
+  expect(stdout).toContain("Created linked.gerbers.zip")
+  expect(await readFile(inputPath)).toEqual(source)
+})
