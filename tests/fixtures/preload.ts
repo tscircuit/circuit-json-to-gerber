@@ -4,6 +4,8 @@ import type { AnyCircuitElement } from "circuit-json"
 import { convertCircuitJsonToPcbSvg, type PcbSvgOptions } from "circuit-to-svg"
 import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
+import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
+import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { Readable } from "stream"
 
 type Slot = {
@@ -858,6 +860,35 @@ async function toMatchCircuitJsonPcbAndMessageSnapshot(
   return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
 }
 
+/**
+ * Snapshots the Gerber layers converted from circuitJson, or the circuit JSON
+ * PCB beside "GERBER ERROR: <message>" when the conversion throws, so a repro
+ * test stays unchanged while its fix updates the snapshot.
+ */
+async function toMatchGerberLayersOrErrorSnapshot(
+  this: any,
+  circuitJson: AnyCircuitElement[],
+  testPathOriginal: string,
+  svgName: string,
+  layerNames: string[],
+) {
+  const svg = await Promise.resolve()
+    .then(() =>
+      stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson)),
+    )
+    .then(
+      (gerberOutput) =>
+        renderGerberLayerOverlaySvg(gerberOutput, svgName, layerNames),
+      (error: Error) =>
+        renderCircuitJsonPcbAndMessageSnapshotSvg({
+          circuitJson,
+          message: `GERBER ERROR: ${error.message}`,
+        }),
+    )
+
+  return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
+}
+
 async function toMatchGerberSnapshot(
   this: any,
   gerberOutput: Record<string, string>,
@@ -922,6 +953,7 @@ expect.extend({
     toMatchCircuitJsonPcbAndGerberSnapshot as any,
   toMatchCircuitJsonPcbAndMessageSnapshot:
     toMatchCircuitJsonPcbAndMessageSnapshot as any,
+  toMatchGerberLayersOrErrorSnapshot: toMatchGerberLayersOrErrorSnapshot as any,
 })
 
 declare module "bun:test" {
@@ -954,6 +986,11 @@ declare module "bun:test" {
       svgName: string,
       message: string | string[],
       opts?: CircuitJsonPcbMessageSnapshotOptions,
+    ): Promise<MatcherResult>
+    toMatchGerberLayersOrErrorSnapshot(
+      testImportMetaPath: string,
+      svgName: string,
+      layerNames: string[],
     ): Promise<MatcherResult>
   }
 }
