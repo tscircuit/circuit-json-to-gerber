@@ -12,7 +12,7 @@ permissions:
   pull-requests: write
 
 env:
-  UPSTREAM_REPOS: "runframe"
+  UPSTREAM_REPOS: "core,runframe"
   UPSTREAM_PACKAGES_TO_UPDATE: "circuit-json-to-gerber"
 jobs:
   publish:
@@ -39,7 +39,7 @@ jobs:
           for repo in "${REPOS[@]}"; do
             if [[ -n "$repo" ]]; then
               echo "Triggering update for repo: $repo"
-              curl -X POST \
+              curl --fail-with-body -X POST \
                 -H "Accept: application/vnd.github.v3+json" \
                 -H "Authorization: token ${{ secrets.TSCIRCUIT_BOT_GITHUB_TOKEN }}" \
                 -H "Content-Type: application/json" \
