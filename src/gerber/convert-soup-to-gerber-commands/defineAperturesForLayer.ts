@@ -79,21 +79,34 @@ const getRoundedRectApertureConfig = (
   width: number,
   height: number,
   cornerRadius: number,
+  rotationDegrees = 0,
 ): ApertureTemplateConfig => {
   const halfWidth = width / 2
   const halfHeight = height / 2
 
+  // Bake the orientation into the macro coordinates. Some fabrication CAM
+  // readers ignore LR, which otherwise turns fine-pitch side pads into shorts.
+  const angle = (rotationDegrees * Math.PI) / 180
+  const cos = Math.cos(angle)
+  const sin = Math.sin(angle)
+  const corners = [
+    [-halfWidth + cornerRadius, halfHeight - cornerRadius],
+    [halfWidth - cornerRadius, halfHeight - cornerRadius],
+    [halfWidth - cornerRadius, -halfHeight + cornerRadius],
+    [-halfWidth + cornerRadius, -halfHeight + cornerRadius],
+  ].map(([x, y]) => ({ x: x * cos - y * sin, y: x * sin + y * cos }))
+
   return {
     macro_name: "ROUNDRECT",
     corner_radius: cornerRadius,
-    corner_1_x: -halfWidth + cornerRadius,
-    corner_1_y: halfHeight - cornerRadius,
-    corner_2_x: halfWidth - cornerRadius,
-    corner_2_y: halfHeight - cornerRadius,
-    corner_3_x: halfWidth - cornerRadius,
-    corner_3_y: -halfHeight + cornerRadius,
-    corner_4_x: -halfWidth + cornerRadius,
-    corner_4_y: -halfHeight + cornerRadius,
+    corner_1_x: corners[0].x,
+    corner_1_y: corners[0].y,
+    corner_2_x: corners[1].x,
+    corner_2_y: corners[1].y,
+    corner_3_x: corners[2].x,
+    corner_3_y: corners[2].y,
+    corner_4_x: corners[3].x,
+    corner_4_y: corners[3].y,
   }
 }
 
@@ -196,6 +209,7 @@ export const REGION_APERTURE_CONFIG = {
 
 export const getApertureConfigFromPcbSmtpad = (
   elm: PCBSMTPad,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   if (elm.shape === "rect" || elm.shape === "rotated_rect") {
     const cornerRadius = getClampedRoundedRectCornerRadius(
@@ -205,7 +219,14 @@ export const getApertureConfigFromPcbSmtpad = (
     )
 
     if (cornerRadius > 0) {
-      return getRoundedRectApertureConfig(elm.width, elm.height, cornerRadius)
+      return getRoundedRectApertureConfig(
+        elm.width,
+        elm.height,
+        cornerRadius,
+        elm.shape === "rotated_rect"
+          ? elm.ccw_rotation * (flipYAxis ? -1 : 1)
+          : 0,
+      )
     }
   }
 
@@ -252,6 +273,7 @@ export const getApertureConfigFromPcbSmtpad = (
 
 export const getApertureConfigFromPcbSmtpadSoldermask = (
   elm: PCBSMTPad,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   let soldermaskMargin = 0
   if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
@@ -270,7 +292,14 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
     )
 
     if (cornerRadius > 0) {
-      return getRoundedRectApertureConfig(width, height, cornerRadius)
+      return getRoundedRectApertureConfig(
+        width,
+        height,
+        cornerRadius,
+        elm.shape === "rotated_rect"
+          ? elm.ccw_rotation * (flipYAxis ? -1 : 1)
+          : 0,
+      )
     }
   }
 
@@ -444,6 +473,7 @@ export const getApertureConfigFromPcbSolderPaste = (
 
 export const getApertureConfigFromPcbPlatedHole = (
   elm: PCBPlatedHole,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   if (elm.shape === "circle") {
     if (!("outer_diameter" in elm && "hole_diameter" in elm)) {
@@ -480,6 +510,20 @@ export const getApertureConfigFromPcbPlatedHole = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHole: missing dimensions`,
       )
     }
+    const cornerRadius = getClampedRoundedRectCornerRadius(
+      elm.rect_pad_width,
+      elm.rect_pad_height,
+      elm.rect_border_radius,
+    )
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(
+        elm.rect_pad_width,
+        elm.rect_pad_height,
+        cornerRadius,
+        ("rect_ccw_rotation" in elm ? (elm.rect_ccw_rotation ?? 0) : 0) *
+          (flipYAxis ? -1 : 1),
+      )
+    }
     return {
       standard_template_code: "R",
       x_size: elm.rect_pad_width,
@@ -493,6 +537,7 @@ export const getApertureConfigFromPcbPlatedHole = (
 
 export const getApertureConfigFromPcbPlatedHoleSoldermask = (
   elm: PCBPlatedHole,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   let soldermaskMargin = 0
   if ("soldermask_margin" in elm && typeof elm.soldermask_margin === "number") {
@@ -536,10 +581,39 @@ export const getApertureConfigFromPcbPlatedHoleSoldermask = (
         `Invalid ${shape} shape in getApertureConfigFromPcbPlatedHoleSoldermask: missing dimensions`,
       )
     }
+    const width = elm.rect_pad_width + soldermaskMargin * 2
+    const height = elm.rect_pad_height + soldermaskMargin * 2
+    if (width <= 0 || height <= 0) {
+      throw new Error(
+        `Invalid soldermask opening for plated hole ${elm.pcb_plated_hole_id}: soldermask_margin ${soldermaskMargin} must leave positive width and height`,
+      )
+    }
+    const padRadius = getClampedRoundedRectCornerRadius(
+      elm.rect_pad_width,
+      elm.rect_pad_height,
+      elm.rect_border_radius,
+    )
+    const cornerRadius =
+      padRadius > 0
+        ? getClampedRoundedRectCornerRadius(
+            width,
+            height,
+            padRadius + soldermaskMargin,
+          )
+        : 0
+    if (cornerRadius > 0) {
+      return getRoundedRectApertureConfig(
+        width,
+        height,
+        cornerRadius,
+        ("rect_ccw_rotation" in elm ? (elm.rect_ccw_rotation ?? 0) : 0) *
+          (flipYAxis ? -1 : 1),
+      )
+    }
     return {
       standard_template_code: "R",
-      x_size: elm.rect_pad_width + soldermaskMargin * 2,
-      y_size: elm.rect_pad_height + soldermaskMargin * 2,
+      x_size: width,
+      y_size: height,
     }
   }
 
@@ -580,8 +654,8 @@ export const getApertureConfigFromCirclePcbHoleSoldermask = (
   }
 }
 
-export const getApertureConfigFromRotatedPillPcbHole = (
-  elm: Extract<PcbHole, { hole_shape: "rotated_pill" | "oval" }>,
+export const getApertureConfigFromPillPcbHole = (
+  elm: Extract<PcbHole, { hole_shape: "pill" | "rotated_pill" | "oval" }>,
   soldermaskMargin = 0,
 ): ApertureTemplateConfig => {
   return {
@@ -659,9 +733,11 @@ function getAllApertureTemplateConfigsForLayer({
           continue
         }
         if (isSoldermaskLayer) {
-          addConfigIfNew(getApertureConfigFromPcbSmtpadSoldermask(elm))
+          addConfigIfNew(
+            getApertureConfigFromPcbSmtpadSoldermask(elm, flip_y_axis),
+          )
         } else {
-          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm))
+          addConfigIfNew(getApertureConfigFromPcbSmtpad(elm, flip_y_axis))
         }
       }
     } else if (elm.type === "pcb_soldermask_opening") {
@@ -708,9 +784,11 @@ function getAllApertureTemplateConfigsForLayer({
           continue
         }
         if (isSoldermaskLayer) {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHoleSoldermask(elm))
+          addConfigIfNew(
+            getApertureConfigFromPcbPlatedHoleSoldermask(elm, flip_y_axis),
+          )
         } else {
-          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm))
+          addConfigIfNew(getApertureConfigFromPcbPlatedHole(elm, flip_y_axis))
         }
         if (
           "rect_pad_width" in elm &&
@@ -741,15 +819,14 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(getApertureConfigFromCirclePcbHole(elm))
         }
       } else if (
+        elm.hole_shape === "pill" ||
         elm.hole_shape === "rotated_pill" ||
         elm.hole_shape === "oval"
       ) {
         const soldermaskMargin = isSoldermaskLayer
           ? (elm.soldermask_margin ?? 0)
           : 0
-        addConfigIfNew(
-          getApertureConfigFromRotatedPillPcbHole(elm, soldermaskMargin),
-        )
+        addConfigIfNew(getApertureConfigFromPillPcbHole(elm, soldermaskMargin))
       } else
         console.warn("NOT IMPLEMENTED: drawing gerber for non circle holes")
     } else if (elm.type === "pcb_via") {
