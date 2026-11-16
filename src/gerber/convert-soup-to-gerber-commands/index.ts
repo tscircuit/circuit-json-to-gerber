@@ -1,3 +1,4 @@
+import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
 import {
   getPillApertureConfig,
   type CopperApertureFunction,
@@ -6,6 +7,7 @@ import type {
   AnyCircuitElement,
   PcbPlatedHole,
   PcbViaInput,
+  PcbVia,
 } from "circuit-json"
 import { pairs } from "../utils/pairs"
 import { gerberBuilder } from "../gerber-builder"
@@ -172,6 +174,16 @@ export const convertCircuitJsonToGerberCommands = (
   circuitJson: AnyCircuitElement[],
   opts: { flip_y_axis?: boolean } = {},
 ): LayerToGerberCommandsMap => {
+  const boardOwners = createBoardOwnerMap(circuitJson)
+  const standaloneViasByPosition = new Map<string, PcbVia[]>()
+  for (const element of circuitJson) {
+    if (element.type !== "pcb_via") continue
+    const board = boardOwners.get(element.pcb_via_id)
+    const key = JSON.stringify([board?.pcb_board_id, element.x, element.y])
+    const vias = standaloneViasByPosition.get(key) ?? []
+    vias.push(element)
+    standaloneViasByPosition.set(key, vias)
+  }
   opts.flip_y_axis ??= false
   const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
   const hasBoard = circuitJson.some((e) => e.type === "pcb_board")
@@ -975,13 +987,39 @@ export const convertCircuitJsonToGerberCommands = (
             }
           }
         }
+        const board = boardOwners.get(element.pcb_trace_id)
         for (const point of route) {
           if (
-            point.route_type === "via" &&
-            typeof point.outer_diameter === "number" &&
-            (point.from_layer === layer || point.to_layer === layer)
-          ) {
-            const glayer = glayers[getGerberLayerName(layer, "copper")]
+            point.route_type !== "via" ||
+            typeof point.outer_diameter !== "number" ||
+            (point.from_layer !== layer && point.to_layer !== layer)
+          )
+            continue
+
+          const targetLayers = [glayers[getGerberLayerName(layer, "copper")]]
+          if (isOuterLayerRef(layer)) {
+            const key = JSON.stringify([board?.pcb_board_id, point.x, point.y])
+            const hasStandaloneVia = standaloneViasByPosition
+              .get(key)
+              ?.some(
+                (via) =>
+                  via.layers.includes(point.from_layer) &&
+                  via.layers.includes(point.to_layer),
+              )
+            const isTented =
+              layer === "top"
+                ? (point.tented_on_top ?? board?.default_via_tented_on_top)
+                : (point.tented_on_bottom ??
+                  board?.default_via_tented_on_bottom)
+            // An explicit pcb_via owns its mask settings, even when a trace
+            // also describes the same transition.
+            if (!hasStandaloneVia && isTented === false) {
+              targetLayers.push(
+                glayers[getGerberLayerName(layer, "soldermask")],
+              )
+            }
+          }
+          for (const glayer of targetLayers) {
             glayer.push(
               ...gerberBuilder()
                 .add("select_aperture", {
@@ -1238,8 +1276,7 @@ export const convertCircuitJsonToGerberCommands = (
 
           if (
             element.shape === "rotated_rect" &&
-            !element.corner_radius &&
-            !element.rect_border_radius
+            !("macro_name" in getApertureConfigFromPcbSmtpad(element))
           ) {
             const soldermaskMargin = element.soldermask_margin ?? 0
             for (const { glayer, width, height } of [
@@ -1275,26 +1312,46 @@ export const convertCircuitJsonToGerberCommands = (
             continue
           }
 
-          const rotation =
-            element.shape === "rotated_rect" &&
-            typeof element.ccw_rotation === "number"
-              ? element.ccw_rotation
-              : 0
-
           for (const { glayer, apertureConfig } of [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
-              apertureConfig: getApertureConfigFromPcbSmtpad(element),
+              apertureConfig: getApertureConfigFromPcbSmtpad(
+                element,
+                opts.flip_y_axis,
+              ),
             },
             {
               glayer: glayers[getGerberLayerName(layer, "soldermask")],
-              apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(element),
+              apertureConfig: getApertureConfigFromPcbSmtpadSoldermask(
+                element,
+                opts.flip_y_axis,
+              ),
             },
           ]) {
             if (
               element.is_covered_with_solder_mask === true &&
               glayer === glayers[getGerberLayerName(layer, "soldermask")]
             ) {
+              continue
+            }
+            // A negative mask margin can remove the rounded corners. Preserve
+            // orientation with a region when the mask becomes a plain rectangle.
+            if (
+              element.shape === "rotated_rect" &&
+              "standard_template_code" in apertureConfig &&
+              apertureConfig.standard_template_code === "R"
+            ) {
+              addClosedRegionFromPoints({
+                target: glayer,
+                apertureSource: glayer,
+                apertureFunction: "SMDPad,CuDef",
+                points: getRotatedRectPoints({
+                  center: { x: element.x, y: element.y },
+                  width: apertureConfig.x_size,
+                  height: apertureConfig.y_size,
+                  ccwRotationDegrees: element.ccw_rotation,
+                }),
+              })
               continue
             }
             const apertureNumber = findApertureNumber(
@@ -1306,18 +1363,7 @@ export const convertCircuitJsonToGerberCommands = (
               aperture_number: apertureNumber,
             })
 
-            if (rotation) {
-              gb.add("load_rotation", {
-                rotation_degrees: rotation,
-              })
-            }
-
             gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
-
-            if (rotation) {
-              // Reset rotation
-              gb.add("load_rotation", { rotation_degrees: 0 })
-            }
 
             glayer.push(...gb.build())
           }
@@ -1511,10 +1557,13 @@ export const convertCircuitJsonToGerberCommands = (
                   element.soldermask_margin,
                 )
               }
-              const translatedPoints = points.map((point) => ({
-                x: point.x + element.x,
-                y: point.y + element.y,
-              }))
+              const padToPcbTransform = compose(
+                translate(element.x, element.y),
+                rotate(((element.ccw_rotation ?? 0) * Math.PI) / 180),
+              )
+              const translatedPoints = points.map((point) =>
+                applyToPoint(padToPcbTransform, point),
+              )
               addClosedRegionFromPoints({
                 target: glayer,
                 apertureSource: glayer,
@@ -1604,19 +1653,25 @@ export const convertCircuitJsonToGerberCommands = (
               })
             } else {
               // Non-pill shapes (rect, circle)
-              let apertureConfig = getApertureConfigFromPcbPlatedHole({
-                ...element,
-                ...(element.shape !== "circle"
-                  ? { outer_width: padW, outer_height: padH }
-                  : {}),
-              })
-              if (soldermaskGlayer && glayer === soldermaskGlayer) {
-                apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask({
+              let apertureConfig = getApertureConfigFromPcbPlatedHole(
+                {
                   ...element,
                   ...(element.shape !== "circle"
                     ? { outer_width: padW, outer_height: padH }
                     : {}),
-                })
+                },
+                opts.flip_y_axis,
+              )
+              if (soldermaskGlayer && glayer === soldermaskGlayer) {
+                apertureConfig = getApertureConfigFromPcbPlatedHoleSoldermask(
+                  {
+                    ...element,
+                    ...(element.shape !== "circle"
+                      ? { outer_width: padW, outer_height: padH }
+                      : {}),
+                  },
+                  opts.flip_y_axis,
+                )
               }
               const rectRotation =
                 "rect_ccw_rotation" in element &&
@@ -1624,6 +1679,8 @@ export const convertCircuitJsonToGerberCommands = (
                   ? element.rect_ccw_rotation
                   : undefined
               const renderAsRotatedRectRegion =
+                "standard_template_code" in apertureConfig &&
+                apertureConfig.standard_template_code === "R" &&
                 rectRotation !== undefined &&
                 isGeometryChangingRectRotation({
                   width: aperturePadW,
@@ -1669,6 +1726,7 @@ export const convertCircuitJsonToGerberCommands = (
             glayers[getGerberLayerName(layer, "soldermask")],
           ]) {
             if (
+              element.hole_shape === "pill" ||
               element.hole_shape === "rotated_pill" ||
               element.hole_shape === "oval"
             ) {
@@ -1711,11 +1769,16 @@ export const convertCircuitJsonToGerberCommands = (
             glayers[getGerberLayerName(layer, "copper")],
           ] as AnyGerberCommand[][]
           if (isOuterLayerRef(layer)) {
+            const board = boardOwners.get(element.pcb_via_id)
             const tenting: PcbViaInput = element
             const isTented =
               (layer === "top"
                 ? tenting.tented_on_top
-                : tenting.tented_on_bottom) ?? tenting.is_tented
+                : tenting.tented_on_bottom) ??
+              tenting.is_tented ??
+              (layer === "top"
+                ? board?.default_via_tented_on_top
+                : board?.default_via_tented_on_bottom)
             if (isTented === false) {
               layersToAddTo.push(
                 glayers[getGerberLayerName(layer, "soldermask")],
@@ -1874,6 +1937,7 @@ export const convertCircuitJsonToGerberCommands = (
       }
 
       if (
+        element.hole_shape === "pill" ||
         element.hole_shape === "rotated_pill" ||
         element.hole_shape === "oval"
       ) {

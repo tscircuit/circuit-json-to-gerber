@@ -1,6 +1,6 @@
 {
   "name": "circuit-json-to-gerber",
-  "version": "0.0.113",
+  "version": "0.0.123",
   "repository": {
     "type": "git",
     "url": "https://github.com/tscircuit/circuit-json-to-gerber"
@@ -23,6 +23,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^1.8.3",
+    "@tscircuit/circuit-json-util": "^0.0.129",
+    "@resvg/resvg-js": "^2.6.2",
+    "@tscircuit/image-utils": "^0.0.10",
     "@types/archiver": "^6.0.3",
     "@types/bun": "^1.1.8",
     "@types/node": "^22.5.2",
@@ -44,6 +47,7 @@
   },
   "peerDependencies": {
     "typescript": "^5.0.0",
+    "@tscircuit/circuit-json-util": "*",
     "tscircuit": "*",
     "circuit-json": "*"
   },
