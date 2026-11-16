@@ -4,6 +4,8 @@ import type { AnyCircuitElement } from "circuit-json"
 import { convertCircuitJsonToPcbSvg, type PcbSvgOptions } from "circuit-to-svg"
 import gerberToSvg from "gerber-to-svg"
 import pcbStackup, { type Stackup } from "pcb-stackup"
+import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
+import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { Readable } from "stream"
 
 type Slot = {
@@ -713,10 +715,13 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
 const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
   circuitJson,
   message,
+  outputSvg,
   opts = {},
 }: {
   circuitJson: AnyCircuitElement[]
   message: string | string[]
+  /** Rendered in the output card instead of the message when given. */
+  outputSvg?: string
   opts?: CircuitJsonPcbMessageSnapshotOptions
 }) => {
   const circuitSvg = convertCircuitJsonToPcbSvg(circuitJson, {
@@ -771,10 +776,20 @@ const renderCircuitJsonPcbAndMessageSnapshotSvg = ({
       height: panelHeight,
     }),
     `<rect x="${rightCardX + contentXOffset}" y="${contentY}" width="${panelWidth}" height="${panelHeight}" rx="14" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>`,
-    ...messageLines.map(
-      (line, index) =>
-        `<text x="${rightCardX + contentXOffset + 24}" y="${contentY + 56 + index * 30}" class="snapshot-message" fill="${opts.messageColor ?? "#fca5a5"}">${escapeXml(line)}</text>`,
-    ),
+    ...(outputSvg
+      ? [
+          positionSvg({
+            svg: outputSvg,
+            x: rightCardX + contentXOffset,
+            y: contentY,
+            width: panelWidth,
+            height: panelHeight,
+          }),
+        ]
+      : messageLines.map(
+          (line, index) =>
+            `<text x="${rightCardX + contentXOffset + 24}" y="${contentY + 56 + index * 30}" class="snapshot-message" fill="${opts.messageColor ?? "#fca5a5"}">${escapeXml(line)}</text>`,
+        )),
     "</svg>",
   ].join("")
 }
@@ -858,6 +873,44 @@ async function toMatchCircuitJsonPcbAndMessageSnapshot(
   return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
 }
 
+/**
+ * Snapshots the circuit JSON PCB beside the Gerber layers converted from it,
+ * or beside "GERBER ERROR: <message>" when the conversion throws, so a repro
+ * test stays unchanged while its fix updates the snapshot.
+ */
+async function toMatchGerberLayersOrErrorSnapshot(
+  this: any,
+  circuitJson: AnyCircuitElement[],
+  testPathOriginal: string,
+  svgName: string,
+  layerNames: string[],
+) {
+  const svg = await Promise.resolve()
+    .then(() =>
+      stringifyGerberCommandLayers(convertSoupToGerberCommands(circuitJson)),
+    )
+    .then(
+      async (gerberOutput) =>
+        renderCircuitJsonPcbAndMessageSnapshotSvg({
+          circuitJson,
+          message: [],
+          outputSvg: await renderGerberLayerOverlaySvg(
+            gerberOutput,
+            svgName,
+            layerNames,
+          ),
+          opts: { messageLabel: `Gerber view: ${layerNames.join(" + ")}` },
+        }),
+      (error: Error) =>
+        renderCircuitJsonPcbAndMessageSnapshotSvg({
+          circuitJson,
+          message: `GERBER ERROR: ${error.message}`,
+        }),
+    )
+
+  return expect([svg]).toMatchMultipleSvgSnapshots(testPathOriginal, [svgName])
+}
+
 async function toMatchGerberSnapshot(
   this: any,
   gerberOutput: Record<string, string>,
@@ -922,6 +975,7 @@ expect.extend({
     toMatchCircuitJsonPcbAndGerberSnapshot as any,
   toMatchCircuitJsonPcbAndMessageSnapshot:
     toMatchCircuitJsonPcbAndMessageSnapshot as any,
+  toMatchGerberLayersOrErrorSnapshot: toMatchGerberLayersOrErrorSnapshot as any,
 })
 
 declare module "bun:test" {
@@ -954,6 +1008,11 @@ declare module "bun:test" {
       svgName: string,
       message: string | string[],
       opts?: CircuitJsonPcbMessageSnapshotOptions,
+    ): Promise<MatcherResult>
+    toMatchGerberLayersOrErrorSnapshot(
+      testImportMetaPath: string,
+      svgName: string,
+      layerNames: string[],
     ): Promise<MatcherResult>
   }
 }
