@@ -23,10 +23,17 @@ test("USB mounting slot exports as two round drill hits", async () => {
   expect(drill).toContain("\nX0.0000Y-0.4000\nG85X0.000Y0.400\nM30")
 
   const svg = await new Promise<string>((resolve, reject) => {
-    gerberToSvg(drill, { id: "usb-slot-block" }, (error, svg) => {
-      if (error) reject(error)
-      else resolve(svg)
-    })
+    gerberToSvg(
+      drill,
+      {
+        id: "usb-slot-block",
+        attributes: { width: 150, height: 350, color: "#253930" },
+      },
+      (error, svg) => {
+        if (error) reject(error)
+        else resolve(svg)
+      },
+    )
   })
   await expect([svg]).toMatchMultipleSvgSnapshots(import.meta.path, [
     "usb-slot-block",
