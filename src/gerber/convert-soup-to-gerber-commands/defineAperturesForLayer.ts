@@ -751,7 +751,11 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
         if (elm.shape === "polygon" && !glayer_name.endsWith("_Paste")) continue
-        if (elm.shape === "oval" || elm.shape === "polygon") {
+        if (
+          elm.shape === "oval" ||
+          elm.shape === "polygon" ||
+          elm.shape === "rotated_rect"
+        ) {
           addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }

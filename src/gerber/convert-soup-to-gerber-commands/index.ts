@@ -1478,6 +1478,21 @@ export const convertCircuitJsonToGerberCommands = (
             continue
           }
 
+          if (element.shape === "rotated_rect") {
+            const glayer = glayers[getGerberLayerName(layer, "paste")]
+            addClosedRegionFromPoints({
+              target: glayer,
+              apertureSource: glayer,
+              points: getRotatedRectPoints({
+                center: { x: element.x, y: element.y },
+                width: element.width,
+                height: element.height,
+                ccwRotationDegrees: element.ccw_rotation,
+              }),
+            })
+            continue
+          }
+
           const glayer = glayers[getGerberLayerName(layer, "paste")]
           let rotation = 0
           if (
