@@ -75,6 +75,12 @@ const getClampedRoundedRectCornerRadius = (
   return Math.max(0, Math.min(cornerRadius, width / 2, height / 2))
 }
 
+// Rect pads carry their corner radius in corner_radius or rect_border_radius.
+const getSmtpadCornerRadius = (pad: {
+  corner_radius?: number
+  rect_border_radius?: number
+}) => pad.corner_radius ?? pad.rect_border_radius
+
 const getRoundedRectApertureConfig = (
   width: number,
   height: number,
@@ -215,7 +221,7 @@ export const getApertureConfigFromPcbSmtpad = (
     const cornerRadius = getClampedRoundedRectCornerRadius(
       elm.width,
       elm.height,
-      "corner_radius" in elm ? elm.corner_radius : undefined,
+      getSmtpadCornerRadius(elm),
     )
 
     if (cornerRadius > 0) {
@@ -283,11 +289,12 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
   if (elm.shape === "rect" || elm.shape === "rotated_rect") {
     const width = elm.width + soldermaskMargin * 2
     const height = elm.height + soldermaskMargin * 2
+    const padCornerRadius = getSmtpadCornerRadius(elm)
     const cornerRadius = getClampedRoundedRectCornerRadius(
       width,
       height,
-      "corner_radius" in elm && typeof elm.corner_radius === "number"
-        ? elm.corner_radius + soldermaskMargin
+      typeof padCornerRadius === "number"
+        ? padCornerRadius + soldermaskMargin
         : undefined,
     )
 
