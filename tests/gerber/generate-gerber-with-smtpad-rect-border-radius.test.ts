@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test"
-import type { AnyCircuitElement } from "circuit-json"
+import type { AnyCircuitElement, PcbSmtPad } from "circuit-json"
 import { convertCircuitJsonToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import qfnFixture from "./assets/qfn16-rect-border-radius.circuit.json"
@@ -38,15 +38,37 @@ test("smtpad corner_radius exports rounded copper and soldermask apertures", () 
 })
 
 for (const layer of ["F_Cu", "F_Mask"]) {
-  test.failing(
-    `smtpad rect_border_radius exports the same rounded ${layer} as corner_radius`,
-    () => {
-      expect(getLayerBody(getGerberOutput(circuitJson)[layer])).toBe(
-        getLayerBody(getGerberOutput(circuitJsonWithCornerRadius)[layer]),
-      )
-    },
-  )
+  test(`smtpad rect_border_radius exports the same rounded ${layer} as corner_radius`, () => {
+    expect(getLayerBody(getGerberOutput(circuitJson)[layer])).toBe(
+      getLayerBody(getGerberOutput(circuitJsonWithCornerRadius)[layer]),
+    )
+  })
 }
+
+const exposedPad: PcbSmtPad = {
+  type: "pcb_smtpad",
+  pcb_smtpad_id: "pcb_smtpad_exposed",
+  layer: "top",
+  shape: "rect",
+  x: 0,
+  y: 0,
+  width: 1.7,
+  height: 1.7,
+  rect_border_radius: 0.25,
+  soldermask_margin: 0.05,
+}
+
+test("smtpad rect_border_radius grows with the soldermask margin", () => {
+  const gerberOutput = getGerberOutput([exposedPad])
+  expect(gerberOutput.F_Cu).toContain("ROUNDRECT,0.250000X")
+  expect(gerberOutput.F_Mask).toContain("ROUNDRECT,0.300000X")
+})
+
+test("smtpad corner_radius takes precedence over rect_border_radius", () => {
+  const gerberOutput = getGerberOutput([{ ...exposedPad, corner_radius: 0.1 }])
+  expect(gerberOutput.F_Cu).toContain("ROUNDRECT,0.100000X")
+  expect(gerberOutput.F_Mask).toContain("ROUNDRECT,0.150000X")
+})
 
 test("smtpad rect_border_radius PCB and Gerber snapshot", async () => {
   await expect(
@@ -58,7 +80,7 @@ test("smtpad rect_border_radius PCB and Gerber snapshot", async () => {
     ["F_Mask", "F_Cu"],
     {
       circuitJsonLabel: "Circuit JSON: rect_border_radius pads",
-      gerberLabel: "Current Gerber: sharp pad corners",
+      gerberLabel: "Gerber: rounded pad corners",
       circuitJsonPcbSvgOptions: { drawPaddingOutsideBoard: false },
       panelHeight: 360,
     },
