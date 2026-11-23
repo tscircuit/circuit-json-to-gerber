@@ -6,6 +6,7 @@ import {
 import {
   convertCircuitJsonToGerberCommands,
   stringifyGerberCommandLayers,
+  type GerberConversionOptions,
 } from "./gerber"
 
 export type GerberFileMap = Record<string, string>
@@ -17,11 +18,12 @@ export type GerberFileMap = Record<string, string>
  */
 export const convertCircuitJsonToGerberFiles = (
   circuitJson: AnyCircuitElement[],
-  options: { flip_y_axis?: boolean } = {},
+  options: GerberConversionOptions = {},
 ): GerberFileMap => {
   const { flip_y_axis = false } = options
   const gerberCommandLayers = convertCircuitJsonToGerberCommands(circuitJson, {
     flip_y_axis,
+    panel_mode: options.panel_mode,
   })
   const gerberFiles = Object.fromEntries(
     Object.entries(stringifyGerberCommandLayers(gerberCommandLayers)).map(
