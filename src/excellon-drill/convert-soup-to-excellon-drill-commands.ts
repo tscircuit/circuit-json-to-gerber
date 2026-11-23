@@ -412,6 +412,23 @@ const getHoleDiameter = (element: DrillElement) => {
   return undefined
 }
 
+// Polygon pads keep their hole offset in pad axes, so it turns with ccw_rotation.
+const getHoleOffsetRotationDegrees = (element: DrillElement) => {
+  if (element.type !== "pcb_plated_hole") {
+    return 0
+  }
+
+  if (element.shape !== "hole_with_polygon_pad") {
+    return 0
+  }
+
+  if (typeof element.ccw_rotation !== "number") {
+    return 0
+  }
+
+  return element.ccw_rotation
+}
+
 const getDrillCenter = (element: DrillElement) => {
   if (element.type === "pcb_cutout") {
     return element.center
@@ -438,9 +455,14 @@ const getDrillCenter = (element: DrillElement) => {
     holeOffsetY = element.hole_offset_y
   }
 
+  const holeOffsetRotationRadians =
+    (getHoleOffsetRotationDegrees(element) * Math.PI) / 180
+  const cosTheta = Math.cos(holeOffsetRotationRadians)
+  const sinTheta = Math.sin(holeOffsetRotationRadians)
+
   return {
-    x: x + holeOffsetX,
-    y: y + holeOffsetY,
+    x: x + holeOffsetX * cosTheta - holeOffsetY * sinTheta,
+    y: y + holeOffsetX * sinTheta + holeOffsetY * cosTheta,
   }
 }
 
