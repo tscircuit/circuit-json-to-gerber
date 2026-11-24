@@ -23,6 +23,7 @@ type GerberLayerSnapshotOptions = {
 type GerberLayerOverlaySnapshotOptions = {
   colors?: Record<string, string>
   backgroundColor?: string
+  skipPasteRotationCompensation?: boolean
 }
 
 type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
@@ -620,10 +621,12 @@ const getGerberStackupSvg = async (
   if (!svgIdMatch) return stackupView.svg
 
   let enhancedSvg = injectSlotSvg(stackupView.svg, slots, svgIdMatch[1])
-  if (prefersBottomView) {
-    enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.bottom)
-  } else {
-    enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.top)
+  if (!opts.skipPasteRotationCompensation) {
+    if (prefersBottomView) {
+      enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.bottom)
+    } else {
+      enhancedSvg = injectPasteRotation(enhancedSvg, pasteRotations.top)
+    }
   }
   if (shouldShowSoldermaskContext) {
     enhancedSvg = injectSoldermaskBackdrop(enhancedSvg)
@@ -658,6 +661,7 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     {
       colors: opts.colors,
       backgroundColor: opts.backgroundColor,
+      skipPasteRotationCompensation: opts.skipPasteRotationCompensation,
     },
   )
 
