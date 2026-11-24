@@ -271,6 +271,52 @@ export const getApertureConfigFromPcbSmtpad = (
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
 
+export const getRectSmtpadSoldermaskGeometry = (
+  elm: Extract<PCBSMTPad, { shape: "rect" | "rotated_rect" }>,
+) => {
+  const baseMargin =
+    "soldermask_margin" in elm && typeof elm.soldermask_margin === "number"
+      ? elm.soldermask_margin
+      : 0
+  const left =
+    "soldermask_margin_left" in elm &&
+    typeof elm.soldermask_margin_left === "number"
+      ? elm.soldermask_margin_left
+      : baseMargin
+  const right =
+    "soldermask_margin_right" in elm &&
+    typeof elm.soldermask_margin_right === "number"
+      ? elm.soldermask_margin_right
+      : baseMargin
+  const top =
+    "soldermask_margin_top" in elm &&
+    typeof elm.soldermask_margin_top === "number"
+      ? elm.soldermask_margin_top
+      : baseMargin
+  const bottom =
+    "soldermask_margin_bottom" in elm &&
+    typeof elm.soldermask_margin_bottom === "number"
+      ? elm.soldermask_margin_bottom
+      : baseMargin
+
+  const width = elm.width + left + right
+  const height = elm.height + top + bottom
+  const localOffsetX = (right - left) / 2
+  const localOffsetY = (top - bottom) / 2
+  const ccwRotation = elm.shape === "rotated_rect" ? elm.ccw_rotation : 0
+  const rad = (ccwRotation * Math.PI) / 180
+  const cos = Math.cos(rad)
+  const sin = Math.sin(rad)
+
+  return {
+    width,
+    height,
+    x: elm.x + localOffsetX * cos - localOffsetY * sin,
+    y: elm.y + localOffsetX * sin + localOffsetY * cos,
+    minMargin: Math.min(left, right, top, bottom),
+  }
+}
+
 export const getApertureConfigFromPcbSmtpadSoldermask = (
   elm: PCBSMTPad,
   flipYAxis = false,
@@ -281,13 +327,12 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
   }
 
   if (elm.shape === "rect" || elm.shape === "rotated_rect") {
-    const width = elm.width + soldermaskMargin * 2
-    const height = elm.height + soldermaskMargin * 2
+    const { width, height, minMargin } = getRectSmtpadSoldermaskGeometry(elm)
     const cornerRadius = getClampedRoundedRectCornerRadius(
       width,
       height,
       "corner_radius" in elm && typeof elm.corner_radius === "number"
-        ? elm.corner_radius + soldermaskMargin
+        ? elm.corner_radius + minMargin
         : undefined,
     )
 
@@ -301,26 +346,18 @@ export const getApertureConfigFromPcbSmtpadSoldermask = (
           : 0,
       )
     }
-  }
 
-  if (elm.shape === "rect") {
     return {
       standard_template_code: "R",
-      x_size: elm.width + soldermaskMargin * 2,
-      y_size: elm.height + soldermaskMargin * 2,
+      x_size: width,
+      y_size: height,
     }
   }
+
   if (elm.shape === "circle") {
     return {
       standard_template_code: "C",
       diameter: elm.radius * 2 + soldermaskMargin * 2,
-    }
-  }
-  if (elm.shape === "rotated_rect") {
-    return {
-      standard_template_code: "R",
-      x_size: elm.width + soldermaskMargin * 2,
-      y_size: elm.height + soldermaskMargin * 2,
     }
   }
   if (elm.shape === "pill" || elm.shape === "rotated_pill") {
