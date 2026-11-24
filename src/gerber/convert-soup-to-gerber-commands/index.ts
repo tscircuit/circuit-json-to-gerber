@@ -1374,24 +1374,35 @@ export const convertCircuitJsonToGerberCommands = (
         }
       } else if (element.type === "pcb_smtpad" && element.shape === "polygon") {
         if (element.layer === layer && isOuterLayerRef(layer)) {
+          const soldermaskGlayer =
+            glayers[getGerberLayerName(layer, "soldermask")]
           const layers_to_add_to = [
             glayers[getGerberLayerName(layer, "copper")],
           ]
 
           if (element.is_covered_with_solder_mask !== true) {
-            layers_to_add_to.push(
-              glayers[getGerberLayerName(layer, "soldermask")],
-            )
+            layers_to_add_to.push(soldermaskGlayer)
           }
 
           for (const glayer of layers_to_add_to) {
             const { points } = element
             if (!points) continue
+            let padPoints = points
+            if (
+              glayer === soldermaskGlayer &&
+              "soldermask_margin" in element &&
+              typeof element.soldermask_margin === "number"
+            ) {
+              padPoints = offsetPolygonOutline(
+                points,
+                element.soldermask_margin,
+              )
+            }
             addClosedRegionFromPoints({
               target: glayer,
               apertureSource: glayer,
               apertureFunction: "SMDPad,CuDef",
-              points,
+              points: padPoints,
             })
           }
         }
