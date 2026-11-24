@@ -1,0 +1,21 @@
+// Bun Snapshot v1, https://bun.sh/docs/test/snapshots
+
+exports[`Gerber and Excellon output of the edge-case board is byte-identical (sha256 per file) 1`] = `
+{
+  "B_Cu.gbr": "41101db9c7de7c4c4b0f14b61aadc5a97d7f1c3fb2689c9be38632cb563df3ee",
+  "B_Mask.gbr": "5064ec7548884379c71ea5d31affe68db070708aa9d19ba2bbd738f6b6356bd6",
+  "B_Paste.gbr": "04f355d1405e88c4e0fa55d5da8eca768a0110be7117b940190d1e5e4c825a6e",
+  "B_SilkScreen.gbr": "794ef9689aa8cc5309c9160b4b6fafa31edaeaa5df164efd1aa0bfc0bffd1091",
+  "Edge_Cuts.gbr": "e1804f94a054a7cbd2244582ce2a8bb7875a42dca49cda89495fc4fe7f8f2c6a",
+  "F_Cu.gbr": "755ba097a74d81f3a642c170da9b712e2787599b13cd9a8b346772ec62622fd0",
+  "F_Fab.gbr": "c28370019972bab25862a579b205688a4392863a4c82bc9bf82cd3898120315c",
+  "F_Mask.gbr": "d352060211a6b3609e1b9756dfcb3509b215a91f16e59ee22801cce6add3c19b",
+  "F_Paste.gbr": "aab975603cd6ed8c5d25b117c3aae3c966bd2d08be8965ab40558b5aa1fbc514",
+  "F_SilkScreen.gbr": "2eb8261fc7c740230544ab28262c4f10cf58fd9ff62b446836824ae2b1639cce",
+  "In1_Cu.gbr": "a2779e0144f220dbf633e78b00fe4e2f453c47ab1c201c9e5d33fc427b515ed3",
+  "In2_Cu.gbr": "c3e725aaddbb94ad6644ff32aae77eee5bf26f700d150ea34cd44d7a196f191f",
+  "drill-L1-L2.drl": "3acf5cdbde7cd8b0f0a8078e32aad75c8376105405a99584593be926a9ad1863",
+  "drill-L1-L4.drl": "e5193321de085f06bada5a2be08b0270c353155b044496136c606e42cbc52a9e",
+  "drill_npth.drl": "95b6504b44c614293185fba8f0c664e044b35168f8ab2600c7138ef3d640e07d",
+}
+`;
