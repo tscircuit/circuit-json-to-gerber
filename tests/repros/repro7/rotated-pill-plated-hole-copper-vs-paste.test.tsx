@@ -47,14 +47,21 @@ test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
     convertSoupToGerberCommands(circuitJson as any),
   )
 
+  const copperSvg = await renderGerberLayer(
+    gerberOutput.F_Cu,
+    "rotated-pill-plated-hole-copper-vs-paste-F_Cu",
+  )
   const pasteSvg = await renderGerberLayer(
     gerberOutput.F_Paste,
     "rotated-pill-plated-hole-copper-vs-paste-F_Paste",
   )
 
-  expect(pasteSvg).toContain(
-    '<rect x="-449.999" y="-549.999" width="899.998" height="1099.998"/>',
-  )
+  const normalizeIds = (svg: string) =>
+    svg
+      .replace(/\bid="[^"]*"/g, 'id=""')
+      .replace(/xlink:href="#[^"]*"/g, 'xlink:href="#"')
+
+  expect(normalizeIds(pasteSvg)).toEqual(normalizeIds(copperSvg))
   expect(pasteSvg).not.toContain(
     '<rect x="-999.998" y="-549.999" width="1999.996" height="1099.998"/>',
   )

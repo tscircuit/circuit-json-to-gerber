@@ -420,18 +420,30 @@ export const getApertureConfigFromPcbFabricationNoteDimension = (
   }
 }
 
+export const getSolderPasteRotationDegrees = (
+  elm: PcbSolderPaste,
+  circuitJson: AnyCircuitElement[],
+) => {
+  if ("ccw_rotation" in elm && typeof elm.ccw_rotation === "number") {
+    return elm.ccw_rotation
+  }
+  if (!("x" in elm) || !("y" in elm)) return 0
+  const platedHole = circuitJson.find(
+    (candidate): candidate is PCBPlatedHole & { ccw_rotation: number } =>
+      candidate.type === "pcb_plated_hole" &&
+      candidate.x === elm.x &&
+      candidate.y === elm.y &&
+      "ccw_rotation" in candidate &&
+      typeof candidate.ccw_rotation === "number",
+  )
+  return platedHole?.ccw_rotation ?? 0
+}
+
 export const getApertureConfigFromPcbSolderPaste = (
   elm: PcbSolderPaste,
+  rotationDegrees = 0,
 ): ApertureTemplateConfig => {
-  if (elm.shape === "rect") {
-    return {
-      standard_template_code: "R",
-      x_size: elm.width,
-      y_size: elm.height,
-    }
-  }
-  if (elm.shape === "rotated_rect") {
-    // Rotation is handled by the LR command, not the aperture definition
+  if (elm.shape === "rect" || elm.shape === "rotated_rect") {
     return {
       standard_template_code: "R",
       x_size: elm.width,
@@ -445,28 +457,12 @@ export const getApertureConfigFromPcbSolderPaste = (
     }
   }
   if (elm.shape === "pill" || elm.shape === "rotated_pill") {
-    // rotated_pill rotation is handled by the LR command at flash time
     if (!("width" in elm && "height" in elm)) {
       throw new Error(
-        "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
+        "Invalid pill shape in getApertureConfigFromPcbSolderPaste: missing dimensions",
       )
     }
-    if (elm.width >= elm.height) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: elm.width,
-        y_size: elm.height,
-        circle_diameter: Math.min(elm.width, elm.height),
-        circle_center_offset: (elm.width - elm.height) / 2,
-      }
-    }
-    return {
-      macro_name: "VERTPILL",
-      x_size: elm.width,
-      y_size: elm.height,
-      circle_diameter: Math.min(elm.width, elm.height),
-      circle_center_offset: (elm.height - elm.width) / 2,
-    }
+    return getPillApertureConfig(elm.width, elm.height, rotationDegrees)
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
@@ -751,24 +747,24 @@ function getAllApertureTemplateConfigsForLayer({
       if (isFabricationLayer) continue
       if (elm.layer === layer) {
         if (elm.shape === "polygon" && !glayer_name.endsWith("_Paste")) continue
+        if (elm.shape === "oval" || elm.shape === "polygon") {
+          addConfigIfNew(REGION_APERTURE_CONFIG)
+          continue
+        }
+        const rotation = getSolderPasteRotationDegrees(elm, circuitJson)
         if (
-          elm.shape === "oval" ||
-          elm.shape === "polygon" ||
-          elm.shape === "rotated_rect"
+          elm.shape === "rotated_rect" ||
+          (elm.shape === "rect" &&
+            isGeometryChangingRectRotation({
+              width: elm.width,
+              height: elm.height,
+              ccwRotationDegrees: rotation,
+            }))
         ) {
           addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }
-        addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
-        if (elm.shape === "pill") {
-          addConfigIfNew(
-            getApertureConfigFromPcbSolderPaste({
-              ...elm,
-              width: elm.height,
-              height: elm.width,
-            }),
-          )
-        }
+        addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm, rotation))
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (isFabricationLayer) continue

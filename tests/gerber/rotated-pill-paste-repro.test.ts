@@ -155,22 +155,33 @@ const snapshotOptions = {
   skipPasteRotationCompensation: true,
 }
 
-test("rotated pill solder paste depends on LR load rotation", async () => {
+test("rotated pill solder paste is written without LR on both layers", async () => {
   const commands = convertSoupToGerberCommands(circuitJson)
   const gerberOutput = stringifyGerberCommandLayers(commands)
 
   for (const layer of ["F_Paste", "B_Paste"] as const) {
-    expect(gerberOutput[layer]).toContain("%LR")
+    expect(gerberOutput[layer]).not.toContain("%LR")
   }
 
   for (const layer of ["top", "bottom"] as const) {
     const copperName = layer === "top" ? "F_Cu" : "B_Cu"
     const pasteName = layer === "top" ? "F_Paste" : "B_Paste"
-    const y = layer === "top" ? 3.5 : -3.5
-    const copper = getFlashAperture(commands[copperName], -4.2, y)
-    const paste = getFlashAperture(commands[pasteName], -4.2, y)
-    expect(paste.geometry).not.toEqual(copper.geometry)
+    for (const angle of angles) {
+      const index = angles.indexOf(angle)
+      const x = -4.2 + index * 2.8
+      const y = layer === "top" ? 3.5 : -3.5
+      const copper = getFlashAperture(commands[copperName], x, y)
+      const paste = getFlashAperture(commands[pasteName], x, y)
+      expect(paste.geometry).toEqual(copper.geometry)
+    }
+    const pillY = layer === "top" ? 0.8 : -0.8
+    const platedPillCopper = getFlashAperture(commands[copperName], -4.5, pillY)
+    const platedPillPaste = getFlashAperture(commands[pasteName], -4.5, pillY)
+    expect(platedPillPaste.geometry).toEqual(platedPillCopper.geometry)
   }
+
+  expect(gerberOutput.F_Paste).toContain("G36*")
+  expect(gerberOutput.B_Paste).toContain("G36*")
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(
     import.meta.path,
