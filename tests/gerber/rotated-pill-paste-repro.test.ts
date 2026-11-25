@@ -111,11 +111,17 @@ const circuitJson = [
   }),
 ] as AnyCircuitElement[]
 
-const getFlashAperture = (
-  commands: AnyGerberCommand[],
-  x: number,
-  y: number,
-) => {
+type DefineApertureCommand = Extract<AnyGerberCommand, { command_code: "ADD" }>
+
+const getFlashAperture = ({
+  commands,
+  x,
+  y,
+}: {
+  commands: AnyGerberCommand[]
+  x: number
+  y: number
+}) => {
   const flashIndex = commands.findIndex(
     (command) =>
       command.command_code === "D03" && command.x === x && command.y === y,
@@ -131,16 +137,16 @@ const getFlashAperture = (
   }
   expect(apertureNumber).toBeDefined()
   const aperture = commands.find(
-    (command) =>
+    (command): command is DefineApertureCommand =>
       command.command_code === "ADD" &&
       command.aperture_number === apertureNumber,
   )
-  expect(aperture).toBeDefined()
+  if (!aperture) throw new Error(`aperture ${apertureNumber} not found`)
   const {
     aperture_number: _ignored,
     command_code: _code,
     ...geometry
-  } = aperture as any
+  } = aperture
   return { apertureNumber, geometry }
 }
 
@@ -170,13 +176,21 @@ test("rotated pill solder paste is written without LR on both layers", async () 
       const index = angles.indexOf(angle)
       const x = -4.2 + index * 2.8
       const y = layer === "top" ? 3.5 : -3.5
-      const copper = getFlashAperture(commands[copperName], x, y)
-      const paste = getFlashAperture(commands[pasteName], x, y)
+      const copper = getFlashAperture({ commands: commands[copperName], x, y })
+      const paste = getFlashAperture({ commands: commands[pasteName], x, y })
       expect(paste.geometry).toEqual(copper.geometry)
     }
     const pillY = layer === "top" ? 0.8 : -0.8
-    const platedPillCopper = getFlashAperture(commands[copperName], -4.5, pillY)
-    const platedPillPaste = getFlashAperture(commands[pasteName], -4.5, pillY)
+    const platedPillCopper = getFlashAperture({
+      commands: commands[copperName],
+      x: -4.5,
+      y: pillY,
+    })
+    const platedPillPaste = getFlashAperture({
+      commands: commands[pasteName],
+      x: -4.5,
+      y: pillY,
+    })
     expect(platedPillPaste.geometry).toEqual(platedPillCopper.geometry)
   }
 
