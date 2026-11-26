@@ -1,0 +1,148 @@
+{
+  "renderer": "Standalone gerbv",
+  "gerbv_binary_sha256": "ccb2176975811c4f65a6652e6bcf7ed627a7df57a2b9f904ce4737289ae49544",
+  "generator_source_commit": "404970b1b3d364df6e045ea53edda8c414f5d594",
+  "result": "PASS",
+  "scope": "Four-layer through, top-blind, buried, bottom-blind fixture; no tscircuit renderer used",
+  "positions": [
+    175,
+    325,
+    475,
+    625
+  ],
+  "views": [
+    {
+      "view": "top",
+      "visible_positions": [
+        0,
+        1
+      ],
+      "copper_and_drills": "PASS"
+    },
+    {
+      "view": "inner1",
+      "visible_positions": [
+        0,
+        1,
+        2
+      ],
+      "copper_and_drills": "PASS"
+    },
+    {
+      "view": "inner2",
+      "visible_positions": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "copper_and_drills": "PASS"
+    },
+    {
+      "view": "bottom",
+      "visible_positions": [
+        0,
+        3
+      ],
+      "copper_and_drills": "PASS"
+    },
+    {
+      "view": "overview",
+      "visible_positions": [
+        0,
+        1,
+        2,
+        3
+      ],
+      "copper_and_drills": "PASS"
+    },
+    {
+      "view": "drill-L1-L4",
+      "visible_positions": [
+        0
+      ],
+      "drill_span": "PASS"
+    },
+    {
+      "view": "drill-L1-L3",
+      "visible_positions": [
+        1
+      ],
+      "drill_span": "PASS"
+    },
+    {
+      "view": "drill-L2-L3",
+      "visible_positions": [
+        2
+      ],
+      "drill_span": "PASS"
+    },
+    {
+      "view": "drill-L3-L4",
+      "visible_positions": [
+        3
+      ],
+      "drill_span": "PASS"
+    }
+  ],
+  "parser_messages": [
+    {
+      "view": "top",
+      "metadata_warnings": 10
+    },
+    {
+      "view": "inner1",
+      "metadata_warnings": 10
+    },
+    {
+      "view": "inner2",
+      "metadata_warnings": 10
+    },
+    {
+      "view": "bottom",
+      "metadata_warnings": 10
+    },
+    {
+      "view": "overview",
+      "metadata_warnings": 28
+    },
+    {
+      "view": "drill-L1-L4",
+      "metadata_warnings": 0
+    },
+    {
+      "view": "drill-L1-L3",
+      "metadata_warnings": 0
+    },
+    {
+      "view": "drill-L2-L3",
+      "metadata_warnings": 0
+    },
+    {
+      "view": "drill-L3-L4",
+      "metadata_warnings": 0
+    }
+  ],
+  "input_sha256": {
+    "B_Cu.gbr": "e88cfc31cded8ab7a5179b3c90a18faebfc0f8d0096a8d420ec26109bd761b96",
+    "Edge_Cuts.gbr": "0617b7dd3038e98699bcacb8ea4217b314a2a61377231d4f78f0b9d46e7c1485",
+    "F_Cu.gbr": "d8e4acc8c64741655b9012445692bb13a53be1475f433fb7b1947c57c88694ef",
+    "In1_Cu.gbr": "57fb6d27be10aaf46ba7e530b9286c9de766e90560194a1a50c6770754d7eb6f",
+    "In2_Cu.gbr": "8fdc411d146bb9320fc61bd92dd21cc5ce48d6cc2bb938ec30484343d2622c63",
+    "drill-L1-L3.drl": "34c3916c81ffd0c99afb171ccd66c7a8968c7d82e7e1702bd1cb3ec43d383460",
+    "drill-L1-L4.drl": "ca350a29e07e8739e32ce48c0c553eff0d1fc0a65fe9a3586557772b5bf0dbdc",
+    "drill-L2-L3.drl": "a298b901e43811b9226fdfc965387e36fcdddd623f1bd34eb67ea1fdc3be10ab",
+    "drill-L3-L4.drl": "c243e8bd17f9a80b93d826173a2a516e7c101891b265b0e710d7d1b458ae142c"
+  },
+  "render_sha256": {
+    "bottom.png": "76edc582746b9c8479f11cbf6641a8927a841cdda0465d8b1860a7f64ac1e2bd",
+    "drill-L1-L3.png": "deb5d98cd2323d5ca1fdd9e33ec59c2f707a2c4e12d1109df5c0c604374963fe",
+    "drill-L1-L4.png": "102eb6a34376313efda4585471884a9d32b7e1f6176fec1c5bbb10f7c520289a",
+    "drill-L2-L3.png": "aa4ffe1e0f0f153041d85df211287ccc93c3a02880ae5b211089d2c720f050d1",
+    "drill-L3-L4.png": "2c5b12ab0c80d296bd26d6db8a102ab1d44429c218a31bbc8b069fccec95787a",
+    "inner1.png": "9e82305177a4e5be89e30fff69ebcd6ab368998b892a3635972007ad29dd7fd8",
+    "inner2.png": "71fa1d7f549a3ea98b43057d2d8b95399b447d73afb788eb2381d91305bdf23f",
+    "overview.png": "012d5e143430eb5e86970afd1fd7f5c66a4d3170948883d893f2c013381a8945",
+    "top.png": "21626ce99cb8480be8628ca52997eb2805697f65e1eaa89b6aaa69962ebf9713"
+  }
+}
