@@ -449,11 +449,15 @@ export const getApertureConfigFromPcbSolderPaste = (
   }
   if (elm.shape === "pill" || elm.shape === "rotated_pill") {
     const config = getPillApertureConfig(elm.width, elm.height, rotationDegrees)
-    return flipYAxis &&
+    if (
+      flipYAxis &&
       "macro_name" in config &&
       config.macro_name === "ROTATEDPILL"
-      ? { ...config, offset_y: -config.offset_y }
-      : config
+    ) {
+      // Mirror the aperture's endpoint along with the flash position.
+      return { ...config, offset_y: -config.offset_y }
+    }
+    return config
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
