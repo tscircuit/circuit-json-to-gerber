@@ -28,6 +28,7 @@ import {
   getApertureConfigFromPcbSilkscreenText,
   getApertureConfigFromPcbSmtpad,
   getApertureConfigFromPcbSmtpadSoldermask,
+  getRectSmtpadSoldermaskGeometry,
   getApertureConfigFromPcbSolderPaste,
   getApertureConfigFromOuterDiameter,
 } from "./defineAperturesForLayer"
@@ -1283,17 +1284,19 @@ export const convertCircuitJsonToGerberCommands = (
             element.shape === "rotated_rect" &&
             !("macro_name" in getApertureConfigFromPcbSmtpad(element))
           ) {
-            const soldermaskMargin = element.soldermask_margin ?? 0
-            for (const { glayer, width, height } of [
+            const maskGeom = getRectSmtpadSoldermaskGeometry(element)
+            for (const { glayer, width, height, center } of [
               {
                 glayer: glayers[getGerberLayerName(layer, "copper")],
                 width: element.width,
                 height: element.height,
+                center: { x: element.x, y: element.y },
               },
               {
                 glayer: glayers[getGerberLayerName(layer, "soldermask")],
-                width: element.width + soldermaskMargin * 2,
-                height: element.height + soldermaskMargin * 2,
+                width: maskGeom.width,
+                height: maskGeom.height,
+                center: { x: maskGeom.x, y: maskGeom.y },
               },
             ]) {
               if (
@@ -1307,7 +1310,7 @@ export const convertCircuitJsonToGerberCommands = (
                 apertureSource: glayer,
                 apertureFunction: "SMDPad,CuDef",
                 points: getRotatedRectPoints({
-                  center: { x: element.x, y: element.y },
+                  center,
                   width,
                   height,
                   ccwRotationDegrees: element.ccw_rotation,
@@ -1317,13 +1320,19 @@ export const convertCircuitJsonToGerberCommands = (
             continue
           }
 
-          for (const { glayer, apertureConfig } of [
+          const rectMaskCenter =
+            element.shape === "rect" || element.shape === "rotated_rect"
+              ? getRectSmtpadSoldermaskGeometry(element)
+              : undefined
+
+          for (const { glayer, apertureConfig, center } of [
             {
               glayer: glayers[getGerberLayerName(layer, "copper")],
               apertureConfig: getApertureConfigFromPcbSmtpad(
                 element,
                 opts.flip_y_axis,
               ),
+              center: { x: element.x, y: element.y },
             },
             {
               glayer: glayers[getGerberLayerName(layer, "soldermask")],
@@ -1331,6 +1340,9 @@ export const convertCircuitJsonToGerberCommands = (
                 element,
                 opts.flip_y_axis,
               ),
+              center: rectMaskCenter
+                ? { x: rectMaskCenter.x, y: rectMaskCenter.y }
+                : { x: element.x, y: element.y },
             },
           ]) {
             if (
@@ -1351,7 +1363,7 @@ export const convertCircuitJsonToGerberCommands = (
                 apertureSource: glayer,
                 apertureFunction: "SMDPad,CuDef",
                 points: getRotatedRectPoints({
-                  center: { x: element.x, y: element.y },
+                  center,
                   width: apertureConfig.x_size,
                   height: apertureConfig.y_size,
                   ccwRotationDegrees: element.ccw_rotation,
@@ -1368,7 +1380,7 @@ export const convertCircuitJsonToGerberCommands = (
               aperture_number: apertureNumber,
             })
 
-            gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
+            gb.add("flash_operation", { x: center.x, y: mfy(center.y) })
 
             glayer.push(...gb.build())
           }
