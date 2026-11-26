@@ -32,7 +32,7 @@ const getLayerNumber = (layer: LayerRef, layerCount: number) => {
   if (layer === "top") return 1
   if (layer === "bottom") return layerCount
 
-  const innerLayerMatch = layer.match(/^inner([1-6])$/)
+  const innerLayerMatch = layer.match(/^inner([1-9]\d*)$/)
   if (innerLayerMatch) {
     const innerLayerNumber = Number(innerLayerMatch[1])
     if (innerLayerNumber >= 1 && innerLayerNumber <= layerCount - 2) {
