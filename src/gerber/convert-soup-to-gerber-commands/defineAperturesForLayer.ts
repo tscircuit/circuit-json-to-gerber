@@ -745,7 +745,9 @@ function getAllApertureTemplateConfigsForLayer({
         if (
           elm.shape === "oval" ||
           elm.shape === "polygon" ||
-          elm.shape === "rotated_rect"
+          elm.shape === "rotated_rect" ||
+          (elm.shape === "rect" &&
+            getSolderPasteRotation(elm, circuitJson) !== 0)
         ) {
           addConfigIfNew(REGION_APERTURE_CONFIG)
           continue

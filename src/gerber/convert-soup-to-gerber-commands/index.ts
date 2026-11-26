@@ -1479,7 +1479,11 @@ export const convertCircuitJsonToGerberCommands = (
             continue
           }
 
-          if (element.shape === "rotated_rect") {
+          if (
+            element.shape === "rotated_rect" ||
+            (element.shape === "rect" &&
+              getSolderPasteRotation(element, circuitJson) !== 0)
+          ) {
             const glayer = glayers[getGerberLayerName(layer, "paste")]
             addClosedRegionFromPoints({
               target: glayer,
@@ -1488,7 +1492,10 @@ export const convertCircuitJsonToGerberCommands = (
                 center: { x: element.x, y: element.y },
                 width: element.width,
                 height: element.height,
-                ccwRotationDegrees: element.ccw_rotation,
+                ccwRotationDegrees: getSolderPasteRotation(
+                  element,
+                  circuitJson,
+                ),
               }),
             })
             continue
