@@ -11,8 +11,8 @@ export const aperture_block = defineGerberCommand({
     .describe(
       "Aperture block: Opens a block aperture statement and assigns its aperture number or closes a block aperture statement",
     ),
-  stringify() {
-    return ""
+  stringify({ block }) {
+    return `%AB${block}*%`
   },
 })
 
