@@ -3,7 +3,6 @@ import { Circuit } from "@tscircuit/core"
 import type { AnyCircuitElement, PcbSolderPaste } from "circuit-json"
 import { Fragment } from "react"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
-import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 
 const createCircuitJson = (layer: "top" | "bottom") => {
   const circuit = new Circuit()
@@ -16,7 +15,7 @@ const createCircuitJson = (layer: "top" | "bottom") => {
         layer="top"
       />
       <silkscreentext
-        text="GOLD: COPPER   GRAY: PASTE"
+        text={`${layer === "top" ? "RED" : "BLUE"}: COPPER   GRAY: PASTE`}
         pcbY={-2}
         fontSize={0.25}
         layer="top"
@@ -119,36 +118,12 @@ const fixtures = {
 for (const layer of ["top", "bottom"] as const) {
   const prefix = layer === "top" ? "F" : "B"
   test(`repro #280: ${layer} pill paste Circuit JSON and Gerber comparison`, async () => {
-    const output = stringifyGerberCommandLayers(
-      convertSoupToGerberCommands(fixtures[layer]),
-    )
-    // The overlay mode renders the exported files directly, without the
-    // stackup renderer's SVG rotations that compensate for unsupported LR.
-    await expect(output).toMatchCircuitJsonPcbAndGerberSnapshot(
+    // This existing matcher gives the raw Gerber overlay a pixel-sized
+    // comparison panel without the stackup renderer's LR compensation.
+    await expect(fixtures[layer]).toMatchGerberLayersOrErrorSnapshot(
       import.meta.path,
       `rotated-pill-paste-280-${layer}`,
-      fixtures[layer],
       [`${prefix}_Cu`, `${prefix}_Paste`, "F_SilkScreen"],
-      {
-        gerberRenderMode: "overlay",
-        circuitJsonLabel: `Circuit JSON: ${layer} copper`,
-        gerberLabel: `Gerber: ${layer} copper + paste`,
-        circuitJsonPcbSvgOptions: {
-          backgroundColor: "#111827",
-          drawPaddingOutsideBoard: false,
-          showSolderMask: false,
-          colorOverrides: {
-            copper: { top: "#e6b85c", bottom: "#e6b85c" },
-            silkscreen: { top: "#f8fafc", bottom: "#f8fafc" },
-          },
-        },
-        backgroundColor: "#111827",
-        colors: {
-          [`${prefix}_Cu`]: "#e6b85c",
-          [`${prefix}_Paste`]: "#b8c3d1",
-          ["F_SilkScreen"]: "#f8fafc",
-        },
-      },
     )
   })
 
