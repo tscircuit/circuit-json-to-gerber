@@ -77,11 +77,12 @@ test("repro: rotated pill solder paste renders paste apertures without throwing"
   const gerberOutput = getGerberOutput()
 
   expect(gerberOutput.F_Paste.length).toBeGreaterThan(0)
-  // 30° paste flashes under an LR-rotated pill aperture
-  expect(gerberOutput.F_Paste).toContain("%LR30*%")
+  // Rotation is baked into the pill apertures, independent of LR support.
+  expect(gerberOutput.F_Paste).not.toContain("%LR")
+  expect(gerberOutput.F_Paste).toMatch(/%ADD\d+ROTATEDPILL,/)
   expect(gerberOutput.F_Paste).toContain("X-02000000Y000000000D03*")
-  // 90° paste flashes the same pill aperture under an LR rotation
-  expect(gerberOutput.F_Paste).toContain("%LR90*%")
+  // A quarter turn uses a vertical standard obround.
+  expect(gerberOutput.F_Paste).toMatch(/%ADD\d+O,0\.770000X1\.680000\*%/)
   expect(gerberOutput.F_Paste).toContain("X002000000Y000000000D03*")
 
   await expect(gerberOutput).toMatchCircuitJsonPcbAndGerberSnapshot(

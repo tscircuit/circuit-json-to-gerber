@@ -16,6 +16,7 @@ import type {
 import { strokeWidthRatio } from "@tscircuit/alphabet"
 import { isSilkscreenShape } from "./getSilkscreenShapeStroke"
 import stableStringify from "fast-json-stable-stringify"
+import { getSolderPasteRotation } from "./getSolderPasteRotation"
 import type { AnyGerberCommand } from "../any_gerber_command"
 import type { ApertureTemplateConfig } from "../commands/define_aperture_template"
 import { gerberBuilder } from "../gerber-builder"
@@ -422,6 +423,8 @@ export const getApertureConfigFromPcbFabricationNoteDimension = (
 
 export const getApertureConfigFromPcbSolderPaste = (
   elm: PcbSolderPaste,
+  rotationDegrees = "ccw_rotation" in elm ? elm.ccw_rotation : 0,
+  flipYAxis = false,
 ): ApertureTemplateConfig => {
   if (elm.shape === "rect") {
     return {
@@ -445,28 +448,16 @@ export const getApertureConfigFromPcbSolderPaste = (
     }
   }
   if (elm.shape === "pill" || elm.shape === "rotated_pill") {
-    // rotated_pill rotation is handled by the LR command at flash time
-    if (!("width" in elm && "height" in elm)) {
-      throw new Error(
-        "Invalid pill shape in getApertureConfigFromPcbPlatedHole: missing dimensions",
-      )
+    const config = getPillApertureConfig(elm.width, elm.height, rotationDegrees)
+    if (
+      flipYAxis &&
+      "macro_name" in config &&
+      config.macro_name === "ROTATEDPILL"
+    ) {
+      // Mirror the aperture's endpoint along with the flash position.
+      return { ...config, offset_y: -config.offset_y }
     }
-    if (elm.width >= elm.height) {
-      return {
-        macro_name: "HORZPILL",
-        x_size: elm.width,
-        y_size: elm.height,
-        circle_diameter: Math.min(elm.width, elm.height),
-        circle_center_offset: (elm.width - elm.height) / 2,
-      }
-    }
-    return {
-      macro_name: "VERTPILL",
-      x_size: elm.width,
-      y_size: elm.height,
-      circle_diameter: Math.min(elm.width, elm.height),
-      circle_center_offset: (elm.height - elm.width) / 2,
-    }
+    return config
   }
   throw new Error(`Unsupported shape ${(elm as any).shape}`)
 }
@@ -759,16 +750,14 @@ function getAllApertureTemplateConfigsForLayer({
           addConfigIfNew(REGION_APERTURE_CONFIG)
           continue
         }
-        addConfigIfNew(getApertureConfigFromPcbSolderPaste(elm))
-        if (elm.shape === "pill") {
-          addConfigIfNew(
-            getApertureConfigFromPcbSolderPaste({
-              ...elm,
-              width: elm.height,
-              height: elm.width,
-            }),
-          )
-        }
+        addConfigIfNew(
+          getApertureConfigFromPcbSolderPaste(
+            elm,
+            elm.shape === "pill" || elm.shape === "rotated_pill"
+              ? getSolderPasteRotation(elm, circuitJson)
+              : 0,
+          ),
+        )
       }
     } else if (elm.type === "pcb_plated_hole") {
       if (isFabricationLayer) continue

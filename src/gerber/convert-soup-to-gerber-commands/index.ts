@@ -1,3 +1,4 @@
+import { getSolderPasteRotation } from "./getSolderPasteRotation"
 import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
 import {
   getPillApertureConfig,
@@ -1494,54 +1495,30 @@ export const convertCircuitJsonToGerberCommands = (
           }
 
           const glayer = glayers[getGerberLayerName(layer, "paste")]
-          let rotation = 0
-          if (
-            "ccw_rotation" in element &&
-            typeof element.ccw_rotation === "number"
-          ) {
-            rotation = element.ccw_rotation
-          } else {
-            // Solder paste has no rotation, so use the matching plated hole's rotation.
-            const platedHole = circuitJson.find(
-              (
-                candidate,
-              ): candidate is PcbPlatedHole & { ccw_rotation: number } =>
-                candidate.type === "pcb_plated_hole" &&
-                candidate.x === element.x &&
-                candidate.y === element.y &&
-                "ccw_rotation" in candidate &&
-                typeof candidate.ccw_rotation === "number",
-            )
-            if (platedHole) {
-              rotation = platedHole.ccw_rotation
-            }
-          }
-
-          let apertureConfig = getApertureConfigFromPcbSolderPaste(element)
-          if (
-            element.shape === "pill" &&
-            (rotation === 90 || rotation === 270)
-          ) {
-            apertureConfig = getApertureConfigFromPcbSolderPaste({
-              ...element,
-              width: element.height,
-              height: element.width,
-            })
-            rotation = 0
-          }
+          const rotation = getSolderPasteRotation(element, circuitJson)
+          const isPill =
+            element.shape === "pill" || element.shape === "rotated_pill"
+          const apertureConfig = getApertureConfigFromPcbSolderPaste(
+            element,
+            rotation,
+            opts.flip_y_axis,
+          )
+          // Pill apertures already contain the complete, optionally reflected
+          // geometry. Applying LR as well would rotate them a second time.
+          const loadRotation = isPill ? 0 : rotation
 
           const aperture_number = findApertureNumber(glayer, apertureConfig)
 
           const gb = gerberBuilder().add("select_aperture", {
             aperture_number,
           })
-          if (rotation) {
+          if (loadRotation) {
             gb.add("load_rotation", {
-              rotation_degrees: rotation,
+              rotation_degrees: loadRotation,
             })
           }
           gb.add("flash_operation", { x: element.x, y: mfy(element.y) })
-          if (rotation) {
+          if (loadRotation) {
             gb.add("load_rotation", { rotation_degrees: 0 })
           }
           glayer.push(...gb.build())
