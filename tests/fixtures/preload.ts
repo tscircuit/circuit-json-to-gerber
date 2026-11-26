@@ -27,8 +27,6 @@ type GerberLayerOverlaySnapshotOptions = {
 
 type CircuitJsonPcbGerberSnapshotOptions = GerberLayerOverlaySnapshotOptions & {
   circuitJsonPcbSvgOptions?: PcbSvgOptions
-  /** Overlay the exported layers directly, without stackup rendering corrections. */
-  gerberRenderMode?: "stackup" | "overlay"
   circuitJsonLabel?: string
   gerberLabel?: string
   panelWidth?: number
@@ -653,24 +651,15 @@ const renderCircuitJsonPcbAndGerberSnapshotSvg = async ({
     showPcbNotes: false,
     ...opts.circuitJsonPcbSvgOptions,
   })
-  const gerberOptions = {
-    colors: opts.colors,
-    backgroundColor: opts.backgroundColor,
-  }
-  const gerberSvg =
-    opts.gerberRenderMode === "overlay"
-      ? await renderGerberLayerOverlaySvg(
-          gerberOutput,
-          svgName,
-          layerNames,
-          gerberOptions,
-        )
-      : await getGerberStackupSvg(
-          gerberOutput,
-          layerNames,
-          svgName,
-          gerberOptions,
-        )
+  const gerberSvg = await getGerberStackupSvg(
+    gerberOutput,
+    layerNames,
+    svgName,
+    {
+      colors: opts.colors,
+      backgroundColor: opts.backgroundColor,
+    },
+  )
 
   const padding = 28
   const gutter = 28
