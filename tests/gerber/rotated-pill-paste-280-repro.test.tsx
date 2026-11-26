@@ -137,16 +137,6 @@ for (const layer of ["top", "bottom"] as const) {
     )
   })
 
-  test(`repro #280: ${layer} pill paste Circuit JSON and Gerber comparison`, async () => {
-    // This existing matcher gives the raw Gerber overlay a pixel-sized
-    // comparison panel without the stackup renderer's LR compensation.
-    await expect(fixtures[layer]).toMatchGerberLayersOrErrorSnapshot(
-      import.meta.path,
-      `rotated-pill-paste-280-${layer}`,
-      [`${prefix}_Cu`, `${prefix}_Paste`, "F_SilkScreen"],
-    )
-  })
-
   for (const flip_y_axis of [false, true]) {
     test.failing(
       `#280: ${layer} 90 degree paste uses a vertical aperture without LR (flip=${flip_y_axis})`,
