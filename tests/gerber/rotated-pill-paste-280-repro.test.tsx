@@ -118,17 +118,30 @@ const fixtures = {
 
 for (const layer of ["top", "bottom"] as const) {
   const prefix = layer === "top" ? "F" : "B"
-  test(`repro #280: ${layer} pill paste raw Gerber overlay`, async () => {
+  test(`repro #280: ${layer} pill paste Circuit JSON and Gerber comparison`, async () => {
     const output = stringifyGerberCommandLayers(
       convertSoupToGerberCommands(fixtures[layer]),
     )
-    // Unlike the stackup matcher, this renders the exported files directly;
-    // it does not inject SVG rotations to compensate for unsupported LR.
-    await expect(output).toMatchGerberLayerOverlaySnapshot(
+    // The overlay mode renders the exported files directly, without the
+    // stackup renderer's SVG rotations that compensate for unsupported LR.
+    await expect(output).toMatchCircuitJsonPcbAndGerberSnapshot(
       import.meta.path,
       `rotated-pill-paste-280-${layer}`,
+      fixtures[layer],
       [`${prefix}_Cu`, `${prefix}_Paste`, "F_SilkScreen"],
       {
+        gerberRenderMode: "overlay",
+        circuitJsonLabel: `Circuit JSON: ${layer} copper`,
+        gerberLabel: `Gerber: ${layer} copper + paste`,
+        circuitJsonPcbSvgOptions: {
+          backgroundColor: "#111827",
+          drawPaddingOutsideBoard: false,
+          showSolderMask: false,
+          colorOverrides: {
+            copper: { top: "#e6b85c", bottom: "#e6b85c" },
+            silkscreen: { top: "#f8fafc", bottom: "#f8fafc" },
+          },
+        },
         backgroundColor: "#111827",
         colors: {
           [`${prefix}_Cu`]: "#e6b85c",
