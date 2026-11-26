@@ -15,7 +15,7 @@ const renderGerberLayer = (gerber: string, id: string) =>
     })
   })
 
-test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
+test("repro7: rotated pill plated hole copper and paste stay aligned", async () => {
   const circuit = new Circuit()
   circuit.add(
     <board width="11mm" height="11mm">
@@ -52,14 +52,16 @@ test("repro8: rotated pill plated hole copper vs paste mismatch", async () => {
     "rotated-pill-plated-hole-copper-vs-paste-F_Paste",
   )
 
-  expect(pasteSvg).toContain(
-    '<rect x="-449.999" y="-549.999" width="899.998" height="1099.998"/>',
+  const copperSvg = await renderGerberLayer(
+    gerberOutput.F_Cu,
+    "rotated-pill-plated-hole-copper-vs-paste-F_Cu",
   )
-  expect(pasteSvg).not.toContain(
-    '<rect x="-999.998" y="-549.999" width="1999.996" height="1099.998"/>',
+  expect(gerberOutput.F_Paste).not.toContain("%LR")
+  expect(pasteSvg.match(/viewBox="([^"]+)"/)?.[1]).toBe(
+    copperSvg.match(/viewBox="([^"]+)"/)?.[1],
   )
 
-  expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
+  await expect(gerberOutput).toMatchGerberLayerOverlaySnapshot(
     import.meta.path,
     "",
     ["F_Cu", "F_Paste"],

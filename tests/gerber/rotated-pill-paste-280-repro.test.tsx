@@ -140,53 +140,48 @@ for (const layer of ["top", "bottom"] as const) {
   })
 
   for (const flip_y_axis of [false, true]) {
-    test.failing(
-      `#280: ${layer} 90 degree paste uses a vertical aperture without LR (flip=${flip_y_axis})`,
-      () => {
-        const pad = fixtures[layer]
-          .filter((elm) => elm.type === "pcb_solder_paste")
-          .find(
-            (elm) =>
-              elm.type === "pcb_solder_paste" &&
-              elm.shape === "rotated_pill" &&
-              elm.ccw_rotation === 90,
-          )!
-        if (pad.shape !== "rotated_pill")
-          throw new Error("Expected rotated pill fixture")
-        const circuitJson: AnyCircuitElement[] = [
-          fixtures[layer].find((elm) => elm.type === "pcb_board")!,
-          pad,
-        ]
-        const commands = convertSoupToGerberCommands(circuitJson, {
-          flip_y_axis,
-        })[`${prefix}_Paste`]
-        const flash = commands.find(
-          (command) => command.command_code === "D03",
+    test(`#280: ${layer} 90 degree paste uses a vertical aperture without LR (flip=${flip_y_axis})`, () => {
+      const pad = fixtures[layer]
+        .filter((elm) => elm.type === "pcb_solder_paste")
+        .find(
+          (elm) =>
+            elm.type === "pcb_solder_paste" &&
+            elm.shape === "rotated_pill" &&
+            elm.ccw_rotation === 90,
         )!
-        const select = commands.find((command) => command.command_code === "D")
-        if (!select) throw new Error("Missing paste aperture selection")
-        const aperture = commands.find(
-          (command) =>
-            command.command_code === "ADD" &&
-            command.aperture_number === select.aperture_number,
-        )
-        expect(aperture).toMatchObject({ standard_template_code: "O" })
-        if (
-          !aperture ||
-          !("standard_template_code" in aperture) ||
-          aperture.standard_template_code !== "O"
-        )
-          throw new Error("Expected obround paste aperture")
-        expect(aperture.x_size).toBeCloseTo(0.196, 6)
-        expect(aperture.y_size).toBeCloseTo(0.63, 6)
-        expect(flash).toMatchObject({
-          x: pad.x,
-          y: pad.y * (flip_y_axis ? -1 : 1),
-        })
-        expect(commands.some((command) => command.command_code === "LR")).toBe(
-          false,
-        )
-      },
-    )
+      if (pad.shape !== "rotated_pill")
+        throw new Error("Expected rotated pill fixture")
+      const circuitJson: AnyCircuitElement[] = [
+        fixtures[layer].find((elm) => elm.type === "pcb_board")!,
+        pad,
+      ]
+      const commands = convertSoupToGerberCommands(circuitJson, {
+        flip_y_axis,
+      })[`${prefix}_Paste`]
+      const flash = commands.find((command) => command.command_code === "D03")!
+      const select = commands.find((command) => command.command_code === "D")
+      if (!select) throw new Error("Missing paste aperture selection")
+      const aperture = commands.find(
+        (command) =>
+          command.command_code === "ADD" &&
+          command.aperture_number === select.aperture_number,
+      )
+      expect(aperture).toMatchObject({ standard_template_code: "O" })
+      if (
+        !aperture ||
+        !("standard_template_code" in aperture) ||
+        aperture.standard_template_code !== "O"
+      )
+        throw new Error("Expected obround paste aperture")
+      expect(aperture.x_size).toBeCloseTo(0.196, 6)
+      expect(aperture.y_size).toBeCloseTo(0.63, 6)
+      expect(flash).toMatchObject({
+        x: pad.x,
+        y: pad.y * (flip_y_axis ? -1 : 1),
+      })
+      expect(commands.some((command) => command.command_code === "LR")).toBe(
+        false,
+      )
+    })
   }
 }
