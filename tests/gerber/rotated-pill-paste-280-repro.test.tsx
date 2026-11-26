@@ -1,7 +1,9 @@
 import { expect, test } from "bun:test"
 import { Circuit } from "@tscircuit/core"
 import type { AnyCircuitElement, PcbSolderPaste } from "circuit-json"
+import pcbStackup from "pcb-stackup"
 import { Fragment } from "react"
+import { convertCircuitJsonToGerberFiles } from "src"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 
 const createCircuitJson = (layer: "top" | "bottom") => {
@@ -117,6 +119,24 @@ const fixtures = {
 
 for (const layer of ["top", "bottom"] as const) {
   const prefix = layer === "top" ? "F" : "B"
+  test(`repro #280: ${layer} exported Gerber board view`, async () => {
+    const files = convertCircuitJsonToGerberFiles(fixtures[layer])
+    // Render the exported files directly: the shared matcher corrects paste
+    // rotation in the SVG, which would hide this unsupported-LR bug.
+    const stackup = await pcbStackup(
+      Object.entries(files).map(([filename, gerber]) => ({ filename, gerber })),
+      {
+        id: `pill-paste-280-${layer}`,
+        attributes: { width: 960, height: 600 },
+        color: { cf: layer === "top" ? "#ff0000" : "#0000ff" },
+      },
+    )
+    await expect(stackup[layer].svg).toMatchSvgSnapshot(
+      import.meta.path,
+      `rotated-pill-paste-280-gerber-${layer}`,
+    )
+  })
+
   test(`repro #280: ${layer} pill paste Circuit JSON and Gerber comparison`, async () => {
     // This existing matcher gives the raw Gerber overlay a pixel-sized
     // comparison panel without the stackup renderer's LR compensation.
