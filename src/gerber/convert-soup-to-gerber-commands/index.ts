@@ -82,6 +82,7 @@ import {
   isGeometryChangingRectRotation,
 } from "./getRotatedRectPoints"
 import { renderStiffenerLayers } from "./render-stiffener-layers"
+import { sortCopperPoursForLayer } from "./sortCopperPoursForLayer"
 
 type Point = { x: number; y: number }
 
@@ -768,14 +769,11 @@ export const convertCircuitJsonToGerberCommands = (
     return { vertices: new_vertices }
   }
 
-  // FIRST PASS: Process copper pours first
-  // Copper pours must be rendered before traces/pads/vias so that:
-  // 1. Pour is drawn (LPD - dark)
-  // 2. Cutouts are drawn (LPC - clear)
-  // 3. Traces/pads/vias are drawn on top (LPD - dark)
+  // FIRST PASS: Render copper pours outer-to-inner before traces/pads/vias so
+  // enclosing LPC cutouts never erase nested island pours or foreground copper.
   for (const layer of copperLayerRefs) {
-    for (const element of circuitJson) {
-      if (element.type === "pcb_copper_pour" && layer === element.layer) {
+    for (const element of sortCopperPoursForLayer(circuitJson, layer)) {
+      if (layer === element.layer) {
         const copper_glayer = glayers[getGerberLayerName(layer, "copper")]
 
         // Collect all pour commands for this element
