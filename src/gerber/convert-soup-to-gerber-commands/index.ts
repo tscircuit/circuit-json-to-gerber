@@ -915,82 +915,124 @@ export const convertCircuitJsonToGerberCommands = (
       if (element.type === "pcb_trace") {
         if (layer === "edgecut") continue
         const route = element.route
-        for (const [a, b] of pairs(route)) {
-          // TODO b kind of matters here, this doesn't handle a bunch of cases
-          // but the definition of a route is also kind of broken, a "wire" is
-          // a relationship between two points and can't really be a type of
-          // point
-          if (a.route_type === "wire") {
-            if (a.layer === layer) {
-              let bPoint: { x: number; y: number } | null = null
-              if (b.route_type === "wire" || b.route_type === "via") {
-                bPoint = b
-              } else if (b.route_type === "through_pad") {
-                if (b.start_layer === layer) {
-                  bPoint = b.start
-                } else if (b.end_layer === layer) {
-                  bPoint = b.end
-                }
-              }
-              if (!bPoint) continue
-              if (a.x === bPoint.x && a.y === bPoint.y) continue
+        const doesRouteViaTouchLayer = (
+          via: { from_layer: LayerRef; to_layer: LayerRef },
+          targetLayer: LayerRef,
+        ) => {
+          if (via.from_layer === targetLayer || via.to_layer === targetLayer) {
+            return true
+          }
+          const fromIndex = copperLayerRefs.indexOf(via.from_layer)
+          const toIndex = copperLayerRefs.indexOf(via.to_layer)
+          const targetIndex = copperLayerRefs.indexOf(targetLayer)
+          if (fromIndex === -1 || toIndex === -1 || targetIndex === -1) {
+            return false
+          }
+          return (
+            targetIndex >= Math.min(fromIndex, toIndex) &&
+            targetIndex <= Math.max(fromIndex, toIndex)
+          )
+        }
 
-              const glayer = glayers[getGerberLayerName(layer, "copper")]
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, {
-                      trace_width: a.width,
-                    }),
-                  })
-                  .add("move_operation", { x: a.x, y: mfy(a.y) })
-                  .add("plot_operation", { x: bPoint.x, y: mfy(bPoint.y) })
-                  .build(),
-              )
-            }
-          } else if (a.route_type === "via" && b.route_type === "wire") {
-            if (b.layer === layer) {
-              if (a.x === b.x && a.y === b.y) continue
-              const glayer = glayers[getGerberLayerName(layer, "copper")]
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, {
-                      trace_width: b.width,
-                    }),
-                  })
-                  .add("move_operation", { x: a.x, y: mfy(a.y) })
-                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
-                  .build(),
-              )
-            }
-          } else if (
-            a.route_type === "through_pad" &&
-            b.route_type === "wire"
+        for (const point of route) {
+          if (
+            point.route_type === "through_pad" &&
+            point.start_layer === layer &&
+            point.end_layer === layer &&
+            (point.start.x !== point.end.x || point.start.y !== point.end.y)
           ) {
-            if (b.layer === layer) {
-              const aPoint =
-                a.end_layer === layer
+            const glayer = glayers[getGerberLayerName(layer, "copper")]
+            glayer.push(
+              ...gerberBuilder()
+                .add("select_aperture", {
+                  aperture_number: findApertureNumber(glayer, {
+                    trace_width: point.width,
+                  }),
+                })
+                .add("move_operation", {
+                  x: point.start.x,
+                  y: mfy(point.start.y),
+                })
+                .add("plot_operation", {
+                  x: point.end.x,
+                  y: mfy(point.end.y),
+                })
+                .build(),
+            )
+          }
+        }
+
+        for (const [a, b] of pairs(route)) {
+          // Each route segment is only emitted when both endpoints connect on
+          // the active copper layer; cross-layer transitions must break the
+          // stroke instead of bridging disconnected points on one copper layer.
+          const bothMultiLayerTransitions =
+            a.route_type !== "wire" && b.route_type !== "wire"
+
+          const aPoint =
+            a.route_type === "wire"
+              ? a.layer === layer
+                ? a
+                : null
+              : a.route_type === "via"
+                ? (
+                    bothMultiLayerTransitions
+                      ? a.to_layer === layer
+                      : doesRouteViaTouchLayer(a, layer)
+                  )
+                  ? a
+                  : null
+                : a.end_layer === layer
                   ? a.end
-                  : a.start_layer === layer
+                  : !bothMultiLayerTransitions && a.start_layer === layer
                     ? a.start
                     : null
-              if (!aPoint) continue
 
-              const glayer = glayers[getGerberLayerName(layer, "copper")]
-              glayer.push(
-                ...gerberBuilder()
-                  .add("select_aperture", {
-                    aperture_number: findApertureNumber(glayer, {
-                      trace_width: b.width,
-                    }),
-                  })
-                  .add("move_operation", { x: aPoint.x, y: mfy(aPoint.y) })
-                  .add("plot_operation", { x: b.x, y: mfy(b.y) })
-                  .build(),
-              )
-            }
-          }
+          const bPoint =
+            b.route_type === "wire"
+              ? b.layer === layer
+                ? b
+                : null
+              : b.route_type === "via"
+                ? (
+                    bothMultiLayerTransitions
+                      ? b.from_layer === layer
+                      : doesRouteViaTouchLayer(b, layer)
+                  )
+                  ? b
+                  : null
+                : b.start_layer === layer
+                  ? b.start
+                  : !bothMultiLayerTransitions && b.end_layer === layer
+                    ? b.end
+                    : null
+
+          const traceWidth =
+            a.route_type === "wire"
+              ? a.width
+              : b.route_type === "wire"
+                ? b.width
+                : a.route_type === "through_pad"
+                  ? a.width
+                  : b.route_type === "through_pad"
+                    ? b.width
+                    : null
+
+          if (!aPoint || !bPoint || traceWidth === null) continue
+          if (aPoint.x === bPoint.x && aPoint.y === bPoint.y) continue
+
+          const glayer = glayers[getGerberLayerName(layer, "copper")]
+          glayer.push(
+            ...gerberBuilder()
+              .add("select_aperture", {
+                aperture_number: findApertureNumber(glayer, {
+                  trace_width: traceWidth,
+                }),
+              })
+              .add("move_operation", { x: aPoint.x, y: mfy(aPoint.y) })
+              .add("plot_operation", { x: bPoint.x, y: mfy(bPoint.y) })
+              .build(),
+          )
         }
         const board = boardOwners.get(element.pcb_trace_id)
         for (const point of route) {
