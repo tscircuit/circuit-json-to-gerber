@@ -1,5 +1,6 @@
 import type { PcbCutout } from "circuit-json"
 import { gerberBuilder } from "../gerber-builder"
+import { getPolygonSignedArea } from "./getPolygonSignedArea"
 import {
   applyToPoint,
   compose,
@@ -286,20 +287,16 @@ const emitPolygon = ({
   const points = cutout.points
   if (points.length === 0) return
 
-  const isYFlipped = mfy(1) < 0
-  let shouldReverse = !drawCw
-  if (isYFlipped) {
-    shouldReverse = !shouldReverse
-  }
+  const outputPoints = points.map((pt) => ({ x: pt.x, y: mfy(pt.y) }))
+  const signedArea = getPolygonSignedArea(outputPoints)
+  const shouldReverse =
+    (drawCw && signedArea > 0) || (!drawCw && signedArea < 0)
 
-  let ordered = points
-  if (shouldReverse) {
-    ordered = [...points].reverse()
-  }
+  const ordered = shouldReverse ? [...outputPoints].reverse() : outputPoints
 
-  builder.add("move_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
+  builder.add("move_operation", { x: ordered[0].x, y: ordered[0].y })
   for (let i = 1; i < ordered.length; i++) {
-    builder.add("plot_operation", { x: ordered[i].x, y: mfy(ordered[i].y) })
+    builder.add("plot_operation", { x: ordered[i].x, y: ordered[i].y })
   }
-  builder.add("plot_operation", { x: ordered[0].x, y: mfy(ordered[0].y) })
+  builder.add("plot_operation", { x: ordered[0].x, y: ordered[0].y })
 }

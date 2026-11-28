@@ -267,8 +267,13 @@ export const isCutoutFullyInternal = ({
       // Has overlap with the board interior …
       polygonClipping.intersection(boardOutlinePolygon, cutoutOutlinePolygon)
         .length > 0 &&
-      // … but does not extend outside it at all.
+      // … does not extend outside it …
       polygonClipping.difference(cutoutOutlinePolygon, boardOutlinePolygon)
-        .length === 0,
+        .length === 0 &&
+      // … and punches an internal hole instead of notching the outer edge.
+      doesSubtractingCutoutAddHole({
+        boardOutlinePolygon,
+        cutoutOutlinePolygon,
+      }),
   )
 }
