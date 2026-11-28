@@ -1,4 +1,5 @@
 import { getSolderPasteRotation } from "./getSolderPasteRotation"
+import { drawRingToBuilder } from "./drawRingToBuilder"
 import { createBoardOwnerMap } from "@tscircuit/circuit-json-util"
 import {
   getPillApertureConfig,
@@ -665,87 +666,6 @@ export const convertCircuitJsonToGerberCommands = (
     }
   }
 
-  // Helper to draw a ring into a gerber builder (used for copper pours)
-  const drawRingToBuilder = (
-    builder: ReturnType<typeof gerberBuilder>,
-    ring: {
-      vertices: Array<{ x: number; y: number; bulge?: number }>
-    },
-  ) => {
-    if (!ring || ring.vertices.length === 0) return
-
-    builder.add("move_operation", {
-      x: ring.vertices[0].x,
-      y: mfy(ring.vertices[0].y),
-    })
-
-    const vertices_loop = [...ring.vertices, ring.vertices[0]]
-
-    for (let i = 0; i < vertices_loop.length - 1; i++) {
-      const start = vertices_loop[i]
-      const end = vertices_loop[i + 1]
-
-      if (start.bulge && Math.abs(start.bulge) > 1e-9) {
-        const bulge = (opts.flip_y_axis ? -1 : 1) * (start.bulge as number)
-        if (bulge > 0) {
-          // CCW
-          builder.add("set_movement_mode_to_counterclockwise_circular", {})
-        } else {
-          // CW
-          builder.add("set_movement_mode_to_clockwise_circular", {})
-        }
-
-        const p1 = { x: start.x, y: start.y }
-        const p2 = { x: end.x, y: end.y }
-
-        const dx = p2.x - p1.x
-        const dy = p2.y - p1.y
-        const d = Math.sqrt(dx * dx + dy * dy)
-
-        if (d < 1e-9) {
-          builder.add("set_movement_mode_to_linear", {})
-          builder.add("plot_operation", {
-            x: end.x,
-            y: mfy(end.y),
-          })
-          continue
-        }
-
-        const abs_b = Math.abs(bulge)
-        const theta = 4 * Math.atan(abs_b)
-        if (Math.abs(Math.sin(theta / 2)) < 1e-9) {
-          builder.add("set_movement_mode_to_linear", {})
-          builder.add("plot_operation", {
-            x: end.x,
-            y: mfy(end.y),
-          })
-          continue
-        }
-        const R = d / (2 * Math.sin(theta / 2))
-        const alpha = (Math.PI - theta) / 2
-        const phi = Math.atan2(dy, dx)
-        const delta_angle = bulge > 0 ? alpha : -alpha
-        const angle_p1_center = phi + delta_angle
-        const Cx = p1.x + R * Math.cos(angle_p1_center)
-        const Cy = p1.y + R * Math.sin(angle_p1_center)
-
-        const i_offset = Cx - p1.x
-        const j_offset = Cy - p1.y
-
-        builder.add("plot_operation", {
-          x: end.x,
-          y: mfy(end.y),
-          i: i_offset,
-          j: opts.flip_y_axis ? -j_offset : j_offset,
-        })
-      } else {
-        // line
-        builder.add("set_movement_mode_to_linear", {})
-        builder.add("plot_operation", { x: end.x, y: mfy(end.y) })
-      }
-    }
-  }
-
   // To conform to Gerber spec (CCW outer, CW inner) from tscircuit
   // spec (CW outer, CCW inner), we must reverse both.
   const reverseRing = (ring: {
@@ -792,7 +712,11 @@ export const convertCircuitJsonToGerberCommands = (
             .add("select_aperture", { aperture_number: regionApertureNumber })
             .add("start_region_statement", {})
 
-          drawRingToBuilder(outer_builder, reverseRing(outer_ring))
+          drawRingToBuilder({
+            builder: outer_builder,
+            ring: reverseRing(outer_ring),
+            flipYAxis: Boolean(opts.flip_y_axis),
+          })
 
           outer_builder.add("end_region_statement", {})
           all_pour_commands.push(...outer_builder.build())
@@ -816,7 +740,11 @@ export const convertCircuitJsonToGerberCommands = (
 
               // For clear polarity, we don't need to reverse - draw as-is
               // The polarity handles the "hole" semantics
-              drawRingToBuilder(inner_builder, inner_ring)
+              drawRingToBuilder({
+                builder: inner_builder,
+                ring: inner_ring,
+                flipYAxis: Boolean(opts.flip_y_axis),
+              })
 
               inner_builder.add("end_region_statement", {})
               all_pour_commands.push(...inner_builder.build())
@@ -1124,7 +1052,11 @@ export const convertCircuitJsonToGerberCommands = (
           const outerBuilder = gerberBuilder()
             .add("select_aperture", { aperture_number: regionApertureNumber })
             .add("start_region_statement", {})
-          drawRingToBuilder(outerBuilder, reverseRing(outer_ring))
+          drawRingToBuilder({
+            builder: outerBuilder,
+            ring: reverseRing(outer_ring),
+            flipYAxis: Boolean(opts.flip_y_axis),
+          })
           outerBuilder.add("end_region_statement", {})
           glayer.push(...outerBuilder.build())
 
@@ -1141,7 +1073,11 @@ export const convertCircuitJsonToGerberCommands = (
                   aperture_number: regionApertureNumber,
                 })
                 .add("start_region_statement", {})
-              drawRingToBuilder(innerBuilder, inner_ring)
+              drawRingToBuilder({
+                builder: innerBuilder,
+                ring: inner_ring,
+                flipYAxis: Boolean(opts.flip_y_axis),
+              })
               innerBuilder.add("end_region_statement", {})
               glayer.push(...innerBuilder.build())
             }
