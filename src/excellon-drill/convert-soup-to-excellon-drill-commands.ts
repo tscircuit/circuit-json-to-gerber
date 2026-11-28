@@ -3,6 +3,7 @@ import type { AnyExcellonDrillCommand } from "./any-excellon-drill-command-map"
 import { excellonDrill } from "./excellon-drill-builder"
 import polygonClipping, { type Polygon, type Ring } from "polygon-clipping"
 import { getBoundFromCenteredRect } from "@tscircuit/math-utils"
+import { getBoardLayerCount } from "../utils/getBoardLayerCount"
 
 export type DrillLayerSpan = {
   from_layer: LayerRef
@@ -18,21 +19,13 @@ type DrillElement =
   | Exclude<AnyCircuitElement, { type: "pcb_cutout" }>
   | InternalCircularCutoutDrillElement
 
-const getLayerCount = (circuitJson: Array<AnyCircuitElement>) => {
-  const board = circuitJson.find((element) => element.type === "pcb_board") as
-    | { num_layers?: number }
-    | undefined
-  if (!board || typeof board.num_layers !== "number") {
-    return 2
-  }
-  return Math.max(2, board.num_layers)
-}
+const getLayerCount = getBoardLayerCount
 
 const getLayerNumber = (layer: LayerRef, layerCount: number) => {
   if (layer === "top") return 1
   if (layer === "bottom") return layerCount
 
-  const innerLayerMatch = layer.match(/^inner([1-6])$/)
+  const innerLayerMatch = layer.match(/^inner([1-8])$/)
   if (innerLayerMatch) {
     const innerLayerNumber = Number(innerLayerMatch[1])
     if (innerLayerNumber >= 1 && innerLayerNumber <= layerCount - 2) {

@@ -82,6 +82,7 @@ import {
   isGeometryChangingRectRotation,
 } from "./getRotatedRectPoints"
 import { renderStiffenerLayers } from "./render-stiffener-layers"
+import { getBoardLayerCount } from "../../utils/getBoardLayerCount"
 
 type Point = { x: number; y: number }
 
@@ -150,14 +151,6 @@ const emitEdgeCutRing = (
   }
 }
 
-const getLayerCount = (circuitJson: AnyCircuitElement[]) => {
-  const board = circuitJson.find((element) => element.type === "pcb_board") as
-    | { num_layers?: number }
-    | undefined
-  const numLayers = board?.num_layers ?? 2
-  return Math.max(2, Math.min(10, numLayers))
-}
-
 const getInnerLayerRefs = (layerCount: number): LayerRef[] =>
   Array.from({ length: layerCount - 2 }, (_, i) => `inner${i + 1}` as LayerRef)
 
@@ -188,7 +181,7 @@ export const convertCircuitJsonToGerberCommands = (
   opts.flip_y_axis ??= false
   const hasPanel = circuitJson.some((e) => e.type === "pcb_panel")
   const hasBoard = circuitJson.some((e) => e.type === "pcb_board")
-  const layerCount = getLayerCount(circuitJson)
+  const layerCount = getBoardLayerCount(circuitJson)
   const innerLayerRefs = getInnerLayerRefs(layerCount)
   const copperLayerRefs = ["top", ...innerLayerRefs, "bottom"] as LayerRef[]
   const fabricationLayerRefs = getFabricationLayerRefs(circuitJson)
