@@ -7,12 +7,9 @@ import pcbStackup, { type Stackup } from "pcb-stackup"
 import { convertSoupToGerberCommands } from "src/gerber/convert-soup-to-gerber-commands"
 import { stringifyGerberCommandLayers } from "src/gerber/stringify-gerber"
 import { Readable } from "stream"
+import { type DrillSlot, parseDrillSlots } from "./parse-drill-slots"
 
-type Slot = {
-  start: { x: number; y: number }
-  end: { x: number; y: number }
-  diameter: number
-}
+type Slot = DrillSlot
 
 type PasteRotationQueues = Map<string, number[]>
 
@@ -71,68 +68,6 @@ const toMicrons = (valueMm: number) => valueMm * 1000
 const toFixedKey = (value: number) => value.toFixed(3)
 
 const parseGerberNumber = (value: string) => Number(value) / 1_000_000
-
-const parseDrillSlots = (drill?: string): Slot[] => {
-  if (!drill) return []
-
-  const slots: Slot[] = []
-  const toolDiameters: Record<string, number> = {}
-  let currentToolDiameter: number | undefined
-  let lastPoint: { x: number; y: number } | undefined
-
-  const toolDefineRegex = /^T(\d+)C([\d.]+)/
-  const toolSelectRegex = /^T(\d+)$/
-  const moveRegex = /^X(-?[\d.]+)Y(-?[\d.]+)/
-  const slotRegex = /^G85X(-?[\d.]+)Y(-?[\d.]+)/
-
-  for (const rawLine of drill.split(/\r?\n/)) {
-    const line = rawLine.trim()
-    if (!line) continue
-
-    const toolDefineMatch = line.match(toolDefineRegex)
-    if (toolDefineMatch) {
-      const [, toolId, diameterStr] = toolDefineMatch
-      const diameter = Number(diameterStr)
-      if (Number.isFinite(diameter)) {
-        toolDiameters[toolId] = diameter
-        currentToolDiameter = diameter
-      }
-      continue
-    }
-
-    const toolSelectMatch = line.match(toolSelectRegex)
-    if (toolSelectMatch) {
-      const [, toolId] = toolSelectMatch
-      const diameter = toolDiameters[toolId]
-      currentToolDiameter = diameter
-      continue
-    }
-
-    const moveMatch = line.match(moveRegex)
-    if (moveMatch) {
-      lastPoint = {
-        x: Number(moveMatch[1]),
-        y: Number(moveMatch[2]),
-      }
-      continue
-    }
-
-    const slotMatch = line.match(slotRegex)
-    if (slotMatch && lastPoint && currentToolDiameter) {
-      slots.push({
-        start: { ...lastPoint },
-        end: { x: Number(slotMatch[1]), y: Number(slotMatch[2]) },
-        diameter: currentToolDiameter,
-      })
-      lastPoint = {
-        x: Number(slotMatch[1]),
-        y: Number(slotMatch[2]),
-      }
-    }
-  }
-
-  return slots
-}
 
 const buildCapsulePath = ({ start, end, diameter }: Slot) => {
   const sx = toMicrons(start.x)

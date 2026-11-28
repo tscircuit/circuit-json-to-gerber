@@ -9,5 +9,5 @@ export const G85 = defineExcellonDrillCommand({
     y: z.number(),
     width: z.number(), // slot width = tool diameter
   }),
-  stringify: ({ x, y }) => `G85X${x.toFixed(3)}Y${y.toFixed(3)}`,
+  stringify: ({ x, y }) => `G85X${x.toFixed(4)}Y${y.toFixed(4)}`,
 })
